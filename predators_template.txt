@@ -1,0 +1,347 @@
+FLOCK TOGETHER — PREDATOR DATA (16 total: 10 base + 6 Eggspansion)
+=================================================================
+Instructions: Fill in every [bracket]. Delete the brackets, keep the text.
+"Health Multiplier" is the number shown like "x4" on the card — actual health
+= multiplier x number of players. If a predator is Boss-eligible, note that
+too (per the rulebook, all 4 base "slots" can hold a Boss; with the
+expansion there may be more Boss-eligible predators — just note whatever the
+card/box says, or "unknown" if not marked).
+Species already filled in where known from the rulebook. The 6 Eggspansion
+slots are blank — please fill in name + species.
+=================================================================
+
+==================================================
+PREDATOR: Eggsmeralda (Snake)
+==================================================
+STAGE 1
+  Health Multiplier: x2
+  Predator Effect: "4-6: Eggsmeralda heals 1 health" Cannot heal after defeat
+  Return Attack (claws): 1
+
+STAGE 2
+  Health Multiplier: x3 
+  Predator Effect: "3-4: Take egg from attacker. 5-6: Take egg from every player."
+  Return Attack (claws): 2
+
+STAGE 3
+  Health Multiplier: x4
+  Predator Effect: "3-4: Take 2 eggs from attacker. 5-6: Take 2 eggs from every player."
+  Return Attack (claws): 3
+
+LOOT DROP: Egg Stash - Place 3 eggs on this card. You may take or distribute to nearby players as desired. Stash is immune to predator and weather effects. (Permanent)
+==================================================
+
+==================================================
+PREDATOR: Sal Moe Nella (Rat)
+==================================================
+STAGE 1
+  Health Multiplier: x2
+  Predator Effect: "4-6: You may not Eat until the next Egg Exchange"
+  Return Attack (claws): 1
+
+STAGE 2
+  Health Multiplier: x3
+  Predator Effect: "3-4: You may not Eat until the next Egg Exchange. 5-6: You may not Heal until the next Egg Exchange"
+  Return Attack (claws): 2
+
+STAGE 3
+  Health Multiplier: x4
+  Predator Effect: "1-3: You may not Eat until the next Egg Exchange. 4-6: You may not Heal until the next Egg Exchange"
+  Return Attack (claws): 3
+
+LOOT DROP: Food Stash - Place 3 food on this card. You may take or distribute to nearby players as desired. Stash is immune to predator and weather effects. (Permanent)
+==================================================
+
+==================================================
+PREDATOR: Professor Moltiarty (Skunk)
+==================================================
+STAGE 1
+  Health Multiplier: x2
+  Predator Effect: Attacker skips free food production until next Egg exchange
+  Return Attack (claws): 1
+
+STAGE 2
+  Health Multiplier: x3
+  Predator Effect: "4-6: Attacker may not participate in the next Egg Exchange"
+  Return Attack (claws): 2
+
+STAGE 3
+  Health Multiplier: 4
+  Predator Effect: "Attacker may not participate in next Egg Exchange"
+  Return Attack (claws): 3
+
+LOOT DROP: Gas Mask - A predators attack is -1 for an entire day. Can be used at any time on a nearby Predator. (Single Use)
+==================================================
+
+==================================================
+PREDATOR: Gravekeeper Fowl (Opossum) — default first-game Boss
+==================================================
+STAGE 1
+  Health Multiplier: x3
+  Predator Effect: "Cannot be attacked on the day a player moves into his area. When Predator is defeated, roll. If 5-6: Predator comes back to life with 1 health"
+  Return Attack (claws): 2
+
+STAGE 2
+  Health Multiplier: x3
+  Predator Effect: "Cannot be attacked on the day a player moves into his area. When Predator is defeated, roll. If 5-6: Predator comes back to life with 2 health"
+  Return Attack (claws): 3
+
+STAGE 3 (used as Boss form, health multiplier +3 when revealed as Boss)
+  Health Multiplier: x4 (base, before the Boss +3 bonus)
+  Predator Effect: "When Predator is defeated, roll. If 5-6: Predator comes back to life with 3 health"
+  Return Attack (claws): 4
+
+LOOT DROP: Gravekeeper's Light - If you die, come back to life with 1 health (single-use)
+==================================================
+
+==================================================
+PREDATOR: Owl Coopone (Owl)
+==================================================
+STAGE 1
+  Health Multiplier: x2
+  Predator Effect: During Nighttime weather, Preadtor has +2 health and +1 attack. Cannot use Bonus or Grub Cards to dodge Predator attacks
+  Return Attack (claws): 2
+
+STAGE 2
+  Health Multiplier: x3
+  Predator Effect: During Sunny weather, Preadator has +3 health. Cannot use Bonus or Grub Cards to dodge Predator attacks
+  Return Attack (claws): 3
+
+STAGE 3
+  Health Multiplier: x4
+  Predator Effect: During Snow weather, Preadtor has +4 health. Cannot use Bonus or Grub Cards to dodge predator attacks.
+  Return Attack (claws): 4
+
+LOOT DROP: Monocle - Never miss any attacks (permanent)
+==================================================
+
+==================================================
+PREDATOR: Hens Gruber (species: Raccoon)
+==================================================
+STAGE 1
+  Health Multiplier: x2
+  Predator Effect: "3-4: Lose 1 food. 5-6: Lose 2 food"
+  Return Attack (claws): 2
+
+STAGE 2
+  Health Multiplier: x3
+  Predator Effect: "1-2: Lose 1 food. 3-4: Lose 2 food. 5-6: Lose 3 food"
+  Return Attack (claws): 3
+
+STAGE 3
+  Health Multiplier: x4
+  Predator Effect: "1: Lose 1 food. 2-4: Lose 2 food. 5-6: Lose 3 food"
+  Return Attack (claws): 4
+
+LOOT DROP: Bandit Mask - Predator Attacks to you are -1 (multi-use)
+==================================================
+
+==================================================
+PREDATOR: Shere Corn (species: Coyote)
+==================================================
+STAGE 1
+  Health Multiplier: x3
+  Predator Effect: "4-6: All nearby players take 1 splash damage"
+  Return Attack (claws): 2
+
+STAGE 2
+  Health Multiplier: x4
+  Predator Effect: "1-2: All nearby players take 1 splash damage. 3-5: 2 splash damage. 6: 3 splash damage"
+  Return Attack (claws): 3
+
+STAGE 3
+  Health Multiplier: x5
+  Predator Effect: "1: All nearby players take 1 splash damage. 2-4: 2 splash damage. 5-6: 3 splash damage"
+  Return Attack (claws): 4
+
+LOOT DROP: Signature Cloak - Increase your health capacity by 1 (permanent)
+==================================================
+
+==================================================
+PREDATOR: Chicksune (species: Fox)
+==================================================
+STAGE 1
+  Health Multiplier: x3
+  Predator Effect: Immune to Bonus Card effects
+  Return Attack (claws): 1
+
+STAGE 2
+  Health Multiplier: x3
+  Predator Effect: Roll for predator heal. 5: heal 1 health. 6: heal 2 health. Cannot heal after defeat
+  Return Attack (claws): 2
+
+STAGE 3
+  Health Multiplier: x4
+  Predator Effect: Roll for predator heal. 4: heal 1 health. 5: heal 2 health. 6: heal 3 health. Cannot heal after defeat
+  Return Attack (claws): 3
+
+LOOT DROP: Fox's Staff - Imbued with cleverness. Roll for Predator effect twice. Pick the best one for you (permanent)
+==================================================
+
+==================================================
+PREDATOR: Cleopoultra (species: Hawk)
+==================================================
+STAGE 1
+  Health Multiplier: x2
+  Predator Effect: "5-6: Predator dodges attack. Only suffer -1 return attack"
+  Return Attack (claws): 2
+
+STAGE 2
+  Health Multiplier: x3
+  Predator Effect: "5-6: Predator dodges attack. Only suffer -1 return attack"
+  Return Attack (claws): 3
+
+STAGE 3
+  Health Multiplier: x4
+  Predator Effect: "4-6: Predator dodges attack. Only suffer -1 return attack"
+  Return Attack (claws): 4
+
+LOOT DROP: Arrow Pack - Distance Attack. -1 health to any revealed enemy for 1 action and 1 food per arrow (multi-use])
+==================================================
+
+==================================================
+PREDATOR: Ursula Bone (species: Bear)
+==================================================
+STAGE 1
+  Health Multiplier: x3
+  Predator Effect: "4-6: Return attack is +1"
+  Return Attack (claws): 2
+
+STAGE 2
+  Health Multiplier: x4
+  Predator Effect: "2-5: Return attack is +1. 6: Return attack is +2"
+  Return Attack (claws): 2
+
+STAGE 3
+  Health Multiplier: x5
+  Predator Effect: "1-2: Return attack is +1. 3-5: Return attack is +2. 6: Return attack is +3"
+  Return Attack (claws): 3
+
+LOOT DROP: Brass Knuckles - Increase your attack by 1 (permanent)
+==================================================
+
+==================================================
+PREDATOR: Chew Bawka (species: Bobcat)
+==================================================
+STAGE 1
+  Health Multiplier: x2
+  Predator Effect: Return attack is +1 for every chicken in the Coop
+  Return Attack (claws): 1
+
+STAGE 2
+  Health Multiplier: x3
+  Predator Effect: Return attack is +1 for every teammate in this location
+  Return Attack (claws): 2
+
+STAGE 3
+  Health Multiplier: x4
+  Predator Effect: Return attack is +1 for each chicken in every other Outside location
+  Return Attack (claws): 3
+
+LOOT DROP: Healing Poultice - As a free action, you may heal every player in your location 1 heart (multi-use)
+==================================================
+
+==================================================
+PREDATOR: Weasma and Clawnk (species: Weasels)
+==================================================
+STAGE 1
+  Health Multiplier: x3
+  Predator Effect: "Roll before attack. 4-6: Move out of this location" (Deal and take no DMG, keep food, and pick your destination)
+  Return Attack (claws): 1
+
+STAGE 2
+  Health Multiplier: x3
+  Predator Effect: "Roll before attack. 3-6: Move out of this location" (Deal and take no DMG, keep food, and pick your destination)
+  Return Attack (claws): 2
+
+STAGE 3
+  Health Multiplier: x4
+  Predator Effect: "Roll before attack. 1-3: A teammate moves out of this location. 4-6: You are moved out of this location" (Deal and take no DMG, keep food, and pick your destination)
+  Return Attack (claws): 3
+
+LOOT DROP: Secret Tunnels - You may take a free Move action for yourself or any nearby player, as desired. (multi-use)
+==================================================
+
+==================================================
+PREDATOR: Hendel's Mother (species: Badger)
+==================================================
+STAGE 1
+  Health Multiplier: x3
+  Predator Effect: Return attack is +1 if you don't have a bonus card
+  Return Attack (claws): 2
+
+STAGE 2
+  Health Multiplier: x4
+  Predator Effect: "4-6: Discard a Bonus Card after combat is complete"
+  Return Attack (claws): 3
+
+STAGE 3
+  Health Multiplier: x5
+  Predator Effect: "3-4: Discard a Bonus Card after combat. 5-6: Discard a Grub Card after combat"
+  Return Attack (claws): 4
+
+LOOT DROP: Cave Hoard - As a free action, you or a nearby teammate may draw a Bonus Card (multi-use)
+==================================================
+
+==================================================
+PREDATOR: Coopella (species: Cougar)
+==================================================
+STAGE 1
+  Health Multiplier: x3
+  Predator Effect: 4: Exhaust your Extra Action Token. 5-6: Draw a new Weather Card. If you draw Fair, draw again. (Shuffle if needed)
+  Return Attack (claws): 2
+
+STAGE 2
+  Health Multiplier: x4
+  Predator Effect: 2-3: Exhaust your Extra Action Token. 4-6: Draw a new Weather Card. If you draw Sunny, draw again. (Shuffle if needed)
+  Return Attack (claws): 3
+
+STAGE 3
+  Health Multiplier: x5
+  Predator Effect: 1-2: Exhaust your Extra Action Token. 3-6: Draw a new Weather Card. If you draw Snow, draw again. (Shuffle if needed)
+  Return Attack (claws): 4
+
+LOOT DROP: Chamberstick - Every player in your location may refresh their Extra Action Tokens (multi-use)
+==================================================
+
+==================================================
+PREDATOR: Layonardo (species: Snapping Turtle)
+==================================================
+STAGE 1
+  Health Multiplier: x5
+  Predator Effect: 1-3: You may not leave this location until the next Egg Exchange. 4-6: take 1 return attack damage
+  Return Attack (claws): 0
+
+STAGE 2
+  Health Multiplier: x6
+  Predator Effect: 3-6: You may not leave this location until the next Egg Exchange.
+  Return Attack (claws): 1
+
+STAGE 3
+  Health Multiplier: x7
+  Predator Effect: 3-6: You may not leave this location until the next Egg Exchange.
+  Return Attack (claws): 2
+
+LOOT DROP: Portable House - You or a nearby player may ignore weather effects for one turn (multi-use)
+==================================================
+
+==================================================
+PREDATOR: Sheriff of Rottingham (species: Boar)
+==================================================
+STAGE 1
+  Health Multiplier: x3
+  Predator Effect: Roll before attack. 1-3: Return attack is equal to max health of the Inside Grub. 4-6: Return attack is equal to max health of the Outside Grub.
+  Return Attack (claws): 0
+
+STAGE 2
+  Health Multiplier: x4
+  Predator Effect: Roll before attack. 1-3: Return attack is increased by the max health of the Inside Grub. 4-6: Return attack is increased by the max health of the Outside Grub.
+  Return Attack (claws): 1
+
+STAGE 3
+  Health Multiplier: x5
+  Predator Effect: Return attack is equal to the combined max health of the Inside and Outside Grubs. If a deck is empty, add 1 return attack.
+  Return Attack (claws): 0
+
+LOOT DROP: Dungeon Keys - Shuffle the Grub discard pile. Draw until you have two 1 health Grubs. Keep one, give one to a nearby teammate (single-use)
+==================================================

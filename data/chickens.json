@@ -1,0 +1,835 @@
+[
+  {
+    "name": "Shellock Holmes",
+    "breed": "Polish Chicken",
+    "stages": [
+      {
+        "stage": 1,
+        "label": "CHICK",
+        "health": "3",
+        "attackStrength": "1",
+        "production": "+1 food",
+        "mealsToNext": "5",
+        "abilities": [
+          {
+            "name": "Naturalist",
+            "text": "Immune to Pollen. Starts the game with one Bonus Card"
+          }
+        ]
+      },
+      {
+        "stage": 2,
+        "label": "PULLET/COCKEREL",
+        "health": "4",
+        "attackStrength": "2",
+        "production": "Roll 1 die: 3-6 = +1 egg, else nothing",
+        "mealsToNext": "10",
+        "abilities": [
+          {
+            "name": "Informant Network",
+            "text": "Can attack either Grub from any location"
+          }
+        ]
+      },
+      {
+        "stage": 3,
+        "label": "HEN/ROOSTER",
+        "health": "5",
+        "attackStrength": "3",
+        "production": "Roll 1 die: 3-6 = +1 egg, else nothing",
+        "mealsToNext": null,
+        "abilities": [
+          {
+            "name": "Plots & Ploys",
+            "text": "Can use your Grub Cards' hearts to mitigate damage. Discard Grub when fully damaged. Can no longer use the effects of injured Grubs"
+          }
+        ]
+      }
+    ],
+    "flavorQuote": "It is my business to know what other people do not know"
+  },
+  {
+    "name": "Beowing",
+    "breed": "Ayam Cemani",
+    "stages": [
+      {
+        "stage": 1,
+        "label": "CHICK",
+        "health": "3",
+        "attackStrength": "1",
+        "production": "+1 food",
+        "mealsToNext": "4",
+        "abilities": [
+          {
+            "name": "Stargazer",
+            "text": "Immune to Nighttime. Starts the game with one Bonus Card"
+          }
+        ]
+      },
+      {
+        "stage": 2,
+        "label": "PULLET/COCKEREL",
+        "health": "4",
+        "attackStrength": "2",
+        "production": "Roll 1 die: 3-6 = +1 egg, else nothing",
+        "mealsToNext": "9",
+        "abilities": [
+          {
+            "name": "Battle Cry",
+            "text": "Any teammate die rolled nearby is +1. Any Predator die rolled nearby is -1"
+          }
+        ]
+      },
+      {
+        "stage": 3,
+        "label": "HEN/ROOSTER",
+        "health": "5",
+        "attackStrength": "3",
+        "production": "Roll 1 die: 2-6 = +1 egg, else nothing",
+        "mealsToNext": null,
+        "abilities": [
+          {
+            "name": "Berseker",
+            "text": "Whenever you take damage, roll. 3-5 heals 1 heart, 6 heals 2 hearts"
+          }
+        ]
+      }
+    ],
+    "flavorQuote": "I swim in the blackness of night, hunting enemies out in the wilderness... defeat is my errand and the fate they have earned"
+  },
+  {
+    "name": "Wyatt Chirp",
+    "breed": "Silkie",
+    "stages": [
+      {
+        "stage": 1,
+        "label": "CHICK",
+        "health": "3",
+        "attackStrength": "1",
+        "production": "+1 food",
+        "mealsToNext": "5",
+        "abilities": [
+          {
+            "name": "Hardtack",
+            "text": "Starts the game with 1 food"
+          }
+        ]
+      },
+      {
+        "stage": 2,
+        "label": "PULLET/COCKEREL",
+        "health": "4",
+        "attackStrength": "2",
+        "production": "Roll 1 die: 3-6 = +1 egg, else nothing",
+        "mealsToNext": "10",
+        "abilities": [
+          {
+            "name": "Payback",
+            "text": "When you miss a production roll, gain a free meal"
+          }
+        ]
+      },
+      {
+        "stage": 3,
+        "label": "HEN/ROOSTER",
+        "health": "5",
+        "attackStrength": "3",
+        "production": "Roll 1 die: 3-6 = +1 egg, else nothing",
+        "mealsToNext": null,
+        "abilities": [
+          {
+            "name": "Thick Feathers",
+            "text": "All predator return attacks are -1 damage"
+          }
+        ]
+      }
+    ],
+    "flavorQuote": "You gonna do something', or just stand there and cry?"
+  },
+  {
+    "name": "Madam Chickovsky",
+    "breed": "Russian Orloff",
+    "stages": [
+      {
+        "stage": 1,
+        "label": "CHICK",
+        "health": "4",
+        "attackStrength": "2",
+        "production": "+1 food",
+        "mealsToNext": "6",
+        "abilities": [
+          {
+            "name": "Cold-Hardy",
+            "text": "Experiences no negative effects from Freezing Temperatures or Hail"
+          }
+        ]
+      },
+      {
+        "stage": 2,
+        "label": "PULLET/COCKEREL",
+        "health": "5",
+        "attackStrength": "2",
+        "production": "Roll 1 die: 3-6 = +1 egg, else nothing",
+        "mealsToNext": "12",
+        "abilities": [
+          {
+            "name": "Ladies' Aid",
+            "text": "Once per turn you may give away 1 food to a nearby player, if you do, heal 1 heart"
+          }
+        ]
+      },
+      {
+        "stage": 3,
+        "label": "HEN/ROOSTER",
+        "health": "6",
+        "attackStrength": "3",
+        "production": "Roll 1 die: 3-6 = +1 egg, else nothing",
+        "mealsToNext": null,
+        "abilities": [
+          {
+            "name": "Fur Coat",
+            "text": "Can perform all actions Outside"
+          }
+        ]
+      }
+    ],
+    "flavorQuote": "Life is beautiful in spite of everything! There are many thorns, but roses are there too"
+  },
+  {
+    "name": "Cluckleberry Finn",
+    "breed": "Easter Egger",
+    "stages": [
+      {
+        "stage": 1,
+        "label": "CHICK",
+        "health": "3",
+        "attackStrength": "1",
+        "production": "+1 food",
+        "mealsToNext": "5",
+        "abilities": [
+          {
+            "name": "Endowment",
+            "text": "Start the game with one egg"
+          }
+        ]
+      },
+      {
+        "stage": 2,
+        "label": "PULLET/COCKEREL",
+        "health": "4",
+        "attackStrength": "2",
+        "production": "Roll 1 die: 2-6 = +1 egg, else nothing",
+        "mealsToNext": "11",
+        "abilities": [
+          {
+            "name": "Quite Friendly",
+            "text": "Can take one nearby player into combat with you. The other player attacks second."
+          }
+        ]
+      },
+      {
+        "stage": 3,
+        "label": "HEN/ROOSTER",
+        "health": "6",
+        "attackStrength": "3",
+        "production": "Roll 1 die: 3-6 = +1 egg, else nothing",
+        "mealsToNext": null,
+        "abilities": [
+          {
+            "name": "Superior Product",
+            "text": "Your eggs are worth 2x food during the Egg Exchange"
+          }
+        ]
+      }
+    ],
+    "flavorQuote": "The average chicken don't like trouble and danger, but I ain't average"
+  },
+  {
+    "name": "Eggatha Christie",
+    "breed": "Egyptian Fayoumi",
+    "stages": [
+      {
+        "stage": 1,
+        "label": "CHICK",
+        "health": "3",
+        "attackStrength": "1",
+        "production": "+1 food",
+        "mealsToNext": "5",
+        "abilities": [
+          {
+            "name": "Warm-Hardy",
+            "text": "Starts the game with one egg. Immune to Drough and Extreme Heat"
+          }
+        ]
+      },
+      {
+        "stage": 2,
+        "label": "PULLET/COCKEREL",
+        "health": "4",
+        "attackStrength": "2",
+        "production": "Roll 1 die: 3-6 = +1 egg, else nothing",
+        "mealsToNext": "11",
+        "abilities": [
+          {
+            "name": "The Forager",
+            "text": "When Foraging, roll. If 3-6, collect 2 food instead of 1"
+          }
+        ]
+      },
+      {
+        "stage": 3,
+        "label": "HEN/ROOSTER",
+        "health": "6",
+        "attackStrength": "3",
+        "production": "Roll 1 die: 3-6 = +1 egg, else nothing",
+        "mealsToNext": null,
+        "abilities": [
+          {
+            "name": "Tomb Raider",
+            "text": "Once per turn, you may attack a discarded grub. Once a revived grub has been used, remove it from the game"
+          }
+        ]
+      }
+    ],
+    "flavorQuote": "You cannot go on indefinitely being just an ordinary, decent egg. We must be hatched or go bad"
+  },
+  {
+    "name": "Cumberbill Rockefeather",
+    "breed": "Modern Game",
+    "stages": [
+      {
+        "stage": 1,
+        "label": "CHICK",
+        "health": "4",
+        "attackStrength": "1",
+        "production": "+1 food",
+        "mealsToNext": "6",
+        "abilities": [
+          {
+            "name": "Long Legs",
+            "text": "Starts the game with one egg. Immune to Pouring Rain"
+          }
+        ]
+      },
+      {
+        "stage": 2,
+        "label": "PULLET/COCKEREL",
+        "health": "5",
+        "attackStrength": "2",
+        "production": "Roll 1 die: 3-6 = +1 egg, else nothing",
+        "mealsToNext": "13",
+        "abilities": [
+          {
+            "name": "Landlord",
+            "text": "Can move Inside for free"
+          }
+        ]
+      },
+      {
+        "stage": 3,
+        "label": "HEN/ROOSTER",
+        "health": "7",
+        "attackStrength": "3",
+        "production": "Roll 1 die: 3-6 = +1 egg, else nothing",
+        "mealsToNext": null,
+        "abilities": [
+          {
+            "name": "Dandy",
+            "text": "Immune to negative weather"
+          }
+        ]
+      }
+    ],
+    "flavorQuote": "Always turn every disaster into an opportunity"
+  },
+  {
+    "name": "Annie Yolkley",
+    "breed": "Rhode Island Red",
+    "stages": [
+      {
+        "stage": 1,
+        "label": "CHICK",
+        "health": "3",
+        "attackStrength": "1",
+        "production": "+1 food",
+        "mealsToNext": "5",
+        "abilities": [
+          {
+            "name": "Endowment",
+            "text": "Starts the game with one egg"
+          }
+        ]
+      },
+      {
+        "stage": 2,
+        "label": "PULLET/COCKEREL",
+        "health": "4",
+        "attackStrength": "2",
+        "production": "Roll 1 die: 2-6 = +1 egg, else nothing",
+        "mealsToNext": "11",
+        "abilities": [
+          {
+            "name": "Bacaw!",
+            "text": "Lay an egg on the game board wherever you take damage. The egg may be collected by any player in that location"
+          }
+        ]
+      },
+      {
+        "stage": 3,
+        "label": "HEN/ROOSTER",
+        "health": "6",
+        "attackStrength": "3",
+        "production": "Roll 1 die: 3-6 = +1 egg, else nothing",
+        "mealsToNext": null,
+        "abilities": [
+          {
+            "name": "High Producer",
+            "text": "Roll twice for egg during your Production Roll."
+          }
+        ]
+      }
+    ],
+    "flavorQuote": "Words and eggs must be handled with care. Once broken, they are impossible things to repair."
+  },
+  {
+    "name": "General Tso",
+    "breed": "Dragon Chicken",
+    "stages": [
+      {
+        "stage": 1,
+        "label": "CHICK",
+        "health": "3",
+        "attackStrength": "2",
+        "production": "+1 food",
+        "mealsToNext": "6",
+        "abilities": [
+          {
+            "name": "Traveler",
+            "text": "You may start the game Outside. Starts the game with one egg"
+          }
+        ]
+      },
+      {
+        "stage": 2,
+        "label": "PULLET/COCKEREL",
+        "health": "4",
+        "attackStrength": "3",
+        "production": "Roll 1 die: 3-6 = +1 egg, else nothing",
+        "mealsToNext": "12",
+        "abilities": [
+          {
+            "name": "Foresight",
+            "text": "When taking the Draw Card action, you may draw 2 Bonus Cards. Keep 1 and discard the other"
+          }
+        ]
+      },
+      {
+        "stage": 3,
+        "label": "HEN/ROOSTER",
+        "health": "6",
+        "attackStrength": "3",
+        "production": "Roll 1 die: 2-6 = +1 egg, else nothing",
+        "mealsToNext": null,
+        "abilities": [
+          {
+            "name": "Strategem",
+            "text": "For every egg you discard, you may adjust the roll of any die by 1"
+          }
+        ]
+      }
+    ],
+    "flavorQuote": "If you fight with all your might, there is a chance of life; whereas death is certain if you cling to your Coop"
+  },
+  {
+    "name": "Wingston Coophill",
+    "breed": "Serama",
+    "stages": [
+      {
+        "stage": 1,
+        "label": "CHICK",
+        "health": "2",
+        "attackStrength": "1",
+        "production": "+1 food",
+        "mealsToNext": "3",
+        "abilities": [
+          {
+            "name": "Misdirection",
+            "text": "Can discard 2 Bonus Cards to halve the amount of damage taken (rounding down)"
+          }
+        ]
+      },
+      {
+        "stage": 2,
+        "label": "PULLET/COCKEREL",
+        "health": "3",
+        "attackStrength": "1",
+        "production": "Roll 1 die: 3-6 = +1 egg, else nothing",
+        "mealsToNext": "7",
+        "abilities": [
+          {
+            "name": "Smallest Chicken",
+            "text": "When a nearby player leaves your location, you may tag along and go with them"
+          }
+        ]
+      },
+      {
+        "stage": 3,
+        "label": "HEN/ROOSTER",
+        "health": "4",
+        "attackStrength": "2",
+        "production": "Roll 1 die: 2-6 = +1 egg, else nothing",
+        "mealsToNext": null,
+        "abilities": [
+          {
+            "name": "Evasion",
+            "text": "When attacking, roll. If 3-6, Dodge Predator return attack (and effects)."
+          }
+        ]
+      }
+    ],
+    "flavorQuote": "He will defend our Coop whatever the cost may be. We shall fight in the fields; we shall fight in the forests. We shall never surrender."
+  },
+  {
+    "name": "Atilla the Hen",
+    "breed": "Jersey Giant",
+    "stages": [
+      {
+        "stage": 1,
+        "label": "CHICK",
+        "health": "5",
+        "attackStrength": "2",
+        "production": "+1 food",
+        "mealsToNext": "7",
+        "abilities": [
+          {
+            "name": "Big-Boned",
+            "text": "Experiences no negative effects from Tornadoes. Starts the game with 2 food"
+          }
+        ]
+      },
+      {
+        "stage": 2,
+        "label": "PULLET/COCKEREL",
+        "health": "6",
+        "attackStrength": "3",
+        "production": "Roll 1 die: 3-6 = +1 egg, else nothing",
+        "mealsToNext": "15",
+        "abilities": [
+          {
+            "name": "Tank",
+            "text": "You may take some or all damage for other nearby players"
+          }
+        ]
+      },
+      {
+        "stage": 3,
+        "label": "HEN/ROOSTER",
+        "health": "8",
+        "attackStrength": "4",
+        "production": "Roll 1 die: 3-6 = +1 egg, else nothing",
+        "mealsToNext": null,
+        "abilities": [
+          {
+            "name": "Just Reward",
+            "text": "Whenever you take damage for another player, gain 2 eggs"
+          }
+        ]
+      }
+    ],
+    "flavorQuote": "Every day's a lovely day for a group of friends to trample enemies underfoot"
+  },
+  {
+    "name": "Princess Layer",
+    "breed": "Death Layer",
+    "stages": [
+      {
+        "stage": 1,
+        "label": "CHICK",
+        "health": "3",
+        "attackStrength": "1",
+        "production": "+1 food",
+        "mealsToNext": "4",
+        "abilities": [
+          {
+            "name": "Nobility",
+            "text": "Can pay eggs to refresh your Extra Action Token. Starts with one egg"
+          }
+        ]
+      },
+      {
+        "stage": 2,
+        "label": "PULLET/COCKEREL",
+        "health": "4",
+        "attackStrength": "2",
+        "production": "Roll 1 die: 3-6 = +1 egg, else nothing",
+        "mealsToNext": "9",
+        "abilities": [
+          {
+            "name": "Well-Laid Plans",
+            "text": "When taking the Lay Egg action (not production), roll. If 3-6 collect 2 eggs, instead of 1"
+          }
+        ]
+      },
+      {
+        "stage": 3,
+        "label": "HEN/ROOSTER",
+        "health": "5",
+        "attackStrength": "3",
+        "production": "Roll 1 die: 3-6 = +1 egg, else nothing",
+        "mealsToNext": null,
+        "abilities": [
+          {
+            "name": "Eggpire Strikes Back",
+            "text": "Can discard Eggs to mitigate DMG to yourself (1 Egg: 1 Heart)"
+          }
+        ]
+      }
+    ],
+    "flavorQuote": "Aren't you a little short fora  storm cooper?"
+  },
+  {
+    "name": "Chickira",
+    "breed": "Onagadori",
+    "stages": [
+      {
+        "stage": 1,
+        "label": "CHICK",
+        "health": "3",
+        "attackStrength": "1",
+        "production": "+1 food",
+        "mealsToNext": "4",
+        "abilities": [
+          {
+            "name": "Endowment",
+            "text": "Starts the game with one egg"
+          }
+        ]
+      },
+      {
+        "stage": 2,
+        "label": "PULLET/COCKEREL",
+        "health": "4",
+        "attackStrength": "2",
+        "production": "Roll 1 die: 2-6 = +1 egg, else nothing",
+        "mealsToNext": "11",
+        "abilities": [
+          {
+            "name": "Wherever, any Weather",
+            "text": "Free actino: Once per turn, you may roll. If 4-6, Draw a new Weather Card from the appropriate deck. Shuffle if needed."
+          }
+        ]
+      },
+      {
+        "stage": 3,
+        "label": "HEN/ROOSTER",
+        "health": "6",
+        "attackStrength": "3",
+        "production": "Roll 1 die: 3-6 = +1 egg, else nothing",
+        "mealsToNext": null,
+        "abilities": [
+          {
+            "name": "Shake it Off",
+            "text": "If you miss your Production Roll, heal 1 heart"
+          }
+        ]
+      }
+    ],
+    "flavorQuote": "Life is a corn field, don't you think"
+  },
+  {
+    "name": "Broods Lee",
+    "breed": "Japanese Fizzle Chabo",
+    "stages": [
+      {
+        "stage": 1,
+        "label": "CHICK",
+        "health": "4",
+        "attackStrength": "1",
+        "production": "+1 food",
+        "mealsToNext": "6",
+        "abilities": [
+          {
+            "name": "Revenge",
+            "text": "Draw a Bonus Card if you are present when a Predator is defeated"
+          }
+        ]
+      },
+      {
+        "stage": 2,
+        "label": "PULLET/COCKEREL",
+        "health": "5",
+        "attackStrength": "2",
+        "production": "Roll 1 die: 3-6 = +1 egg, else nothing",
+        "mealsToNext": "13",
+        "abilities": [
+          {
+            "name": "Adrenaline",
+            "text": "Max attack strength is +1 if not at full health. (Still pay food cost)"
+          }
+        ]
+      },
+      {
+        "stage": 3,
+        "label": "HEN/ROOSTER",
+        "health": "6",
+        "attackStrength": "3",
+        "production": "Roll 1 die: 3-6 = +1 egg, else nothing",
+        "mealsToNext": null,
+        "abilities": [
+          {
+            "name": "Bolsterer",
+            "text": "Max Strength of nearby players is +1 if they are not at full health"
+          }
+        ]
+      }
+    ],
+    "flavorQuote": "Mistakes are always forgivable if one has the courage to admit them"
+  },
+  {
+    "name": "J.R.R. Yolkien",
+    "breed": "Sebright Chicken",
+    "stages": [
+      {
+        "stage": 1,
+        "label": "CHICK",
+        "health": "3",
+        "attackStrength": "1",
+        "production": "+1 food",
+        "mealsToNext": "5",
+        "abilities": [
+          {
+            "name": "Bookworm",
+            "text": "Has a Bonus Card hand limit of 3. Cannot take damage from Grubs"
+          }
+        ]
+      },
+      {
+        "stage": 2,
+        "label": "PULLET/COCKEREL",
+        "health": "4",
+        "attackStrength": "2",
+        "production": "Roll 1 die: 3-6 = +1 egg, else nothing",
+        "mealsToNext": "10",
+        "abilities": [
+          {
+            "name": "Dedication",
+            "text": "Whenever you take the same action twice on your turn, lay an egg on your space. This egg may be collected by any plater in that location at any time."
+          }
+        ]
+      },
+      {
+        "stage": 3,
+        "label": "HEN/ROOSTER",
+        "health": "6",
+        "attackStrength": "3",
+        "production": "Roll 1 die: 3-6 = +1 egg, else nothing",
+        "mealsToNext": null,
+        "abilities": [
+          {
+            "name": "Deus Eggs Machina",
+            "text": "Immune to Fog. Can pay one egg to re-roll any die (Once per occasion)"
+          }
+        ]
+      }
+    ],
+    "flavorQuote": "I do not love the beak for it's sharpness nor the wing for its swiftness. I love only that which they defend."
+  },
+  {
+    "name": "Cluck Norris",
+    "breed": "Freedom Ranger",
+    "stages": [
+      {
+        "stage": 1,
+        "label": "CHICK",
+        "health": "3",
+        "attackStrength": "2",
+        "production": "+1 food",
+        "mealsToNext": "6",
+        "abilities": [
+          {
+            "name": "Not really a miss",
+            "text": "If you miss an attack, draw a Bonus Card. If a nearby teammate misses an attack, gain one food"
+          }
+        ]
+      },
+      {
+        "stage": 2,
+        "label": "PULLET/COCKEREL",
+        "health": "4",
+        "attackStrength": "2",
+        "production": "Roll 1 die: 3-6 = +1 egg, else nothing",
+        "mealsToNext": "12",
+        "abilities": [
+          {
+            "name": "Always on Purpose",
+            "text": "Free Action. Oce per turn, you may take 1 DMG to gain 2 eggs"
+          }
+        ]
+      },
+      {
+        "stage": 3,
+        "label": "HEN/ROOSTER",
+        "health": "6",
+        "attackStrength": "3",
+        "production": "Roll 1 die: 2-6 = +1 egg, else nothing",
+        "mealsToNext": null,
+        "abilities": [
+          {
+            "name": "Quick Claws",
+            "text": "Free action: Once per turn you may pay an egg to draw a Bonus Card"
+          }
+        ]
+      }
+    ],
+    "flavorQuote": "I can kill two stones with one bird"
+  },
+  {
+    "name": "Aracorn, Heir of Condor",
+    "breed": "La Fleche",
+    "stages": [
+      {
+        "stage": 1,
+        "label": "CHICK",
+        "health": "3",
+        "attackStrength": "1",
+        "production": "+1 food",
+        "mealsToNext": "5",
+        "abilities": [
+          {
+            "name": "Free Range",
+            "text": "You may start the game outside. Everyone in your location is immune to Bird Flu"
+          }
+        ]
+      },
+      {
+        "stage": 2,
+        "label": "PULLET/COCKEREL",
+        "health": "4",
+        "attackStrength": "2",
+        "production": "Roll 1 die: 3-6 = +1 egg, else nothing",
+        "mealsToNext": "11",
+        "abilities": [
+          {
+            "name": "Long Shanks",
+            "text": "Free action: Once per turn, you may move between Outside locations for free."
+          }
+        ]
+      },
+      {
+        "stage": 3,
+        "label": "HEN/ROOSTER",
+        "health": "6",
+        "attackStrength": "3",
+        "production": "Roll 1 die: 3-6 = +1 egg, else nothing",
+        "mealsToNext": null,
+        "abilities": [
+          {
+            "name": "Wilderness Guide",
+            "text": "Immune to Severe Wind. Free action: Once per turn, you may pay an egg to move another player"
+          }
+        ]
+      }
+    ],
+    "flavorQuote": "The beacons are lit! Condor calls for aid! And Rohen will answer!"
+  }
+]

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Flock Together — Min/Max Guide</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <h1>🐔 Flock Together</h1>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main id="app"></main>
+
+<nav class="tabbar" id="tabbar">
+  <button class="tab active" data-tab="chickens">
+    <span class="tab-icon">🐔</span><span>Chickens</span>
+  </button>
+  <button class="tab" data-tab="predators">
+    <span class="tab-icon">🦊</span><span>Predators</span>
+  </button>
+  <button class="tab" data-tab="weather">
+    <span class="tab-icon">🌦️</span><span>Weather</span>
+  </button>
+  <button class="tab" data-tab="strategy">
+    <span class="tab-icon">🧠</span><span>Strategy</span>
+  </button>
+</nav>
+
+<script src="data/app-data.js"></script>
+<script src="data/strategy.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

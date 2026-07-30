@@ -1,0 +1,51 @@
+FLOCK TOGETHER — WEATHER DATA (18 base: 6 per season, + 3 Eggspansion cards)
+=================================================================
+Instructions: Each season deck has 6 cards. Order doesn't matter (they get
+shuffled), just list all 6 per season. "Phase length" = how many days the
+card stays in effect before the next Egg Exchange/Weather draw (2 or 3 days,
+per the rulebook's day 1/3/6 cadence).
+
+Known from the rulebook: "Fair" is the guaranteed top card in Spring,
+"Sunny" in Summer, and "Snow" in Fall for a first-time game (normal games
+shuffle them in like any other card). I don't have their effect text — just
+slot them into whichever numbered spot below matches your deck and fill in
+what they actually do (I'd guess they're no-penalty/neutral or mildly
+positive, but don't want to assume).
+
+I also have a few OTHER card names/effects from rulebook examples, but I
+don't know which season deck they belong to. They're listed at the bottom
+under "UNSORTED KNOWN CARDS" — please move each into its correct season
+section below once you find it in your physical decks, and correct my
+transcription if needed.
+=================================================================
+
+=========== SPRING WEATHER DECK (6 cards) ===========
+1. Fair      - If you Forage at least once on your turn, gain a bonus food (Phase length: [2 or 3] days)
+2. Freezing  - Immediately enter the Coop. Cannot leave the Coop. You may Eat inside during this phase. (Phase length: [2 or 3] days)
+3. Nighttime - Once during this phase, you must perform 1 less action (Phase length: [2 or 3] days)
+4. Drought   - Foraging requires 2 actions (Phase length: [2 or 3] days)
+5. Pollen    - Cannot Fight Grubs (Phase length: [2 or 3] days)
+6. Bird Flu  - Anyone who ends the day near another player loses 1 heart (Phase length: [2 or 3] days)
+
+=========== SUMMER WEATHER DECK (6 cards) ===========
+1. Sunny           - Once during this phase, you may perform 1 extra action (Phase length: [2 or 3] days)
+2. Lightning Storm - If you end your turn Outside, roll. If 1-2, you are struck by lightning and lose 1 health (Phase length: [2 or 3] days)
+3. Flash Flood     - All food must be discarded at the end of this phase (Phase length: [2 or 3] days)
+4. Tornado         - At the beginning of your turn, roll. If 1-2, take 1 less action on your turn. (Phase length: [2 or 3] days)
+5. Pouring Rain    - Skip next Egg Exchange (Phase length: [2 or 3] days)
+6. Heat Wave       - Immediately exit the Coop. Cannot re-enter the Coop (Phase length: [2 or 3] days)
+
+=========== FALL WEATHER DECK (6 cards) ===========
+1. Snow             - If you participate in the next Egg Exchange, gain a bonus 3 food. If in last phase, you may make exchanges during any turn (Phase length: [2 or 3] days)
+2. Hail             - -1 health every time you end your turn Outside (Phase length: [2 or 3] days)
+3. Daylight Savings - All Egg Production rolls require 4-6 (Phase length: [2 or 3] days)
+4. Severe Wind      - Discard a food or egg if you end your turn outside (Phase length: [2 or 3] days)
+5. Fog              - Roll before every attack. If 1-2, your attack misses. (Take no return damage) (Phase length: [2 or 3] days)
+6. Dust Storm       - Your max Attack strength is -1 (Phase length: [2 or 3] days)
+
+=========== EGGSPANSION WEATHER CARDS (3 total) ===========
+Note which season deck each one gets shuffled into, if the expansion says so.
+
+1. Ice Melts  - Season: Spring - At the end of each day, discard the Grubs in both locations (Phase length: [2 or 3] days)
+2. Mudslide   - Season: Summer - Shuffle the rest of the Summer deck. Deal each player a personal Weather Card. That weather is in effect for them until Mudslide is replaced (Phase length: [2 or 3] days)
+3. Earthquake - Season: Fall   - If you have at least one Bonus Card at the start of your turn, discard one of them, and draw a replacement before your production phase (Phase length: [2 or 3] days)

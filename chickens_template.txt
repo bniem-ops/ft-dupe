@@ -1,0 +1,463 @@
+FLOCK TOGETHER — CHICKEN DATA (17 total: 11 base + 6 Eggspansion)
+=================================================================
+Instructions: Fill in every [bracket]. Delete the brackets, keep the text
+(but if you forget and leave them on, like "[3]" instead of "3", that's
+fine too — the build script strips a single layer of brackets automatically).
+Leave a field as [?] if you can't find/read it and want to skip for now.
+Ability text: copy it exactly as printed, including numbers.
+Names for the 11 base chickens are pre-filled — just verify against your book
+and correct if I mis-transcribed the breed. The 6 Eggspansion slots are blank;
+fill in name + breed as you go.
+When a block is done, just leave it in the file — I'll re-read the whole file
+each time you tell me it's updated, so partial progress is fine.
+
+Production field: Stage 1 (Chick) is pre-filled "+1 food" for every chicken —
+confirmed universal by the rulebook, no need to check the card. Stage 2/3
+production is a dice roll for an egg instead of free food; copy the exact
+roll condition off the card in this format:
+  Roll 1 die: <threshold> = +1 egg, else <fallback, if the card states one>
+e.g. "Roll 1 die: 4-6 = +1 egg, else nothing". If a chicken's card shows
+different odds than others, that's expected — transcribe exactly what's
+printed rather than assuming it's the same across breeds.
+=================================================================
+
+==================================================
+CHICKEN: Shellock Holmes (Polish Chicken)
+==================================================
+STAGE 1 - CHICK
+  Health: [3]
+  Attack Strength: [1]
+  Production: +1 food
+  Meals to reach Stage 2: 5
+  Starting Ability: Naturalist - Immune to Pollen. Starts the game with one Bonus Card
+
+STAGE 2 - PULLET/COCKEREL
+  Health: 4
+  Attack Strength: 2
+  Production: [Roll 1 die: 3-6 = +1 egg, else nothing]
+  Meals to reach Stage 3: 10
+  New Ability: Informant Network - Can attack either Grub from any location
+
+STAGE 3 - HEN/ROOSTER
+  Health: 5
+  Attack Strength: 3
+  Production: Roll 1 die: 3-6 = +1 egg, else nothing
+  New Ability: Plots & Ploys - Can use your Grub Cards' hearts to mitigate damage. Discard Grub when fully damaged. Can no longer use the effects of injured Grubs
+
+Flavor quote (optional): "It is my business to know what other people do not know"
+==================================================
+
+==================================================
+CHICKEN: Beowing (Ayam Cemani)
+==================================================
+STAGE 1 - CHICK
+  Health: 3
+  Attack Strength: 1
+  Production: +1 food
+  Meals to reach Stage 2: 4
+  Starting Ability: Stargazer - Immune to Nighttime. Starts the game with one Bonus Card
+
+STAGE 2 - PULLET/COCKEREL
+  Health: 4
+  Attack Strength: 2
+  Production: Roll 1 die: 3-6 = +1 egg, else nothing
+  Meals to reach Stage 3: 9
+  New Ability: Battle Cry - Any teammate die rolled nearby is +1. Any Predator die rolled nearby is -1
+
+STAGE 3 - HEN/ROOSTER
+  Health: 5
+  Attack Strength: 3
+  Production: Roll 1 die: 2-6 = +1 egg, else nothing
+  New Ability: Berseker - Whenever you take damage, roll. 3-5 heals 1 heart, 6 heals 2 hearts
+
+Flavor quote (optional): "I swim in the blackness of night, hunting enemies out in the wilderness... defeat is my errand and the fate they have earned"
+==================================================
+
+==================================================
+CHICKEN: Wyatt Chirp (Silkie)
+==================================================
+STAGE 1 - CHICK
+  Health: 3
+  Attack Strength: 1
+  Production: +1 food
+  Meals to reach Stage 2: 5
+  Starting Ability: Hardtack - Starts the game with 1 food
+
+STAGE 2 - PULLET/COCKEREL
+  Health: 4
+  Attack Strength: 2
+  Production: Roll 1 die: 3-6 = +1 egg, else nothing
+  Meals to reach Stage 3: 10
+  New Ability: Payback - When you miss a production roll, gain a free meal
+
+STAGE 3 - HEN/ROOSTER
+  Health: 5
+  Attack Strength: 3
+  Production: Roll 1 die: 3-6 = +1 egg, else nothing
+  New Ability: Thick Feathers - All predator return attacks are -1 damage
+
+Flavor quote (optional): "You gonna do something', or just stand there and cry?"
+==================================================
+
+==================================================
+CHICKEN: Madam Chickovsky (Russian Orloff)
+==================================================
+STAGE 1 - CHICK
+  Health: 4
+  Attack Strength: 2
+  Production: +1 food
+  Meals to reach Stage 2: 6
+  Starting Ability: Cold-Hardy - Experiences no negative effects from Freezing Temperatures or Hail
+
+STAGE 2 - PULLET/COCKEREL
+  Health: 5
+  Attack Strength: 2
+  Production: Roll 1 die: 3-6 = +1 egg, else nothing 
+  Meals to reach Stage 3: 12
+  New Ability: Ladies' Aid - Once per turn you may give away 1 food to a nearby player, if you do, heal 1 heart
+
+STAGE 3 - HEN/ROOSTER
+  Health: 6
+  Attack Strength: 3
+  Production: Roll 1 die: 3-6 = +1 egg, else nothing
+  New Ability: Fur Coat - Can perform all actions Outside
+
+Flavor quote (optional): "Life is beautiful in spite of everything! There are many thorns, but roses are there too"
+==================================================
+
+==================================================
+CHICKEN: Cluckleberry Finn (Easter Egger)
+==================================================
+STAGE 1 - CHICK
+  Health: 3
+  Attack Strength: 1
+  Production: +1 food
+  Meals to reach Stage 2: 5
+  Starting Ability: Endowment - Start the game with one egg
+
+STAGE 2 - PULLET/COCKEREL
+  Health: 4
+  Attack Strength: 2
+  Production: Roll 1 die: 2-6 = +1 egg, else nothing
+  Meals to reach Stage 3: 11
+  New Ability: Quite Friendly - Can take one nearby player into combat with you. The other player attacks second.
+
+STAGE 3 - HEN/ROOSTER
+  Health: 6
+  Attack Strength: 3
+  Production: Roll 1 die: 3-6 = +1 egg, else nothing
+  New Ability: Superior Product - Your eggs are worth 2x food during the Egg Exchange
+
+Flavor quote (optional): "The average chicken don't like trouble and danger, but I ain't average"
+==================================================
+
+==================================================
+CHICKEN: Eggatha Christie (Egyptian Fayoumi)
+==================================================
+STAGE 1 - CHICK
+  Health: 3
+  Attack Strength: 1
+  Production: +1 food
+  Meals to reach Stage 2: 5
+  Starting Ability: Warm-Hardy - Starts the game with one egg. Immune to Drough and Extreme Heat
+
+STAGE 2 - PULLET/COCKEREL
+  Health: 4
+  Attack Strength: 2
+  Production: Roll 1 die: 3-6 = +1 egg, else nothing
+  Meals to reach Stage 3: 11
+  New Ability: The Forager - When Foraging, roll. If 3-6, collect 2 food instead of 1
+
+STAGE 3 - HEN/ROOSTER
+  Health: 6
+  Attack Strength: 3
+  Production: Roll 1 die: 3-6 = +1 egg, else nothing
+  New Ability: Tomb Raider - Once per turn, you may attack a discarded grub. Once a revived grub has been used, remove it from the game
+
+Flavor quote (optional): "You cannot go on indefinitely being just an ordinary, decent egg. We must be hatched or go bad"
+==================================================
+
+==================================================
+CHICKEN: Cumberbill Rockefeather (Modern Game)
+==================================================
+STAGE 1 - CHICK
+  Health: 4
+  Attack Strength: 1
+  Production: +1 food
+  Meals to reach Stage 2: 6
+  Starting Ability: Long Legs - Starts the game with one egg. Immune to Pouring Rain
+
+STAGE 2 - PULLET/COCKEREL
+  Health: 5
+  Attack Strength: 2
+  Production: Roll 1 die: 3-6 = +1 egg, else nothing
+  Meals to reach Stage 3: 13
+  New Ability: Landlord - Can move Inside for free
+
+STAGE 3 - HEN/ROOSTER
+  Health: 7
+  Attack Strength: 3
+  Production: Roll 1 die: 3-6 = +1 egg, else nothing
+  New Ability: Dandy - Immune to negative weather
+
+Flavor quote (optional): "Always turn every disaster into an opportunity"
+==================================================
+
+==================================================
+CHICKEN: Annie Yolkley (Rhode Island Red)
+==================================================
+STAGE 1 - CHICK
+  Health: 3
+  Attack Strength: 1
+  Production: +1 food
+  Meals to reach Stage 2: 5
+  Starting Ability: Endowment - Starts the game with one egg
+
+STAGE 2 - PULLET/COCKEREL
+  Health: 4
+  Attack Strength: 2
+  Production: Roll 1 die: 2-6 = +1 egg, else nothing
+  Meals to reach Stage 3: 11
+  New Ability: Bacaw! - Lay an egg on the game board wherever you take damage. The egg may be collected by any player in that location
+
+STAGE 3 - HEN/ROOSTER
+  Health: 6
+  Attack Strength: 3
+  Production: Roll 1 die: 3-6 = +1 egg, else nothing
+  New Ability: High Producer - Roll twice for egg during your Production Roll. 
+
+Flavor quote (optional): "Words and eggs must be handled with care. Once broken, they are impossible things to repair."
+==================================================
+
+==================================================
+CHICKEN: General Tso (Dragon Chicken)
+==================================================
+STAGE 1 - CHICK
+  Health: 3
+  Attack Strength: 2
+  Production: +1 food
+  Meals to reach Stage 2: 6
+  Starting Ability: Traveler - You may start the game Outside. Starts the game with one egg
+STAGE 2 - PULLET/COCKEREL
+  Health: 4
+  Attack Strength: 3
+  Production: Roll 1 die: 3-6 = +1 egg, else nothing 
+  Meals to reach Stage 3: 12
+  New Ability: Foresight - When taking the Draw Card action, you may draw 2 Bonus Cards. Keep 1 and discard the other
+
+STAGE 3 - HEN/ROOSTER
+  Health: 6
+  Attack Strength: 3
+  Production: Roll 1 die: 2-6 = +1 egg, else nothing
+  New Ability: Strategem - For every egg you discard, you may adjust the roll of any die by 1
+
+Flavor quote (optional): "If you fight with all your might, there is a chance of life; whereas death is certain if you cling to your Coop"
+==================================================
+
+==================================================
+CHICKEN: Wingston Coophill (Serama)
+==================================================
+STAGE 1 - CHICK
+  Health: 2
+  Attack Strength: 1
+  Production: +1 food
+  Meals to reach Stage 2: 3
+  Starting Ability: Misdirection - Can discard 2 Bonus Cards to halve the amount of damage taken (rounding down)
+
+STAGE 2 - PULLET/COCKEREL
+  Health: 3
+  Attack Strength: 1
+  Production: Roll 1 die: 3-6 = +1 egg, else nothing
+  Meals to reach Stage 3: 7
+  New Ability: Smallest Chicken - When a nearby player leaves your location, you may tag along and go with them
+
+STAGE 3 - HEN/ROOSTER 
+  Health: 4
+  Attack Strength: 2
+  Production: Roll 1 die: 2-6 = +1 egg, else nothing
+  New Ability: Evasion - When attacking, roll. If 3-6, Dodge Predator return attack (and effects).
+
+Flavor quote (optional): "He will defend our Coop whatever the cost may be. We shall fight in the fields; we shall fight in the forests. We shall never surrender."
+==================================================
+
+==================================================
+CHICKEN: Atilla the Hen (Jersey Giant)
+==================================================
+STAGE 1 - CHICK
+  Health: 5
+  Attack Strength: 2
+  Production: +1 food
+  Meals to reach Stage 2: 7
+  Starting Ability: Big-Boned - Experiences no negative effects from Tornadoes. Starts the game with 2 food
+
+STAGE 2 - PULLET/COCKEREL
+  Health: 6
+  Attack Strength: 3
+  Production: Roll 1 die: 3-6 = +1 egg, else nothing
+  Meals to reach Stage 3: 15
+  New Ability: Tank - You may take some or all damage for other nearby players
+
+STAGE 3 - HEN/ROOSTER
+  Health: 8
+  Attack Strength: 4
+  Production: Roll 1 die: 3-6 = +1 egg, else nothing
+  New Ability: Just Reward - Whenever you take damage for another player, gain 2 eggs
+
+Flavor quote (optional): "Every day's a lovely day for a group of friends to trample enemies underfoot"
+==================================================
+
+==================================================
+CHICKEN: Princess Layer (Death Layer)
+==================================================
+STAGE 1 - CHICK
+  Health: 3
+  Attack Strength: 1
+  Production: +1 food
+  Meals to reach Stage 2: 4
+  Starting Ability: Nobility - Can pay eggs to refresh your Extra Action Token. Starts with one egg
+
+STAGE 2 - PULLET/COCKEREL
+  Health: 4
+  Attack Strength: 2
+  Production: Roll 1 die: 3-6 = +1 egg, else nothing
+  Meals to reach Stage 3: 9
+  New Ability: Well-Laid Plans - When taking the Lay Egg action (not production), roll. If 3-6 collect 2 eggs, instead of 1
+
+STAGE 3 - HEN/ROOSTER
+  Health: 5
+  Attack Strength: 3
+  Production: Roll 1 die: 3-6 = +1 egg, else nothing
+  New Ability: Eggpire Strikes Back - Can discard Eggs to mitigate DMG to yourself (1 Egg: 1 Heart)
+
+Flavor quote (optional): "Aren't you a little short fora  storm cooper?"
+==================================================
+
+==================================================
+CHICKEN: Chickira (Onagadori)
+==================================================
+STAGE 1 - CHICK
+  Health: 3
+  Attack Strength: 1
+  Production: +1 food
+  Meals to reach Stage 2: 4
+  Starting Ability: Endowment - Starts the game with one egg
+
+STAGE 2 - PULLET/COCKEREL
+  Health: 4
+  Attack Strength: 2
+  Production: Roll 1 die: 2-6 = +1 egg, else nothing 
+  Meals to reach Stage 3: 11
+  New Ability: Wherever, any Weather - Free actino: Once per turn, you may roll. If 4-6, Draw a new Weather Card from the appropriate deck. Shuffle if needed.
+
+STAGE 3 - HEN/ROOSTER
+  Health: 6
+  Attack Strength: 3
+  Production: Roll 1 die: 3-6 = +1 egg, else nothing 
+  New Ability: Shake it Off - If you miss your Production Roll, heal 1 heart
+
+Flavor quote (optional): "Life is a corn field, don't you think"
+==================================================
+
+==================================================
+CHICKEN: Broods Lee (Japanese Fizzle Chabo)
+==================================================
+STAGE 1 - CHICK
+  Health: 4
+  Attack Strength: 1
+  Production: +1 food
+  Meals to reach Stage 2: 6
+  Starting Ability: Revenge - Draw a Bonus Card if you are present when a Predator is defeated
+
+STAGE 2 - PULLET/COCKEREL
+  Health: 5
+  Attack Strength: 2
+  Production: Roll 1 die: 3-6 = +1 egg, else nothing
+  Meals to reach Stage 3: 13
+  New Ability: Adrenaline - Max attack strength is +1 if not at full health. (Still pay food cost)
+
+STAGE 3 - HEN/ROOSTER
+  Health: 6
+  Attack Strength: 3
+  Production: Roll 1 die: 3-6 = +1 egg, else nothing
+  New Ability: Bolsterer - Max Strength of nearby players is +1 if they are not at full health
+
+Flavor quote (optional): "Mistakes are always forgivable if one has the courage to admit them"
+==================================================
+
+==================================================
+CHICKEN: J.R.R. Yolkien (Sebright Chicken)
+==================================================
+STAGE 1 - CHICK
+  Health: 3
+  Attack Strength: 1
+  Production: +1 food
+  Meals to reach Stage 2: 5
+  Starting Ability: Bookworm - Has a Bonus Card hand limit of 3. Cannot take damage from Grubs
+
+STAGE 2 - PULLET/COCKEREL
+  Health: 4
+  Attack Strength: 2
+  Production: Roll 1 die: 3-6 = +1 egg, else nothing
+  Meals to reach Stage 3: 10
+  New Ability: Dedication - Whenever you take the same action twice on your turn, lay an egg on your space. This egg may be collected by any plater in that location at any time.
+
+STAGE 3 - HEN/ROOSTER
+  Health: 6
+  Attack Strength: 3
+  Production: Roll 1 die: 3-6 = +1 egg, else nothing 
+  New Ability: Deus Eggs Machina - Immune to Fog. Can pay one egg to re-roll any die (Once per occasion)
+
+Flavor quote (optional): "I do not love the beak for it's sharpness nor the wing for its swiftness. I love only that which they defend."
+==================================================
+
+==================================================
+CHICKEN: Cluck Norris (Freedom Ranger)
+==================================================
+STAGE 1 - CHICK
+  Health: 3
+  Attack Strength: 2
+  Production: +1 food
+  Meals to reach Stage 2: 6
+  Starting Ability: Not really a miss - If you miss an attack, draw a Bonus Card. If a nearby teammate misses an attack, gain one food
+
+STAGE 2 - PULLET/COCKEREL
+  Health: 4
+  Attack Strength: 2
+  Production: Roll 1 die: 3-6 = +1 egg, else nothing
+  Meals to reach Stage 3: 12
+  New Ability: Always on Purpose - Free Action. Oce per turn, you may take 1 DMG to gain 2 eggs
+
+STAGE 3 - HEN/ROOSTER
+  Health: 6
+  Attack Strength: 3
+  Production: Roll 1 die: 2-6 = +1 egg, else nothing
+  New Ability: Quick Claws - Free action: Once per turn you may pay an egg to draw a Bonus Card
+
+Flavor quote (optional): "I can kill two stones with one bird"
+==================================================
+
+==================================================
+CHICKEN: Aracorn, Heir of Condor (La Fleche)
+==================================================
+STAGE 1 - CHICK
+  Health: 3
+  Attack Strength: 1
+  Production: +1 food
+  Meals to reach Stage 2: 5
+  Starting Ability: Free Range - You may start the game outside. Everyone in your location is immune to Bird Flu
+
+STAGE 2 - PULLET/COCKEREL
+  Health: 4
+  Attack Strength: 2
+  Production: Roll 1 die: 3-6 = +1 egg, else nothing
+  Meals to reach Stage 3: 11
+  New Ability: Long Shanks - Free action: Once per turn, you may move between Outside locations for free.
+
+STAGE 3 - HEN/ROOSTER
+  Health: 6
+  Attack Strength: 3
+  Production: Roll 1 die: 3-6 = +1 egg, else nothing
+  New Ability: Wilderness Guide - Immune to Severe Wind. Free action: Once per turn, you may pay an egg to move another player
+
+Flavor quote (optional): "The beacons are lit! Condor calls for aid! And Rohen will answer!"
+==================================================
