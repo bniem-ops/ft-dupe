@@ -339,6 +339,13 @@ main {
   gap: 10px;
   margin-top: 8px;
 }
+.modal-actions-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+.modal-actions-col .modal-actions { margin-top: 0; }
 .btn-primary, .btn-secondary {
   flex: 1;
   padding: 12px;
@@ -357,6 +364,27 @@ main {
   color: var(--text-muted);
   border: 1px solid var(--border);
 }
+
+.session-code {
+  font-size: 2.2rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-align: center;
+  padding: 14px;
+  margin: 8px 0 4px 0;
+  background: var(--surface-2);
+  border-radius: var(--radius);
+  color: var(--accent);
+}
+
+.compare-cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-top: 4px;
+}
+.compare-card { margin-bottom: 0; }
+.pick-btn { width: 100%; margin-top: 12px; }
 
 .predator-check-list, .chicken-picker {
   display: grid;
@@ -383,6 +411,7 @@ main {
 @media (min-width: 720px) {
   .modal-backdrop { align-items: center; }
   .modal-card { border-radius: var(--radius); max-height: 80vh; }
+  .compare-cards { grid-template-columns: 1fr 1fr; }
 }
 
 @media (min-width: 720px) {

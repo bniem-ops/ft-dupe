@@ -4,8 +4,9 @@
   const state = {
     tab: 'chickens', search: '', openCards: new Set(), openStage: {},
     strategySection: 'archetypes',
-    setup: null, wizardOpen: false, wizardDraft: null,
+    setup: null, wizardOpen: false, wizardDraft: null, wizardStep: 1,
     compareA: null, compareB: null, myTeam: [],
+    sessionCode: null, sessionData: null, isHost: false, playerName: '', joinError: null,
   };
 
   const appEl = document.getElementById('app');
@@ -40,6 +41,7 @@
     setupBtn.addEventListener('click', () => {
       state.wizardDraft = state.setup ? { ...state.setup, predators: [...state.setup.predators] } : defaultDraft();
       state.wizardOpen = true;
+      state.wizardStep = 1;
       render();
     });
   }
@@ -95,24 +97,12 @@
     return { total, filled };
   }
 
-  function renderChickenCard(c, idx) {
-    const key = 'chk-' + idx;
-    const isOpen = state.openCards.has(key);
-    const { total, filled } = chickenCompleteness(c);
-    const full = filled === total;
-    const name = c.name || `Eggspansion slot #${idx + 1}`;
-    const openStageIdx = state.openStage[key] ?? 0;
-
-    const stageTabs = c.stages.map((s, i) => `
-      <button class="stage-tab ${i === openStageIdx ? 'active' : ''}" data-key="${key}" data-stage="${i}">
-        ${esc(s.label.split(' ')[0] || 'Stage ' + s.stage)}
-      </button>`).join('');
-
+  // Abilities stack — a chicken keeps every prior stage's abilities on top
+  // of its new one (rulebook p.13). Renders the cumulative set for the
+  // selected stage plus its stat grid; shared by the browsable chicken card
+  // and the always-open compare card in the setup wizard.
+  function chickenStageContent(c, openStageIdx) {
     const stage = c.stages[openStageIdx];
-    // Abilities stack — a chicken keeps every prior stage's abilities on
-    // top of its new one (rulebook p.13). Show the cumulative set for the
-    // selected stage, tagging which stage each was gained at so it's clear
-    // what's new vs. carried over.
     const cumulativeAbilities = c.stages
       .slice(0, openStageIdx + 1)
       .flatMap(s => s.abilities.map(a => ({ ...a, gainedAtStage: s.stage })));
@@ -128,6 +118,29 @@
       : `<div class="note">No abilities recorded through this stage yet.</div>`;
 
     return `
+      <div class="stat-grid">
+        ${statBlock('Health', stage.health)}
+        ${statBlock('Attack Strength', stage.attackStrength)}
+        ${statBlock('Production', stage.production)}
+        ${stage.mealsToNext !== undefined && openStageIdx < c.stages.length - 1 ? statBlock('Meals to next stage', stage.mealsToNext) : ''}
+      </div>
+      ${abilities}`;
+  }
+
+  function renderChickenCard(c, idx) {
+    const key = 'chk-' + idx;
+    const isOpen = state.openCards.has(key);
+    const { total, filled } = chickenCompleteness(c);
+    const full = filled === total;
+    const name = c.name || `Eggspansion slot #${idx + 1}`;
+    const openStageIdx = state.openStage[key] ?? 0;
+
+    const stageTabs = c.stages.map((s, i) => `
+      <button class="stage-tab ${i === openStageIdx ? 'active' : ''}" data-key="${key}" data-stage="${i}">
+        ${esc(s.label.split(' ')[0] || 'Stage ' + s.stage)}
+      </button>`).join('');
+
+    return `
       <div class="card ${isOpen ? 'open' : ''}" data-key="${key}">
         <div class="card-head" data-toggle="${key}">
           <div class="card-title">
@@ -141,13 +154,7 @@
         </div>
         <div class="card-body">
           <div class="stage-tabs">${stageTabs}</div>
-          <div class="stat-grid">
-            ${statBlock('Health', stage.health)}
-            ${statBlock('Attack Strength', stage.attackStrength)}
-            ${statBlock('Production', stage.production)}
-            ${stage.mealsToNext !== undefined && openStageIdx < c.stages.length - 1 ? statBlock('Meals to next stage', stage.mealsToNext) : ''}
-          </div>
-          ${abilities}
+          ${chickenStageContent(c, openStageIdx)}
           ${c.flavorQuote ? `<div class="flavor">"${esc(c.flavorQuote)}"</div>` : ''}
         </div>
       </div>`;
@@ -352,6 +359,8 @@
 
     if (tip) out += `<div class="note" style="margin:0 0 10px 4px;">${esc(tip)}</div>`;
 
+    out += renderKnownPredatorsPicker();
+
     if (!results.length) {
       out += `<div class="empty-state">No archetype fully fits that combination yet — try toggling Eggspansion on, since most archetypes need it to staff higher player counts.</div>`;
     } else {
@@ -387,7 +396,7 @@
     return { healthSum, attackSum, mealsSum, avgThreshold, cardDependent };
   }
 
-  function renderComparisonBody(nameA, nameB) {
+  function quickTakeCard(nameA, nameB) {
     const cA = DATA.chickens.find(c => c.name === nameA);
     const cB = DATA.chickens.find(c => c.name === nameB);
     if (!cA || !cB) return '';
@@ -415,6 +424,18 @@
       bullets.push(`${safer}'s kit doesn't depend on Bonus Cards — untouched by Chicksune's card-lockdown effect, where the other isn't.`);
     }
 
+    return staticCard(`
+      <div class="ability">
+        <div class="aname">Quick take</div>
+        ${bullets.length ? bullets.map(b => `<div class="atext" style="margin-bottom:6px;">• ${b}</div>`).join('') : '<div class="atext">These two are close on the numbers — the difference comes down to playstyle (see roles below).</div>'}
+      </div>`);
+  }
+
+  function renderComparisonBody(nameA, nameB) {
+    const cA = DATA.chickens.find(c => c.name === nameA);
+    const cB = DATA.chickens.find(c => c.name === nameB);
+    if (!cA || !cB) return '';
+
     const archA = STRAT.archetypes.find(a => a.name === nameA);
     const archB = STRAT.archetypes.find(a => a.name === nameB);
 
@@ -435,11 +456,7 @@
       </div>`);
 
     return `
-      ${staticCard(`
-        <div class="ability">
-          <div class="aname">Quick take</div>
-          ${bullets.length ? bullets.map(b => `<div class="atext" style="margin-bottom:6px;">• ${b}</div>`).join('') : '<div class="atext">These two are close on the numbers — the difference comes down to playstyle (see roles below).</div>'}
-        </div>`)}
+      ${quickTakeCard(nameA, nameB)}
       ${profile(cA, archA)}
       ${profile(cB, archB)}`;
   }
@@ -464,33 +481,39 @@
   }
 
   // ---------------------------------------------------------------------
+  // KNOWN PREDATORS (inline, relocated out of the setup wizard — see note
+  // where it's rendered: predators aren't revealed until after chickens
+  // are picked, so this only makes sense once the board is actually set up)
+  // ---------------------------------------------------------------------
+  function renderKnownPredatorsPicker() {
+    if (!state.setup) return '';
+    const expansionOn = state.setup.expansion;
+    const known = state.setup.predators;
+    const choices = DATA.predators.filter(p => p.name && (expansionOn || p.expansion !== 'Eggspansion'));
+    const list = choices.map(p => {
+      const checked = known.includes(p.name);
+      const capReached = !checked && known.length >= 3;
+      return `<label class="check-row ${capReached ? 'disabled' : ''}">
+        <input type="checkbox" data-known-predator="${esc(p.name)}" ${checked ? 'checked' : ''} ${capReached ? 'disabled' : ''}>
+        ${esc(p.name)} <span class="text-muted">(${p.species ? esc(p.species) : 'species unknown'})</span>
+      </label>`;
+    }).join('');
+    return `
+      <div class="section-title" style="margin:14px 4px 8px 4px;">Known predators <span class="modal-optional">(optional — up to 3, once the board's revealed)</span></div>
+      <div class="predator-check-list">${list}</div>`;
+  }
+
+  // ---------------------------------------------------------------------
   // MY TEAM
   // ---------------------------------------------------------------------
-  function renderMyTeam() {
+  // Shared by the local "My Team" builder and the live table session view —
+  // both just feed a list of chicken names into the same analysis engine.
+  function renderTeamAnalysis(teamNames, difficulty, knownPredators) {
     const REC = window.FLOCK_RECOMMEND;
-    const roster = DATA.chickens.filter(c => c.name).map(c => c.name).sort();
-    const n = state.setup ? state.setup.players : null;
+    if (!teamNames.length || !REC) return '';
 
+    const analysis = REC.analyzeTeam(teamNames, difficulty);
     let out = staticCard(`
-      <div class="ability">
-        <div class="aname">Pick your team${n ? ` (${n} player${n > 1 ? 's' : ''})` : ''}</div>
-        <div class="atext">Select the chickens you're actually playing to get tailored advice below.</div>
-      </div>`);
-
-    out += `<div class="chicken-picker">${roster.map(name => `
-      <label class="check-row">
-        <input type="checkbox" data-myteam="${esc(name)}" ${state.myTeam.includes(name) ? 'checked' : ''}>
-        ${esc(name)}
-      </label>`).join('')}</div>`;
-
-    if (!state.myTeam.length || !REC) {
-      out += `<div class="empty-state">Pick at least one chicken above to see analysis.</div>`;
-      return out;
-    }
-
-    const analysis = REC.analyzeTeam(state.myTeam, state.setup ? state.setup.difficulty : null);
-
-    out += staticCard(`
       <div class="ability">
         <div class="aname">Role coverage</div>
         ${roleChips(analysis.picked.flatMap(a => a.roles))}
@@ -522,8 +545,8 @@
         </div>`);
     }
 
-    if (state.setup && state.setup.predators.length) {
-      const priority = REC.predatorPriority(state.myTeam, state.setup.predators);
+    if (knownPredators && knownPredators.length) {
+      const priority = REC.predatorPriority(teamNames, knownPredators);
       out += `<div class="section-title">Suggested engagement order</div>`;
       out += priority.map((p, i) => staticCard(`
         <div class="ability">
@@ -532,9 +555,125 @@
             ? `Your team already counters this — ${p.matchedCounters.map(m => esc(m.chicken)).join(', ')}.`
             : `No natural counter on this team yet. Level up and stock resources before engaging, or let the fight come to you.`}</div>
         </div>`)).join('');
-    } else {
-      out += `<div class="note" style="margin-top:8px;">Add known predators in ⚙ Setup to get a suggested engagement order.</div>`;
     }
+
+    return out;
+  }
+
+  function renderMyTeam() {
+    const REC = window.FLOCK_RECOMMEND;
+    const roster = DATA.chickens.filter(c => c.name).map(c => c.name).sort();
+    const n = state.setup ? state.setup.players : null;
+
+    let out = staticCard(`
+      <div class="ability">
+        <div class="aname">Pick your team${n ? ` (${n} player${n > 1 ? 's' : ''})` : ''}</div>
+        <div class="atext">Select the chickens you're actually playing to get tailored advice below.</div>
+      </div>`);
+
+    out += `<div class="chicken-picker">${roster.map(name => `
+      <label class="check-row">
+        <input type="checkbox" data-myteam="${esc(name)}" ${state.myTeam.includes(name) ? 'checked' : ''}>
+        ${esc(name)}
+      </label>`).join('')}</div>`;
+
+    if (!state.myTeam.length || !REC) {
+      out += `<div class="empty-state">Pick at least one chicken above to see analysis.</div>`;
+      return out;
+    }
+
+    out += renderTeamAnalysis(state.myTeam, state.setup ? state.setup.difficulty : null, state.setup ? state.setup.predators : []);
+
+    if (state.setup) {
+      if (!state.setup.predators.length) {
+        out += staticCard(`
+          <div class="ability">
+            <div class="aname">Know any predators yet?</div>
+            <div class="atext">Add them once the board's revealed to get a suggested engagement order.</div>
+          </div>`);
+      }
+      out += renderKnownPredatorsPicker();
+    } else {
+      out += `<div class="note" style="margin-top:8px;">Run ⚙ Setup (expansion/players/difficulty) to unlock a suggested engagement order.</div>`;
+    }
+
+    return out;
+  }
+
+  // ---------------------------------------------------------------------
+  // LIVE TABLE SESSION
+  // ---------------------------------------------------------------------
+  // Each player picks their own chicken on their own device (wizard step
+  // 2, live mode); everyone converges here. Firestore is the source of
+  // truth (state.sessionData), kept in sync via a single live subscription
+  // that re-renders the whole app on every update — same full-rebuild
+  // model the rest of the app already uses.
+  let sessionUnsub = null;
+  let sessionSubscribedCode = null;
+
+  function ensureSessionSubscription() {
+    if (!state.sessionCode || !window.FLOCK_SESSION) return;
+    if (sessionSubscribedCode === state.sessionCode) return;
+    if (sessionUnsub) { sessionUnsub(); sessionUnsub = null; }
+    sessionSubscribedCode = state.sessionCode;
+    sessionUnsub = window.FLOCK_SESSION.subscribe(state.sessionCode, (data) => {
+      state.sessionData = data;
+      render();
+    });
+  }
+
+  function sessionPredatorChecklist(data) {
+    const expansionOn = data.expansion;
+    const known = data.predators || [];
+    const choices = DATA.predators.filter(p => p.name && (expansionOn || p.expansion !== 'Eggspansion'));
+    return choices.map(p => {
+      const checked = known.includes(p.name);
+      const capReached = !checked && known.length >= 3;
+      return `<label class="check-row ${capReached ? 'disabled' : ''}">
+        <input type="checkbox" data-session-predator="${esc(p.name)}" ${checked ? 'checked' : ''} ${capReached ? 'disabled' : ''}>
+        ${esc(p.name)} <span class="text-muted">(${p.species ? esc(p.species) : 'species unknown'})</span>
+      </label>`;
+    }).join('');
+  }
+
+  function renderSessionTeam() {
+    ensureSessionSubscription();
+    if (!state.sessionCode) {
+      return staticCard(`
+        <div class="ability">
+          <div class="aname">No live session yet</div>
+          <div class="atext">Start one from ⚙ Setup → Compare &amp; pick a chicken → Host a live session (or join with a code).</div>
+        </div>`);
+    }
+
+    const data = state.sessionData;
+    let out = staticCard(`
+      <div class="ability">
+        <div class="aname">Session <span class="stage-badge">${esc(state.sessionCode)}</span></div>
+        <div class="atext">${data ? `${data.players} player${data.players > 1 ? 's' : ''} · Eggspansion ${data.expansion ? 'On' : 'Off'} · Difficulty ${esc(data.difficulty)}` : 'Connecting…'}</div>
+      </div>`);
+    if (!data) return out;
+
+    const picks = Object.values(data.picks || {});
+    const pickedNames = picks.map(p => p.chicken);
+    const waitingCount = Math.max(0, (data.players || 0) - picks.length);
+
+    out += `<div class="chicken-picker">`;
+    out += picks.map(p => `<div class="check-row"><strong>${esc(p.name)}</strong>&nbsp;— ${esc(p.chicken)}</div>`).join('');
+    if (waitingCount > 0) {
+      out += Array.from({ length: waitingCount }).map(() => `<div class="check-row text-muted">Waiting for a player…</div>`).join('');
+    }
+    out += `</div>`;
+
+    if (pickedNames.length) {
+      out += renderTeamAnalysis(pickedNames, data.difficulty, data.predators || []);
+    } else {
+      out += `<div class="empty-state">No picks yet — once someone locks in a chicken, it shows up here for everyone.</div>`;
+    }
+
+    out += `
+      <div class="section-title" style="margin-top:14px;">Known predators <span class="modal-optional">(syncs to everyone)</span></div>
+      <div class="predator-check-list">${sessionPredatorChecklist(data)}</div>`;
 
     return out;
   }
@@ -561,6 +700,7 @@
       { key: 'archetypes', label: 'Archetypes' },
       { key: 'combos', label: 'Combos' },
     ];
+    if (state.sessionCode) sections.splice(2, 0, { key: 'session', label: 'Live Session' });
     const active = state.strategySection || 'teams';
     const nav = `<div class="stage-tabs">${sections.map(s => `<button class="stage-tab ${s.key === active ? 'active' : ''}" data-strat="${s.key}">${esc(s.label)}</button>`).join('')}</div>`;
 
@@ -570,6 +710,7 @@
     else if (active === 'teams') body = renderTeamComps();
     else if (active === 'compare') body = renderCompare();
     else if (active === 'myteam') body = renderMyTeam();
+    else if (active === 'session') body = renderSessionTeam();
     else body = renderCombos();
 
     const searchableSections = ['archetypes', 'matchups', 'combos'];
@@ -579,48 +720,43 @@
   // ---------------------------------------------------------------------
   // SETUP WIZARD
   // ---------------------------------------------------------------------
+  // Step 1 mirrors actual game order: chickens are picked before any
+  // predator is ever revealed, so this only asks Eggspansion/Players/
+  // Difficulty. Step 2 is the card-format compare-and-pick — the moment of
+  // being handed two Chicken Books and choosing one. Known predators moved
+  // out entirely; see renderKnownPredatorsPicker(), used on the Team Comps
+  // and My Team views once the board is actually set up.
   function pillRow(items) {
     return `<div class="stage-tabs">${items.join('')}</div>`;
   }
 
-  function renderWizard() {
-    if (!wizardRoot) return;
-    if (!state.wizardOpen || !state.wizardDraft) { wizardRoot.innerHTML = ''; return; }
-    const d = state.wizardDraft;
+  function goToStrategySection(section) {
+    state.wizardOpen = false;
+    state.tab = 'strategy';
+    state.strategySection = section;
+    [...tabbar.children].forEach(t => t.classList.toggle('active', t.dataset.tab === 'strategy'));
+    render();
+  }
+
+  function renderWizardStep1(d) {
+    const expansionPills = [
+      `<button class="stage-tab ${!d.expansion ? 'active' : ''}" data-expansion="no">No</button>`,
+      `<button class="stage-tab ${d.expansion ? 'active' : ''}" data-expansion="yes">Yes</button>`,
+    ];
 
     const playerPills = [1, 2, 3, 4, 5, 6].map(n => {
       const disabled = n === 6 && !d.expansion;
       return `<button class="stage-tab ${d.players === n ? 'active' : ''}" ${disabled ? 'disabled' : ''} data-players="${n}">${n}${disabled ? ' 🔒' : ''}</button>`;
     });
 
-    const expansionPills = [
-      `<button class="stage-tab ${!d.expansion ? 'active' : ''}" data-expansion="no">No</button>`,
-      `<button class="stage-tab ${d.expansion ? 'active' : ''}" data-expansion="yes">Yes</button>`,
-    ];
-
     const difficultyPills = [1, 2, 3, 4, 5, 6, 7, 8].map(n =>
       `<button class="stage-tab ${d.difficulty === n ? 'active' : ''}" data-difficulty="${n}">${n}${n === 4 ? ' (Normal)' : ''}</button>`);
 
-    const predatorChoices = DATA.predators.filter(p => p.name && (d.expansion || p.expansion !== 'Eggspansion'));
-    const predatorList = predatorChoices.map(p => {
-      const checked = d.predators.includes(p.name);
-      const capReached = !checked && d.predators.length >= 3;
-      return `<label class="check-row ${capReached ? 'disabled' : ''}">
-        <input type="checkbox" data-predator="${esc(p.name)}" ${checked ? 'checked' : ''} ${capReached ? 'disabled' : ''}>
-        ${esc(p.name)} <span class="text-muted">(${p.species ? esc(p.species) : 'species unknown'})</span>
-      </label>`;
-    }).join('');
-
-    wizardRoot.innerHTML = `
+    return `
       <div class="modal-backdrop" id="wizard-backdrop">
         <div class="modal-card">
           <h2>Set up your game</h2>
-          <p class="modal-sub">Answer what you know — reopen this anytime from the ⚙ Setup button.</p>
-
-          <div class="modal-field">
-            <label>Players</label>
-            ${pillRow(playerPills)}
-          </div>
+          <p class="modal-sub">Answer what you know before chickens are dealt — reopen this anytime from the ⚙ Setup button.</p>
 
           <div class="modal-field">
             <label>Eggspansion pack?</label>
@@ -628,25 +764,27 @@
           </div>
 
           <div class="modal-field">
+            <label>Players</label>
+            ${pillRow(playerPills)}
+          </div>
+
+          <div class="modal-field">
             <label>Difficulty <span class="modal-optional">(4 = Normal; 1-3 are easier, 5-8 are harder)</span></label>
             ${pillRow(difficultyPills)}
           </div>
 
-          <div class="modal-field">
-            <label>Known predators <span class="modal-optional">(optional — pick up to 3 if the board's already set up)</span></label>
-            <div class="predator-check-list">${predatorList}</div>
-          </div>
-
-          <div class="modal-actions">
-            <button class="btn-secondary" id="wizard-skip" type="button">Skip for now</button>
-            <button class="btn-primary" id="wizard-submit" type="button">Show My Options</button>
+          <div class="modal-actions-col">
+            <button class="btn-primary" id="wizard-compare" type="button">Compare &amp; pick a chicken →</button>
+            <div class="modal-actions">
+              <button class="btn-secondary" id="wizard-skip" type="button">Skip for now</button>
+              <button class="btn-secondary" id="wizard-browse" type="button">Just show suggestions</button>
+            </div>
           </div>
         </div>
       </div>`;
+  }
 
-    wizardRoot.querySelectorAll('[data-players]').forEach(el => {
-      el.addEventListener('click', () => { if (!el.disabled) { d.players = Number(el.dataset.players); render(); } });
-    });
+  function wireWizardStep1(d) {
     wizardRoot.querySelectorAll('[data-expansion]').forEach(el => {
       el.addEventListener('click', () => {
         d.expansion = el.dataset.expansion === 'yes';
@@ -657,33 +795,258 @@
             return p && p.expansion !== 'Eggspansion';
           });
         }
-        render();
+        renderWizard();
       });
+    });
+    wizardRoot.querySelectorAll('[data-players]').forEach(el => {
+      el.addEventListener('click', () => { if (!el.disabled) { d.players = Number(el.dataset.players); renderWizard(); } });
     });
     wizardRoot.querySelectorAll('[data-difficulty]').forEach(el => {
-      el.addEventListener('click', () => { d.difficulty = Number(el.dataset.difficulty); render(); });
-    });
-    wizardRoot.querySelectorAll('[data-predator]').forEach(el => {
-      el.addEventListener('change', () => {
-        const name = el.dataset.predator;
-        if (el.checked) { if (d.predators.length < 3) d.predators.push(name); else el.checked = false; }
-        else { d.predators = d.predators.filter(n => n !== name); }
-        render();
-      });
+      el.addEventListener('click', () => { d.difficulty = Number(el.dataset.difficulty); renderWizard(); });
     });
     const skipBtn = document.getElementById('wizard-skip');
     if (skipBtn) skipBtn.addEventListener('click', () => { state.wizardOpen = false; render(); });
-    const submitBtn = document.getElementById('wizard-submit');
-    if (submitBtn) submitBtn.addEventListener('click', () => {
+    const browseBtn = document.getElementById('wizard-browse');
+    if (browseBtn) browseBtn.addEventListener('click', () => {
       saveSetup({ ...d, predators: [...d.predators] });
-      state.wizardOpen = false;
-      state.tab = 'strategy';
-      state.strategySection = 'teams';
-      [...tabbar.children].forEach(t => t.classList.toggle('active', t.dataset.tab === 'strategy'));
-      render();
+      goToStrategySection('teams');
+    });
+    const compareBtn = document.getElementById('wizard-compare');
+    if (compareBtn) compareBtn.addEventListener('click', () => {
+      saveSetup({ ...d, predators: [...d.predators] });
+      state.wizardStep = 1.5;
+      renderWizard();
     });
     const backdrop = document.getElementById('wizard-backdrop');
     if (backdrop) backdrop.addEventListener('click', (e) => { if (e.target === backdrop) { state.wizardOpen = false; render(); } });
+  }
+
+  // Step 1.5: local-only vs. live table session (Firebase-backed — see
+  // session.js). Host creates a session doc and gets a join code; joiners
+  // enter that code and inherit the host's expansion/players/difficulty.
+  function renderWizardStep15(d) {
+    const sessionReady = !!(window.FLOCK_SESSION && window.FLOCK_SESSION.isConfigured());
+    return `
+      <div class="modal-backdrop" id="wizard-backdrop">
+        <div class="modal-card">
+          <h2>How are you using this?</h2>
+          <p class="modal-sub">Compare solo, or sync picks live with everyone at the table.</p>
+
+          <div class="modal-actions-col">
+            <button class="btn-primary" id="mode-local" type="button">Just this device →</button>
+            <button class="btn-secondary" id="mode-host" type="button" ${sessionReady ? '' : 'disabled'}>
+              Host a live session${sessionReady ? '' : ' (needs Firebase setup)'}
+            </button>
+            <div class="modal-field" style="margin:0;">
+              <label>Join with a code</label>
+              <div style="display:flex;gap:8px;">
+                <input type="text" id="join-code-input" maxlength="4" placeholder="ABCD" class="searchbar" style="margin-bottom:0;text-transform:uppercase;" ${sessionReady ? '' : 'disabled'}>
+                <button class="btn-secondary" id="mode-join" type="button" style="flex:0 0 90px;" ${sessionReady ? '' : 'disabled'}>Join</button>
+              </div>
+            </div>
+          </div>
+          ${state.joinError ? `<div class="note" style="color:var(--danger);margin-top:10px;">${esc(state.joinError)}</div>` : ''}
+          <div class="modal-actions" style="margin-top:14px;">
+            <button class="btn-secondary" id="wizard-back15" type="button">← Back</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function wireWizardStep15(d) {
+    const localBtn = document.getElementById('mode-local');
+    if (localBtn) localBtn.addEventListener('click', () => { state.wizardStep = 2; renderWizard(); });
+
+    const hostBtn = document.getElementById('mode-host');
+    if (hostBtn) hostBtn.addEventListener('click', async () => {
+      hostBtn.disabled = true; hostBtn.textContent = 'Starting session…';
+      try {
+        const code = await window.FLOCK_SESSION.createSession({ expansion: d.expansion, players: d.players, difficulty: d.difficulty });
+        state.sessionCode = code;
+        state.isHost = true;
+        state.joinError = null;
+        state.wizardStep = 1.6;
+        renderWizard();
+      } catch (err) {
+        state.joinError = 'Could not start a session — check your connection.';
+        renderWizard();
+      }
+    });
+
+    const joinBtn = document.getElementById('mode-join');
+    if (joinBtn) joinBtn.addEventListener('click', async () => {
+      const input = document.getElementById('join-code-input');
+      const code = (input.value || '').trim().toUpperCase();
+      if (!code) return;
+      joinBtn.disabled = true; joinBtn.textContent = '…';
+      try {
+        const session = await window.FLOCK_SESSION.joinSession(code);
+        if (!session) {
+          state.joinError = `No session found for code "${code}".`;
+          renderWizard();
+          return;
+        }
+        state.sessionCode = code;
+        state.isHost = false;
+        state.joinError = null;
+        d.expansion = session.expansion;
+        d.players = session.players;
+        d.difficulty = session.difficulty;
+        state.wizardStep = 1.6;
+        renderWizard();
+      } catch (err) {
+        state.joinError = 'Could not join — check your connection and the code.';
+        renderWizard();
+      }
+    });
+
+    const backBtn = document.getElementById('wizard-back15');
+    if (backBtn) backBtn.addEventListener('click', () => { state.wizardStep = 1; state.joinError = null; renderWizard(); });
+    const backdrop = document.getElementById('wizard-backdrop');
+    if (backdrop) backdrop.addEventListener('click', (e) => { if (e.target === backdrop) { state.wizardOpen = false; render(); } });
+  }
+
+  // Step 1.6: name entry, shown once a session exists (just hosted or just
+  // joined) — the last stop before comparing/picking a chicken.
+  function renderWizardStep16() {
+    const savedName = (() => { try { return localStorage.getItem('flockPlayerName') || ''; } catch (e) { return ''; } })();
+    return `
+      <div class="modal-backdrop" id="wizard-backdrop">
+        <div class="modal-card">
+          <h2>${state.isHost ? "You're hosting!" : 'Joined the session'}</h2>
+          <p class="modal-sub">${state.isHost ? 'Share this code with everyone at the table:' : `Connected to session ${esc(state.sessionCode)}.`}</p>
+          ${state.isHost ? `<div class="session-code">${esc(state.sessionCode)}</div>` : ''}
+          <div class="modal-field">
+            <label>Your name</label>
+            <input type="text" id="player-name-input" class="searchbar" style="margin-bottom:0;" placeholder="e.g. Sam" value="${esc(savedName)}" maxlength="24">
+          </div>
+          <div class="modal-actions-col">
+            <button class="btn-primary" id="wizard-to-compare" type="button">Compare &amp; pick a chicken →</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function wireWizardStep16() {
+    const btn = document.getElementById('wizard-to-compare');
+    if (btn) btn.addEventListener('click', () => {
+      const input = document.getElementById('player-name-input');
+      const name = (input.value || '').trim() || 'Player';
+      state.playerName = name;
+      try { localStorage.setItem('flockPlayerName', name); } catch (e) { /* storage unavailable */ }
+      state.wizardStep = 2;
+      renderWizard();
+    });
+    const backdrop = document.getElementById('wizard-backdrop');
+    if (backdrop) backdrop.addEventListener('click', (e) => { if (e.target === backdrop) { state.wizardOpen = false; render(); } });
+  }
+
+  // Always-open compare card for the wizard's step 2 — distinct from the
+  // browsable chicken card (no collapse header, has a pick button), but
+  // shares chickenStageContent() so stat/ability rendering can't drift.
+  function chickenCompareCard(c, which) {
+    const key = 'wiz-' + which;
+    const openStageIdx = state.openStage[key] ?? 0;
+    const stageTabs = c.stages.map((s, i) => `
+      <button class="stage-tab ${i === openStageIdx ? 'active' : ''}" data-key="${key}" data-stage="${i}">
+        ${esc(s.label.split(' ')[0] || 'Stage ' + s.stage)}
+      </button>`).join('');
+
+    return `
+      <div class="card open compare-card">
+        <div class="card-body" style="border-top:none;padding-top:14px;">
+          <select class="searchbar" data-compare="${which}" style="margin-bottom:10px;">
+            ${DATA.chickens.filter(x => x.name).map(x => x.name).sort().map(n => `<option value="${esc(n)}" ${n === c.name ? 'selected' : ''}>${esc(n)}</option>`).join('')}
+          </select>
+          <div class="card-title" style="margin-bottom:6px;">
+            <span class="name">${esc(c.name)}</span>
+            <span class="sub">${c.breed ? esc(c.breed) : 'Breed unknown'}</span>
+          </div>
+          <div class="stage-tabs">${stageTabs}</div>
+          ${chickenStageContent(c, openStageIdx)}
+          <button class="btn-primary pick-btn" data-pick="${esc(c.name)}" type="button">This is my pick →</button>
+        </div>
+      </div>`;
+  }
+
+  function renderWizardStep2(d) {
+    const roster = DATA.chickens.filter(c => c.name).map(c => c.name).sort();
+    if (!state.compareA) state.compareA = roster[0];
+    if (!state.compareB) state.compareB = roster.find(n => n !== state.compareA) || roster[1];
+    const cA = DATA.chickens.find(c => c.name === state.compareA);
+    const cB = DATA.chickens.find(c => c.name === state.compareB);
+
+    return `
+      <div class="modal-backdrop" id="wizard-backdrop">
+        <div class="modal-card">
+          <h2>Compare &amp; pick your chicken</h2>
+          <p class="modal-sub">You're handed two Chicken Books at the start of the game — compare them, then lock in the one you're keeping.</p>
+          ${quickTakeCard(state.compareA, state.compareB)}
+          <div class="compare-cards">
+            ${chickenCompareCard(cA, 'a')}
+            ${chickenCompareCard(cB, 'b')}
+          </div>
+          <div class="modal-actions" style="margin-top:14px;">
+            <button class="btn-secondary" id="wizard-back" type="button">← Back</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function wireWizardStep2() {
+    wizardRoot.querySelectorAll('[data-compare]').forEach(el => {
+      el.addEventListener('change', () => {
+        if (el.dataset.compare === 'a') state.compareA = el.value; else state.compareB = el.value;
+        renderWizard();
+      });
+    });
+    wizardRoot.querySelectorAll('.stage-tab[data-key]').forEach(el => {
+      el.addEventListener('click', () => {
+        state.openStage[el.dataset.key] = Number(el.dataset.stage);
+        renderWizard();
+      });
+    });
+    wizardRoot.querySelectorAll('[data-pick]').forEach(el => {
+      el.addEventListener('click', async () => {
+        const name = el.dataset.pick;
+        if (state.sessionCode) {
+          const originalText = el.textContent;
+          el.disabled = true; el.textContent = 'Saving…';
+          try {
+            await window.FLOCK_SESSION.submitPick(state.sessionCode, state.playerName, name);
+            goToStrategySection('session');
+          } catch (err) {
+            el.disabled = false; el.textContent = originalText;
+          }
+          return;
+        }
+        if (!state.myTeam.includes(name)) state.myTeam = [...state.myTeam, name];
+        goToStrategySection('myteam');
+      });
+    });
+    const backBtn = document.getElementById('wizard-back');
+    if (backBtn) backBtn.addEventListener('click', () => { state.wizardStep = 1.5; renderWizard(); });
+    const backdrop = document.getElementById('wizard-backdrop');
+    if (backdrop) backdrop.addEventListener('click', (e) => { if (e.target === backdrop) { state.wizardOpen = false; render(); } });
+  }
+
+  function renderWizard() {
+    if (!wizardRoot) return;
+    if (!state.wizardOpen || !state.wizardDraft) { wizardRoot.innerHTML = ''; return; }
+    const d = state.wizardDraft;
+    if (state.wizardStep === 2) {
+      wizardRoot.innerHTML = renderWizardStep2(d);
+      wireWizardStep2();
+    } else if (state.wizardStep === 1.6) {
+      wizardRoot.innerHTML = renderWizardStep16();
+      wireWizardStep16();
+    } else if (state.wizardStep === 1.5) {
+      wizardRoot.innerHTML = renderWizardStep15(d);
+      wireWizardStep15(d);
+    } else {
+      wizardRoot.innerHTML = renderWizardStep1(d);
+      wireWizardStep1(d);
+    }
   }
 
   // ---------------------------------------------------------------------
@@ -753,10 +1116,41 @@
       });
     });
 
+    appEl.querySelectorAll('[data-known-predator]').forEach(el => {
+      el.addEventListener('change', () => {
+        if (!state.setup) return;
+        const name = el.dataset.knownPredator;
+        let predators = state.setup.predators;
+        if (el.checked) {
+          if (predators.length < 3) predators = [...predators, name];
+          else { el.checked = false; return; }
+        } else {
+          predators = predators.filter(n => n !== name);
+        }
+        saveSetup({ ...state.setup, predators });
+        render();
+      });
+    });
+
     appEl.querySelectorAll('[data-compare]').forEach(el => {
       el.addEventListener('change', () => {
         if (el.dataset.compare === 'a') state.compareA = el.value; else state.compareB = el.value;
         render();
+      });
+    });
+
+    appEl.querySelectorAll('[data-session-predator]').forEach(el => {
+      el.addEventListener('change', () => {
+        if (!state.sessionCode || !state.sessionData || !window.FLOCK_SESSION) return;
+        const name = el.dataset.sessionPredator;
+        let predators = state.sessionData.predators || [];
+        if (el.checked) {
+          if (predators.length < 3) predators = [...predators, name];
+          else { el.checked = false; return; }
+        } else {
+          predators = predators.filter(n => n !== name);
+        }
+        window.FLOCK_SESSION.setKnownPredators(state.sessionCode, predators);
       });
     });
 
@@ -765,6 +1159,7 @@
 
   state.setup = loadSetup();
   state.wizardDraft = state.setup ? { ...state.setup, predators: [...state.setup.predators] } : defaultDraft();
+  state.wizardStep = 1;
   if (!state.setup) state.wizardOpen = true;
   render();
 })();
