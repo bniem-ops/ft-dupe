@@ -14,7 +14,7 @@
   const wizardRoot = document.getElementById('wizard-root');
   const setupBtn = document.getElementById('setup-btn');
 
-  function defaultDraft() { return { players: 3, expansion: false, difficulty: 1, predators: [] }; }
+  function defaultDraft() { return { players: 3, expansion: false, difficulty: 4, predators: [] }; }
   function loadSetup() {
     try {
       const raw = localStorage.getItem('flockSetup');
@@ -598,8 +598,8 @@
       `<button class="stage-tab ${d.expansion ? 'active' : ''}" data-expansion="yes">Yes</button>`,
     ];
 
-    const difficultyPills = [1, 2, 3, 4, 5, 6, 7].map(n =>
-      `<button class="stage-tab ${d.difficulty === n ? 'active' : ''}" data-difficulty="${n}">${n}</button>`);
+    const difficultyPills = [1, 2, 3, 4, 5, 6, 7, 8].map(n =>
+      `<button class="stage-tab ${d.difficulty === n ? 'active' : ''}" data-difficulty="${n}">${n}${n === 4 ? ' (Normal)' : ''}</button>`);
 
     const predatorChoices = DATA.predators.filter(p => p.name && (d.expansion || p.expansion !== 'Eggspansion'));
     const predatorList = predatorChoices.map(p => {
@@ -628,7 +628,7 @@
           </div>
 
           <div class="modal-field">
-            <label>Difficulty</label>
+            <label>Difficulty <span class="modal-optional">(4 = Normal; 1-3 are easier, 5-8 are harder)</span></label>
             ${pillRow(difficultyPills)}
           </div>
 

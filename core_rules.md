@@ -111,25 +111,50 @@ Other combat notes:
 - Recommended: play open-hand (cards face up).
 - Chicken die face = 6 on a standard die.
 
-## Difficulty Modifiers (rulebook p.19, cumulative by level)
+## Difficulty Modifiers (corrected from user's physical rulebook)
 
-| Level | Modifier |
+8-level scale. **Level 4 is Normal (no modifiers).** Levels 1-3 are
+progressively *easier* than Normal; levels 5-8 are progressively *harder*.
+The "randomize predator" modifiers at 5+ draw from a fixed species list,
+not the full 16-predator roster — and that list is shorter without
+Eggspansion.
+
+Species → predator name in this dataset: Bear = Ursula Bone, Coyote =
+Shere Corn, Hawk = Cleopoultra, Fox = Chicksune, Raccoon = Hens Gruber,
+Badger = Hendel's Mother (Eggspansion), Cougar = Coopella (Eggspansion),
+Snapping Turtle = Layonardo (Eggspansion).
+
+### Without Eggspansion
+
+| Level | Modifiers |
 |---|---|
-| Normal | — |
-| 1 | All players start with a random Loot Drop |
-| 2 | No +3 health multiplier on the Final Boss |
-| 3 | Increase Final Boss health multiplier to +4 |
-| 4 | Final Boss randomly selected from Bear, Coyote, Hawk |
-| 5 | 4 Predators randomly selected from Bear, Coyote, Hawk, Fox, Raccoon |
-| 6 | Positive Weather on top of each deck (Fair/Sunny/Snow, per normal setup) |
-| 7 | Remove Fair/Sunny/Snow from their decks entirely |
-| 8 | (cumulative — hardest) |
+| 1 | All players start with a random Loot Drop; no +3 health bonus on the Boss; guaranteed positive card on top of each Weather deck |
+| 2 | No +3 health bonus on the Boss; guaranteed positive card on top of each Weather deck |
+| 3 | Guaranteed positive card on top of each Weather deck |
+| 4 | **Normal — no modifiers** |
+| 5 | Boss randomly selected from: Bear, Coyote, Hawk |
+| 6 | Boss randomly selected from: Bear, Coyote, Hawk; Fair/Sunny/Snow removed from their decks |
+| 7 | Fair/Sunny/Snow removed from their decks; all 4 Predators randomly selected from: Bear, Coyote, Hawk, Fox, Raccoon |
+| 8 | Fair/Sunny/Snow removed; all 4 Predators randomly selected from: Bear, Coyote, Hawk, Fox, Raccoon; Boss health multiplier increased to +4 |
 
-**Note:** the Bear/Coyote/Hawk/Fox/Raccoon species list likely maps to the
-5 predators whose species aren't yet confirmed in `predators_template.txt`
-(Hens Gruber, Shere Corn, Chicksune, Cleopoultra, Ursula Bone). "Chicksune"
-= Fox and "Ursula Bone" = Bear are near-certain from the names; the rest
-need confirming against the physical Predator Books.
+### With Eggspansion
+
+| Level | Modifiers |
+|---|---|
+| 1 | All players start with a random Loot Drop; no +3 health bonus on the Boss; guaranteed positive card on top of each Weather deck |
+| 2 | No +3 health bonus on the Boss; guaranteed positive card on top of each Weather deck |
+| 3 | Guaranteed positive card on top of each Weather deck |
+| 4 | **Normal — no modifiers** |
+| 5 | Boss randomly selected from: Bear, Coyote, Hawk, Badger, Cougar |
+| 6 | Boss randomly selected from: Bear, Coyote, Hawk, Badger, Cougar; Fair/Sunny/Snow removed from their decks |
+| 7 | Fair/Sunny/Snow removed from their decks; all 4 Predators randomly selected from: Bear, Coyote, Hawk, Fox, Raccoon, Badger, Cougar, Snapping Turtle |
+| 8 | Fair/Sunny/Snow removed; all 4 Predators randomly selected from: Bear, Coyote, Hawk, Fox, Raccoon, Badger, Cougar, Snapping Turtle; Boss health multiplier increased to +4 |
+
+Note: Owl Coopone, Eggsmeralda, Sal Moe Nella, Professor Moltiarty, and
+Gravekeeper Fowl are never part of this randomization pool at any
+difficulty. Chew Bawka, Weasma and Clawnk, and Sheriff of Rottingham
+(3 of the 6 Eggspansion predators) are also excluded even with
+Eggspansion on — only Hendel's Mother, Coopella, and Layonardo get added.
 
 ## Components (for reference)
 

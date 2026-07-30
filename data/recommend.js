@@ -104,19 +104,44 @@
     return archetype.core.filter(name => tiers[name] === 'Eggspansion');
   }
 
+  // Difficulty is an 8-level scale where 4 is Normal (no modifiers) — 1-3
+  // are progressively EASIER than Normal, 5-8 progressively HARDER. The
+  // "randomize predator" modifiers at 5+ draw from a fixed species list,
+  // not the full 16-predator roster, and that list is shorter without
+  // Eggspansion. Mapped to actual predator names in this dataset:
+  //   Bear=Ursula Bone, Coyote=Shere Corn, Hawk=Cleopoultra, Fox=Chicksune,
+  //   Raccoon=Hens Gruber, Badger=Hendel's Mother, Cougar=Coopella,
+  //   Snapping Turtle=Layonardo
+  function bossSpeciesPool(expansionOn) {
+    return expansionOn ? ['Bear', 'Coyote', 'Hawk', 'Badger', 'Cougar'] : ['Bear', 'Coyote', 'Hawk'];
+  }
+  function fullPredatorSpeciesPool(expansionOn) {
+    return expansionOn
+      ? ['Bear', 'Coyote', 'Hawk', 'Fox', 'Raccoon', 'Badger', 'Cougar', 'Snapping Turtle']
+      : ['Bear', 'Coyote', 'Hawk', 'Fox', 'Raccoon'];
+  }
+
+  function difficultyModifiers(difficulty, expansionOn) {
+    const d = Number(difficulty) || 4;
+    if (d === 1) return ['All players start with a random Loot Drop', 'No +3 health bonus on the Boss', 'Guaranteed positive card on top of each Weather deck'];
+    if (d === 2) return ['No +3 health bonus on the Boss', 'Guaranteed positive card on top of each Weather deck'];
+    if (d === 3) return ['Guaranteed positive card on top of each Weather deck'];
+    if (d === 4) return [];
+    if (d === 5) return [`Boss randomly selected from: ${bossSpeciesPool(expansionOn).join(', ')}`];
+    if (d === 6) return [`Boss randomly selected from: ${bossSpeciesPool(expansionOn).join(', ')}`, 'Fair/Sunny/Snow removed from their decks (no guaranteed calm top card)'];
+    if (d === 7) return ['Fair/Sunny/Snow removed from their decks', `All 4 Predators randomly selected from: ${fullPredatorSpeciesPool(expansionOn).join(', ')}`];
+    return ['Fair/Sunny/Snow removed from their decks', `All 4 Predators randomly selected from: ${fullPredatorSpeciesPool(expansionOn).join(', ')}`, 'Boss health multiplier increased to +4 (instead of +3)'];
+  }
+
   function difficultyTip(difficulty, expansionOn) {
-    const d = Number(difficulty);
-    if (!d || d < 1) return null;
-    if (d >= 5) {
-      const pool = expansionOn
-        ? 'the Predator pool widens to include Eggspansion species too, so expect more variety and a scarier Boss'
-        : 'the Predator pool draws from the wider base species set — a scarier Boss is likely';
-      return `Difficulty ${d}: ${pool}. Broad predator-matchup coverage (see the Predator Guide) matters more than a narrow counter-pick here.`;
-    }
-    if (d >= 3) {
-      return `Difficulty ${d}: the Boss's health multiplier is increased — teams with reliable burst damage (Atilla the Hen, General Tso) close out the Boss fight before it drags.`;
-    }
-    return `Difficulty ${d}: modest modifiers over Normal — most archetypes below work as-is.`;
+    const d = Number(difficulty) || 4;
+    const mods = difficultyModifiers(d, expansionOn);
+    if (d === 4) return 'Difficulty 4: Normal — no modifiers.';
+    if (d < 4) return `Difficulty ${d} (easier than Normal): ${mods.join('; ')}.`;
+    const strategyNote = d >= 5
+      ? ' Broad predator-matchup coverage (see the Predator Guide) matters more than a narrow counter-pick at this tier.'
+      : '';
+    return `Difficulty ${d} (harder than Normal): ${mods.join('; ')}.${strategyNote}`;
   }
 
   // Substring-match a roster name inside free text (used for both combo
@@ -129,12 +154,14 @@
   function suggestTeams({ players, expansion, difficulty, predators }) {
     const roster = rosterNames();
     const N = Math.max(1, Math.min(6, Number(players) || 1));
-    const d = Number(difficulty) || 1;
-    // At difficulty 4+ (Boss health multiplier bump) reorder toward
-    // higher-resilience archetypes instead of the curated default order.
-    // This re-prioritizes, it never removes an archetype — a fragile pick
-    // is still shown, just lower down, with a caution note attached.
-    const reorderByResilience = d >= 4;
+    const d = Number(difficulty) || 4;
+    // Difficulty 4 is Normal (no modifiers); 1-3 are easier than Normal;
+    // real extra difficulty (Boss/predator randomization) only starts at
+    // 5+. Reorder toward higher-resilience archetypes from there instead
+    // of the curated default order. This re-prioritizes, it never removes
+    // an archetype — a fragile pick is still shown, just lower down, with
+    // a caution note attached.
+    const reorderByResilience = d >= 5;
 
     let viable = ARCHETYPES.filter(a => N >= a.minPlayers && N <= a.maxPlayers)
       .map(a => {
@@ -155,8 +182,8 @@
         return guide.counters.some(c => namesIn(c.chicken, squad).length > 0);
       });
       let caution = archetype.caution || null;
-      if (d >= 4 && archetype.resilience === 'low') {
-        const riskNote = `No dedicated tank — riskier at difficulty ${d}, where the Boss hits harder and the predator pool is wider. Consider designating your highest-health pick to soak damage.`;
+      if (d >= 5 && archetype.resilience === 'low') {
+        const riskNote = `No dedicated tank — riskier at difficulty ${d}, where the Boss and/or predator pool is randomized to a tougher set. Consider designating your highest-health pick to soak damage.`;
         caution = caution ? `${caution} ${riskNote}` : riskNote;
       }
       return {
@@ -173,9 +200,9 @@
   // --- Custom team analysis ---------------------------------------------
   function gapNote(gaps, difficulty) {
     if (!gaps.length) return 'Solid coverage across tank, economy, support, control, and damage.';
-    const d = Number(difficulty) || 1;
-    if (gaps.includes('Tank') && d >= 4) {
-      return `No dedicated Tank on this team — a real risk at difficulty ${d}, where the Boss's health multiplier is increased and fights run longer. Designate whoever has the most health to absorb hits, or rethink the pick if you have the option.`;
+    const d = Number(difficulty) || 4;
+    if (gaps.includes('Tank') && d >= 5) {
+      return `No dedicated Tank on this team — a real risk at difficulty ${d}, where the Boss and/or predator pool is randomized to a tougher set. Designate whoever has the most health to absorb hits, or rethink the pick if you have the option.`;
     }
     return `No dedicated ${gaps.join(', ')} on this team — plan around the gap rather than relying on a specialist for it.`;
   }
