@@ -2,3 +2,11 @@ node_modules/
 .DS_Store
 Thumbs.db
 *.log
+
+# Generated from the *_template.txt files by scripts/build_data.js —
+# CI regenerates these on every deploy, so they're build artifacts, not
+# source. (data/strategy.js is hand-authored and stays tracked.)
+data/chickens.json
+data/predators.json
+data/weather.json
+data/app-data.js
