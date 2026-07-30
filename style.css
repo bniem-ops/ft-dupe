@@ -386,6 +386,33 @@ main {
 .compare-card { margin-bottom: 0; }
 .pick-btn { width: 100%; margin-top: 12px; }
 
+.rules-table-wrap {
+  overflow-x: auto;
+  margin: 6px 0 10px 0;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.rules-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+.rules-table th, .rules-table td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.rules-table th {
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+.rules-table tr:last-child td { border-bottom: none; }
+
 .predator-check-list, .chicken-picker {
   display: grid;
   grid-template-columns: 1fr;

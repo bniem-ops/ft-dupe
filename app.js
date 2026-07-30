@@ -290,6 +290,43 @@
   }
 
   // ---------------------------------------------------------------------
+  // RULES
+  // ---------------------------------------------------------------------
+  function ruleTable(t) {
+    return `
+      ${t.title ? `<div class="section-title" style="margin:10px 4px 6px 4px;">${esc(t.title)}</div>` : ''}
+      <div class="rules-table-wrap">
+        <table class="rules-table">
+          <thead><tr>${t.headers.map(h => `<th>${esc(h)}</th>`).join('')}</tr></thead>
+          <tbody>${t.rows.map(r => `<tr>${r.map(c => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody>
+        </table>
+      </div>`;
+  }
+
+  function ruleSectionCard(s) {
+    let inner = `<div class="ability"><div class="aname">${esc(s.title)}</div>`;
+    inner += s.body.map(p => `<div class="atext" style="margin-bottom:6px;">${esc(p)}</div>`).join('');
+    inner += `</div>`;
+    if (s.tables) inner += s.tables.map(ruleTable).join('');
+    else if (s.table) inner += ruleTable(s.table);
+    return staticCard(inner);
+  }
+
+  function renderRules() {
+    const RULES = window.FLOCK_RULES;
+    if (!RULES) return `<div class="empty-state">Rules data not loaded.</div>`;
+    const q = state.search.trim().toLowerCase();
+    const items = RULES.sections.filter(s => {
+      if (!q) return true;
+      const hay = [s.title, ...s.body, ...(s.table ? s.table.rows.flat() : []), ...(s.tables ? s.tables.flatMap(t => t.rows.flat()) : [])].join(' ').toLowerCase();
+      return hay.includes(q);
+    });
+    let out = q ? '' : staticCard(`<div class="ability"><div class="atext">${esc(RULES.intro)}</div></div>`);
+    if (!items.length) return out + `<div class="empty-state">No rules match "${esc(state.search)}"</div>`;
+    return out + items.map(ruleSectionCard).join('');
+  }
+
+  // ---------------------------------------------------------------------
   // STRATEGY
   // ---------------------------------------------------------------------
   const STRAT = window.FLOCK_STRATEGY;
@@ -1063,11 +1100,12 @@
         ${searchable ? `<input type="text" class="searchbar" id="search" placeholder="Search…" value="${esc(state.search)}">` : ''}
         <div id="list">${body}</div>`;
     } else {
-      const searchPlaceholder = { chickens: 'Search chickens & abilities…', predators: 'Search predators & effects…', weather: 'Search weather cards…' }[state.tab];
+      const searchPlaceholder = { chickens: 'Search chickens & abilities…', predators: 'Search predators & effects…', weather: 'Search weather cards…', rules: 'Search rules…' }[state.tab];
       let body = '';
       if (state.tab === 'chickens') body = renderChickens();
       else if (state.tab === 'predators') body = renderPredators();
-      else body = renderWeather();
+      else if (state.tab === 'weather') body = renderWeather();
+      else body = renderRules();
       html = `
         <input type="text" class="searchbar" id="search" placeholder="${searchPlaceholder}" value="${esc(state.search)}">
         <div id="list">${body}</div>`;
