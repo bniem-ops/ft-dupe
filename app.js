@@ -488,15 +488,13 @@
       return out;
     }
 
-    const analysis = REC.analyzeTeam(state.myTeam);
+    const analysis = REC.analyzeTeam(state.myTeam, state.setup ? state.setup.difficulty : null);
 
     out += staticCard(`
       <div class="ability">
         <div class="aname">Role coverage</div>
         ${roleChips(analysis.picked.flatMap(a => a.roles))}
-        <div class="atext" style="margin-top:6px;">${analysis.gaps.length
-          ? `No dedicated ${analysis.gaps.join(', ')} on this team — plan around the gap rather than relying on a specialist for it.`
-          : `Solid coverage across tank, economy, support, control, and damage.`}</div>
+        <div class="atext" style="margin-top:6px;">${esc(analysis.gapMessage)}</div>
       </div>`);
 
     if (analysis.combos.length) {
