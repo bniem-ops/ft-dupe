@@ -12,6 +12,7 @@ slots are blank — please fill in name + species.
 
 ==================================================
 PREDATOR: Eggsmeralda (Snake)
+  Expansion: Base
 ==================================================
 STAGE 1
   Health Multiplier: x2
@@ -33,6 +34,7 @@ LOOT DROP: Egg Stash - Place 3 eggs on this card. You may take or distribute to 
 
 ==================================================
 PREDATOR: Sal Moe Nella (Rat)
+  Expansion: Base
 ==================================================
 STAGE 1
   Health Multiplier: x2
@@ -54,6 +56,7 @@ LOOT DROP: Food Stash - Place 3 food on this card. You may take or distribute to
 
 ==================================================
 PREDATOR: Professor Moltiarty (Skunk)
+  Expansion: Base
 ==================================================
 STAGE 1
   Health Multiplier: x2
@@ -75,6 +78,7 @@ LOOT DROP: Gas Mask - A predators attack is -1 for an entire day. Can be used at
 
 ==================================================
 PREDATOR: Gravekeeper Fowl (Opossum) — default first-game Boss
+  Expansion: Base
 ==================================================
 STAGE 1
   Health Multiplier: x3
@@ -96,6 +100,7 @@ LOOT DROP: Gravekeeper's Light - If you die, come back to life with 1 health (si
 
 ==================================================
 PREDATOR: Owl Coopone (Owl)
+  Expansion: Base
 ==================================================
 STAGE 1
   Health Multiplier: x2
@@ -117,6 +122,7 @@ LOOT DROP: Monocle - Never miss any attacks (permanent)
 
 ==================================================
 PREDATOR: Hens Gruber (species: Raccoon)
+  Expansion: Base
 ==================================================
 STAGE 1
   Health Multiplier: x2
@@ -138,6 +144,7 @@ LOOT DROP: Bandit Mask - Predator Attacks to you are -1 (multi-use)
 
 ==================================================
 PREDATOR: Shere Corn (species: Coyote)
+  Expansion: Base
 ==================================================
 STAGE 1
   Health Multiplier: x3
@@ -159,6 +166,7 @@ LOOT DROP: Signature Cloak - Increase your health capacity by 1 (permanent)
 
 ==================================================
 PREDATOR: Chicksune (species: Fox)
+  Expansion: Base
 ==================================================
 STAGE 1
   Health Multiplier: x3
@@ -180,6 +188,7 @@ LOOT DROP: Fox's Staff - Imbued with cleverness. Roll for Predator effect twice.
 
 ==================================================
 PREDATOR: Cleopoultra (species: Hawk)
+  Expansion: Base
 ==================================================
 STAGE 1
   Health Multiplier: x2
@@ -201,6 +210,7 @@ LOOT DROP: Arrow Pack - Distance Attack. -1 health to any revealed enemy for 1 a
 
 ==================================================
 PREDATOR: Ursula Bone (species: Bear)
+  Expansion: Base
 ==================================================
 STAGE 1
   Health Multiplier: x3
@@ -222,6 +232,7 @@ LOOT DROP: Brass Knuckles - Increase your attack by 1 (permanent)
 
 ==================================================
 PREDATOR: Chew Bawka (species: Bobcat)
+  Expansion: Eggspansion
 ==================================================
 STAGE 1
   Health Multiplier: x2
@@ -243,6 +254,7 @@ LOOT DROP: Healing Poultice - As a free action, you may heal every player in you
 
 ==================================================
 PREDATOR: Weasma and Clawnk (species: Weasels)
+  Expansion: Eggspansion
 ==================================================
 STAGE 1
   Health Multiplier: x3
@@ -264,6 +276,7 @@ LOOT DROP: Secret Tunnels - You may take a free Move action for yourself or any 
 
 ==================================================
 PREDATOR: Hendel's Mother (species: Badger)
+  Expansion: Eggspansion
 ==================================================
 STAGE 1
   Health Multiplier: x3
@@ -285,6 +298,7 @@ LOOT DROP: Cave Hoard - As a free action, you or a nearby teammate may draw a Bo
 
 ==================================================
 PREDATOR: Coopella (species: Cougar)
+  Expansion: Eggspansion
 ==================================================
 STAGE 1
   Health Multiplier: x3
@@ -306,6 +320,7 @@ LOOT DROP: Chamberstick - Every player in your location may refresh their Extra 
 
 ==================================================
 PREDATOR: Layonardo (species: Snapping Turtle)
+  Expansion: Eggspansion
 ==================================================
 STAGE 1
   Health Multiplier: x5
@@ -327,6 +342,7 @@ LOOT DROP: Portable House - You or a nearby player may ignore weather effects fo
 
 ==================================================
 PREDATOR: Sheriff of Rottingham (species: Boar)
+  Expansion: Eggspansion
 ==================================================
 STAGE 1
   Health Multiplier: x3

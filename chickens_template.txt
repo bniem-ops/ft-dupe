@@ -23,6 +23,7 @@ printed rather than assuming it's the same across breeds.
 
 ==================================================
 CHICKEN: Shellock Holmes (Polish Chicken)
+  Expansion: Base
 ==================================================
 STAGE 1 - CHICK
   Health: [3]
@@ -49,6 +50,7 @@ Flavor quote (optional): "It is my business to know what other people do not kno
 
 ==================================================
 CHICKEN: Beowing (Ayam Cemani)
+  Expansion: Base
 ==================================================
 STAGE 1 - CHICK
   Health: 3
@@ -75,6 +77,7 @@ Flavor quote (optional): "I swim in the blackness of night, hunting enemies out 
 
 ==================================================
 CHICKEN: Wyatt Chirp (Silkie)
+  Expansion: Base
 ==================================================
 STAGE 1 - CHICK
   Health: 3
@@ -101,6 +104,7 @@ Flavor quote (optional): "You gonna do something', or just stand there and cry?"
 
 ==================================================
 CHICKEN: Madam Chickovsky (Russian Orloff)
+  Expansion: Base
 ==================================================
 STAGE 1 - CHICK
   Health: 4
@@ -127,6 +131,7 @@ Flavor quote (optional): "Life is beautiful in spite of everything! There are ma
 
 ==================================================
 CHICKEN: Cluckleberry Finn (Easter Egger)
+  Expansion: Base
 ==================================================
 STAGE 1 - CHICK
   Health: 3
@@ -153,6 +158,7 @@ Flavor quote (optional): "The average chicken don't like trouble and danger, but
 
 ==================================================
 CHICKEN: Eggatha Christie (Egyptian Fayoumi)
+  Expansion: Base
 ==================================================
 STAGE 1 - CHICK
   Health: 3
@@ -179,6 +185,7 @@ Flavor quote (optional): "You cannot go on indefinitely being just an ordinary, 
 
 ==================================================
 CHICKEN: Cumberbill Rockefeather (Modern Game)
+  Expansion: Base
 ==================================================
 STAGE 1 - CHICK
   Health: 4
@@ -205,6 +212,7 @@ Flavor quote (optional): "Always turn every disaster into an opportunity"
 
 ==================================================
 CHICKEN: Annie Yolkley (Rhode Island Red)
+  Expansion: Base
 ==================================================
 STAGE 1 - CHICK
   Health: 3
@@ -231,6 +239,7 @@ Flavor quote (optional): "Words and eggs must be handled with care. Once broken,
 
 ==================================================
 CHICKEN: General Tso (Dragon Chicken)
+  Expansion: Base
 ==================================================
 STAGE 1 - CHICK
   Health: 3
@@ -256,6 +265,7 @@ Flavor quote (optional): "If you fight with all your might, there is a chance of
 
 ==================================================
 CHICKEN: Wingston Coophill (Serama)
+  Expansion: Base
 ==================================================
 STAGE 1 - CHICK
   Health: 2
@@ -282,6 +292,7 @@ Flavor quote (optional): "He will defend our Coop whatever the cost may be. We s
 
 ==================================================
 CHICKEN: Atilla the Hen (Jersey Giant)
+  Expansion: Base
 ==================================================
 STAGE 1 - CHICK
   Health: 5
@@ -308,6 +319,7 @@ Flavor quote (optional): "Every day's a lovely day for a group of friends to tra
 
 ==================================================
 CHICKEN: Princess Layer (Death Layer)
+  Expansion: Eggspansion
 ==================================================
 STAGE 1 - CHICK
   Health: 3
@@ -334,6 +346,7 @@ Flavor quote (optional): "Aren't you a little short fora  storm cooper?"
 
 ==================================================
 CHICKEN: Chickira (Onagadori)
+  Expansion: Eggspansion
 ==================================================
 STAGE 1 - CHICK
   Health: 3
@@ -360,6 +373,7 @@ Flavor quote (optional): "Life is a corn field, don't you think"
 
 ==================================================
 CHICKEN: Broods Lee (Japanese Fizzle Chabo)
+  Expansion: Eggspansion
 ==================================================
 STAGE 1 - CHICK
   Health: 4
@@ -386,6 +400,7 @@ Flavor quote (optional): "Mistakes are always forgivable if one has the courage 
 
 ==================================================
 CHICKEN: J.R.R. Yolkien (Sebright Chicken)
+  Expansion: Eggspansion
 ==================================================
 STAGE 1 - CHICK
   Health: 3
@@ -412,6 +427,7 @@ Flavor quote (optional): "I do not love the beak for it's sharpness nor the wing
 
 ==================================================
 CHICKEN: Cluck Norris (Freedom Ranger)
+  Expansion: Eggspansion
 ==================================================
 STAGE 1 - CHICK
   Health: 3
@@ -438,6 +454,7 @@ Flavor quote (optional): "I can kill two stones with one bird"
 
 ==================================================
 CHICKEN: Aracorn, Heir of Condor (La Fleche)
+  Expansion: Eggspansion
 ==================================================
 STAGE 1 - CHICK
   Health: 3

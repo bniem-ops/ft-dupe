@@ -170,22 +170,7 @@ window.FLOCK_STRATEGY = {
       synergy: "Clear high-health Grubs from both decks ahead of a Sheriff of Rottingham fight to defang his scaling return attack before it spikes." },
   ],
 
-  teamComps: [
-    { players: 1, philosophy: "Solo mode counts you as your own teammate for card-targeting, but abilities that need an actual second player physically present — Tank, Battle Cry, Ladies' Aid, and similar — go dead. Pick a fully self-sufficient kit instead.",
-      picks: ["Princess Layer", "or Cumberbill Rockefeather"] },
-    { players: 2, philosophy: "One tank/support anchor plus one economy/control engine covers most fights.",
-      picks: ["Atilla the Hen", "Beowing"] },
-    { players: 3, philosophy: "Matches the rulebook's own first-game roster pool. Tank, support, and an economy/control piece forms a balanced core.",
-      picks: ["Atilla the Hen", "Beowing", "Princess Layer or General Tso"] },
-    { players: 4, philosophy: "Add a utility/prep piece to round out the core three roles.",
-      picks: ["Atilla the Hen", "Beowing", "Princess Layer or General Tso", "Shellock Holmes or Aracorn"] },
-    { players: 5, philosophy: "Round out with a protected glass-cannon striker, kept behind the tank.",
-      picks: ["Atilla the Hen", "Beowing", "Princess Layer or General Tso", "Shellock Holmes or Aracorn", "Wingston Coophill or Cluck Norris"] },
-  ],
-
-  funSquad: {
-    title: "Glass Cannon Gambit",
-    picks: ["Cluck Norris", "Broods Lee", "Wingston Coophill", "Chickira (optional 4th)"],
-    philosophy: "No dedicated tank — everyone leans into taking damage for resources or buffs: Cluck Norris trades self-damage for eggs, Broods Lee gets stronger while hurt, Wingston gambles on evasion instead of raw stats. Higher skill ceiling and higher variance than the balanced comps above, but a blast if your group likes risk.",
-  },
+  // Team comps and the fun squad moved to data/recommend.js — that engine
+  // computes them from player count / Eggspansion / difficulty instead of
+  // this static list, which couldn't express that combinatorial input space.
 };

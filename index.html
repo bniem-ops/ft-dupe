@@ -9,11 +9,15 @@
 <body>
 
 <header class="topbar">
-  <h1>🐔 Flock Together</h1>
+  <div class="topbar-title-row">
+    <h1>🐔 Flock Together</h1>
+    <button id="setup-btn" class="setup-btn" type="button">⚙️ Setup</button>
+  </div>
   <div class="progress" id="progress"></div>
 </header>
 
 <main id="app"></main>
+<div id="wizard-root"></div>
 
 <nav class="tabbar" id="tabbar">
   <button class="tab active" data-tab="chickens">
@@ -32,6 +36,7 @@
 
 <script src="data/app-data.js"></script>
 <script src="data/strategy.js"></script>
+<script src="data/recommend.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

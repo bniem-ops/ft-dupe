@@ -82,12 +82,16 @@ function parseChickens(text) {
       current = {
         name: known ? name : null,
         breed: clean(breed),
+        expansion: 'Base',
         stages: [],
         flavorQuote: null,
       };
       continue;
     }
     if (!current) continue;
+
+    m = line.match(/^Expansion:\s*(.+)$/);
+    if (m) { current.expansion = m[1].trim(); continue; }
 
     m = line.match(/^Flavor quote \(optional\):\s*"(.*)"\s*$/);
     if (m) {
@@ -184,12 +188,16 @@ function parsePredators(text) {
         name: known ? name : null,
         species,
         note: trailing,
+        expansion: 'Base',
         stages: [],
         lootDrop: null,
       };
       continue;
     }
     if (!current) continue;
+
+    m = line.match(/^Expansion:\s*(.+)$/);
+    if (m) { current.expansion = m[1].trim(); continue; }
 
     m = line.match(/^STAGE (\d)(?:\s*\(.*\))?\s*$/);
     if (m) {

@@ -1,11 +1,31 @@
 (function () {
   const DATA = window.FLOCK_DATA || { chickens: [], predators: [], weather: { seasons: {}, eggspansion: [], unsorted: [] } };
 
-  const state = { tab: 'chickens', search: '', openCards: new Set(), openStage: {} };
+  const state = {
+    tab: 'chickens', search: '', openCards: new Set(), openStage: {},
+    strategySection: 'archetypes',
+    setup: null, wizardOpen: false, wizardDraft: null,
+    compareA: null, compareB: null, myTeam: [],
+  };
 
   const appEl = document.getElementById('app');
   const progressEl = document.getElementById('progress');
   const tabbar = document.getElementById('tabbar');
+  const wizardRoot = document.getElementById('wizard-root');
+  const setupBtn = document.getElementById('setup-btn');
+
+  function defaultDraft() { return { players: 3, expansion: false, difficulty: 1, predators: [] }; }
+  function loadSetup() {
+    try {
+      const raw = localStorage.getItem('flockSetup');
+      if (raw) return JSON.parse(raw);
+    } catch (e) { /* ignore corrupt storage */ }
+    return null;
+  }
+  function saveSetup(setup) {
+    state.setup = setup;
+    try { localStorage.setItem('flockSetup', JSON.stringify(setup)); } catch (e) { /* storage unavailable */ }
+  }
 
   tabbar.addEventListener('click', (e) => {
     const btn = e.target.closest('.tab');
@@ -15,6 +35,14 @@
     [...tabbar.children].forEach(t => t.classList.toggle('active', t === btn));
     render();
   });
+
+  if (setupBtn) {
+    setupBtn.addEventListener('click', () => {
+      state.wizardDraft = state.setup ? { ...state.setup, predators: [...state.setup.predators] } : defaultDraft();
+      state.wizardOpen = true;
+      render();
+    });
+  }
 
   // ---------------------------------------------------------------------
   function esc(s) {
@@ -303,22 +331,213 @@
   }
 
   function renderTeamComps() {
-    if (!STRAT) return `<div class="empty-state">Strategy data not loaded.</div>`;
-    let out = STRAT.teamComps.map(tc => staticCard(`
+    const REC = window.FLOCK_RECOMMEND;
+    if (!STRAT || !REC) return `<div class="empty-state">Strategy data not loaded.</div>`;
+    if (!state.setup) {
+      return staticCard(`
         <div class="ability">
-          <div class="aname">${tc.players} Player${tc.players > 1 ? 's' : ''}</div>
-          <div class="atext">${esc(tc.philosophy)}</div>
-          ${roleChips(tc.picks)}
-        </div>`)).join('');
-
-    out += `<div class="section-title">Just for fun</div>`;
-    const fs = STRAT.funSquad;
-    out += staticCard(`
-        <div class="ability">
-          <div class="aname">${esc(fs.title)}</div>
-          <div class="atext">${esc(fs.philosophy)}</div>
-          ${roleChips(fs.picks)}
+          <div class="aname">Set up your game to see tailored comps</div>
+          <div class="atext">Tap ⚙ Setup above and answer player count, Eggspansion, and difficulty — the suggestions here are computed from that, not a fixed list.</div>
         </div>`);
+    }
+
+    const setup = state.setup;
+    const { results, tip } = REC.suggestTeams(setup);
+
+    let out = staticCard(`
+      <div class="ability">
+        <div class="aname">Your setup</div>
+        <div class="atext">${setup.players} player${setup.players > 1 ? 's' : ''} · Eggspansion ${setup.expansion ? 'On' : 'Off'} · Difficulty ${esc(setup.difficulty)}${setup.predators.length ? ' · Facing: ' + setup.predators.map(esc).join(', ') : ''}</div>
+      </div>`);
+
+    if (tip) out += `<div class="note" style="margin:0 0 10px 4px;">${esc(tip)}</div>`;
+
+    if (!results.length) {
+      out += `<div class="empty-state">No archetype fully fits that combination yet — try toggling Eggspansion on, since most archetypes need it to staff higher player counts.</div>`;
+    } else {
+      out += results.map(r => staticCard(`
+        <div class="ability">
+          <div class="aname">${esc(r.title)} <span class="stage-badge">${esc(r.tag)}</span></div>
+          <div class="atext">${esc(r.blurb)}</div>
+          ${roleChips(r.squad)}
+          ${r.covers.length ? `<div class="note" style="color:var(--accent-2);font-style:normal;">✓ Already covers: ${r.covers.map(esc).join(', ')}</div>` : ''}
+          ${r.caution ? `<div class="note">⚠ ${esc(r.caution)}</div>` : ''}
+          ${r.lockedCount ? `<div class="note">+${r.lockedCount} more pick${r.lockedCount > 1 ? 's' : ''} available for this archetype with Eggspansion on</div>` : ''}
+        </div>`)).join('');
+    }
+    return out;
+  }
+
+  // ---------------------------------------------------------------------
+  // COMPARE CHICKENS
+  // ---------------------------------------------------------------------
+  function parseNum(v) { const n = parseInt(v, 10); return Number.isFinite(n) ? n : null; }
+
+  function chickenQuickStats(c) {
+    const healthSum = c.stages.reduce((s, st) => s + (parseNum(st.health) || 0), 0);
+    const attackSum = c.stages.reduce((s, st) => s + (parseNum(st.attackStrength) || 0), 0);
+    const mealsSum = c.stages.slice(0, 2).reduce((s, st) => s + (parseNum(st.mealsToNext) || 0), 0);
+    const rollThresholds = c.stages.slice(1).map(st => {
+      const m = (st.production || '').match(/(\d)-6/);
+      return m ? Number(m[1]) : null;
+    }).filter(n => n != null);
+    const avgThreshold = rollThresholds.length ? (rollThresholds.reduce((a, b) => a + b, 0) / rollThresholds.length) : null;
+    const abilityTexts = c.stages.flatMap(st => st.abilities.map(a => a.text || ''));
+    const cardDependent = abilityTexts.some(t => /bonus card/i.test(t));
+    return { healthSum, attackSum, mealsSum, avgThreshold, cardDependent };
+  }
+
+  function renderComparisonBody(nameA, nameB) {
+    const cA = DATA.chickens.find(c => c.name === nameA);
+    const cB = DATA.chickens.find(c => c.name === nameB);
+    if (!cA || !cB) return '';
+    const qa = chickenQuickStats(cA), qb = chickenQuickStats(cB);
+
+    const bullets = [];
+    if (qa.healthSum !== qb.healthSum) {
+      const higher = qa.healthSum > qb.healthSum ? nameA : nameB;
+      bullets.push(`${higher} has more total health across all 3 stages (${Math.max(qa.healthSum, qb.healthSum)} vs ${Math.min(qa.healthSum, qb.healthSum)}) — tankier, better for soaking hits.`);
+    }
+    if (qa.attackSum !== qb.attackSum) {
+      const higher = qa.attackSum > qb.attackSum ? nameA : nameB;
+      bullets.push(`${higher} has more total attack strength across all 3 stages (${Math.max(qa.attackSum, qb.attackSum)} vs ${Math.min(qa.attackSum, qb.attackSum)}) — hits harder, wastes less food on weak attacks.`);
+    }
+    if (qa.mealsSum != null && qb.mealsSum != null && qa.mealsSum !== qb.mealsSum) {
+      const faster = qa.mealsSum < qb.mealsSum ? nameA : nameB;
+      bullets.push(`${faster} levels faster — needs fewer total meals to reach Stage 3 (${Math.min(qa.mealsSum, qb.mealsSum)} vs ${Math.max(qa.mealsSum, qb.mealsSum)}).`);
+    }
+    if (qa.avgThreshold != null && qb.avgThreshold != null && qa.avgThreshold !== qb.avgThreshold) {
+      const better = qa.avgThreshold < qb.avgThreshold ? nameA : nameB;
+      bullets.push(`${better} has better production-roll odds on average (needs ${(qa.avgThreshold < qb.avgThreshold ? qa.avgThreshold : qb.avgThreshold)}-6 vs ${(qa.avgThreshold < qb.avgThreshold ? qb.avgThreshold : qa.avgThreshold)}-6) — more reliable egg income.`);
+    }
+    if (qa.cardDependent !== qb.cardDependent) {
+      const safer = !qa.cardDependent ? nameA : nameB;
+      bullets.push(`${safer}'s kit doesn't depend on Bonus Cards — untouched by Chicksune's card-lockdown effect, where the other isn't.`);
+    }
+
+    const archA = STRAT.archetypes.find(a => a.name === nameA);
+    const archB = STRAT.archetypes.find(a => a.name === nameB);
+
+    const profile = (c, arch) => staticCard(`
+      <div class="ability">
+        <div class="aname">${esc(c.name)}</div>
+        <div class="sub" style="margin-bottom:6px;">${c.breed ? esc(c.breed) : ''}${arch ? roleChips(arch.roles) : ''}</div>
+        ${c.stages.map(st => `
+          <div style="margin-top:8px;">
+            <div class="section-title" style="margin:6px 0 4px 0;">${esc(st.label)}</div>
+            <div class="stat-grid">
+              ${statBlock('Health', st.health)}
+              ${statBlock('Attack', st.attackStrength)}
+              ${statBlock('Production', st.production)}
+            </div>
+            ${st.abilities.map(a => `<div class="ability"><div class="aname">${esc(a.name || 'Ability')}</div><div class="atext">${esc(a.text)}</div></div>`).join('')}
+          </div>`).join('')}
+      </div>`);
+
+    return `
+      ${staticCard(`
+        <div class="ability">
+          <div class="aname">Quick take</div>
+          ${bullets.length ? bullets.map(b => `<div class="atext" style="margin-bottom:6px;">• ${b}</div>`).join('') : '<div class="atext">These two are close on the numbers — the difference comes down to playstyle (see roles below).</div>'}
+        </div>`)}
+      ${profile(cA, archA)}
+      ${profile(cB, archB)}`;
+  }
+
+  function renderCompare() {
+    const roster = DATA.chickens.filter(c => c.name).map(c => c.name).sort();
+    if (roster.length < 2) return `<div class="empty-state">Need at least 2 named chickens in the data to compare.</div>`;
+    if (!state.compareA) state.compareA = roster[0];
+    if (!state.compareB) state.compareB = roster.find(n => n !== state.compareA) || roster[1];
+
+    const picker = (which, current) => `
+      <select class="searchbar" data-compare="${which}" style="margin-bottom:0;">
+        ${roster.map(n => `<option value="${esc(n)}" ${n === current ? 'selected' : ''}>${esc(n)}</option>`).join('')}
+      </select>`;
+
+    return `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+        ${picker('a', state.compareA)}
+        ${picker('b', state.compareB)}
+      </div>
+      ${renderComparisonBody(state.compareA, state.compareB)}`;
+  }
+
+  // ---------------------------------------------------------------------
+  // MY TEAM
+  // ---------------------------------------------------------------------
+  function renderMyTeam() {
+    const REC = window.FLOCK_RECOMMEND;
+    const roster = DATA.chickens.filter(c => c.name).map(c => c.name).sort();
+    const n = state.setup ? state.setup.players : null;
+
+    let out = staticCard(`
+      <div class="ability">
+        <div class="aname">Pick your team${n ? ` (${n} player${n > 1 ? 's' : ''})` : ''}</div>
+        <div class="atext">Select the chickens you're actually playing to get tailored advice below.</div>
+      </div>`);
+
+    out += `<div class="chicken-picker">${roster.map(name => `
+      <label class="check-row">
+        <input type="checkbox" data-myteam="${esc(name)}" ${state.myTeam.includes(name) ? 'checked' : ''}>
+        ${esc(name)}
+      </label>`).join('')}</div>`;
+
+    if (!state.myTeam.length || !REC) {
+      out += `<div class="empty-state">Pick at least one chicken above to see analysis.</div>`;
+      return out;
+    }
+
+    const analysis = REC.analyzeTeam(state.myTeam);
+
+    out += staticCard(`
+      <div class="ability">
+        <div class="aname">Role coverage</div>
+        ${roleChips(analysis.picked.flatMap(a => a.roles))}
+        <div class="atext" style="margin-top:6px;">${analysis.gaps.length
+          ? `No dedicated ${analysis.gaps.join(', ')} on this team — plan around the gap rather than relying on a specialist for it.`
+          : `Solid coverage across tank, economy, support, control, and damage.`}</div>
+      </div>`);
+
+    if (analysis.combos.length) {
+      out += `<div class="section-title">Synergies in this team</div>`;
+      out += analysis.combos.map(c => staticCard(`
+        <div class="ability">
+          <div class="aname">${esc(c.title)} <span class="stage-badge">${c.status === 'active' ? 'Active' : 'Partial'}</span></div>
+          <div class="atext">${esc(c.synergy)}</div>
+        </div>`)).join('');
+    }
+
+    if (analysis.pace.length) {
+      out += `<div class="section-title">Leveling pace</div>`;
+      out += staticCard(`
+        <div class="ability">
+          <div class="atext">Total meals to reach Stage 3 — ${analysis.pace.map(p => `${esc(p.name)} (${p.total})`).join(', ')}. Feed <strong>${esc(analysis.pace[0].name)}</strong> first — cheapest to unlock their full kit.</div>
+        </div>`);
+    }
+
+    if (analysis.grubPickers.length) {
+      out += staticCard(`
+        <div class="ability">
+          <div class="aname">Early game: prioritize Grubs</div>
+          <div class="atext">${analysis.grubPickers.map(esc).join(', ')} turn Grub kills into real value — clear Grubs early rather than ignoring them, especially if Sheriff of Rottingham is in the Predator pool this game.</div>
+        </div>`);
+    }
+
+    if (state.setup && state.setup.predators.length) {
+      const priority = REC.predatorPriority(state.myTeam, state.setup.predators);
+      out += `<div class="section-title">Suggested engagement order</div>`;
+      out += priority.map((p, i) => staticCard(`
+        <div class="ability">
+          <div class="aname">${i + 1}. ${esc(p.predator)} <span class="stage-badge">${p.favorable ? 'Engage early' : 'Save for later'}</span></div>
+          <div class="atext">${p.favorable
+            ? `Your team already counters this — ${p.matchedCounters.map(m => esc(m.chicken)).join(', ')}.`
+            : `No natural counter on this team yet. Level up and stock resources before engaging, or let the fight come to you.`}</div>
+        </div>`)).join('');
+    } else {
+      out += `<div class="note" style="margin-top:8px;">Add known predators in ⚙ Setup to get a suggested engagement order.</div>`;
+    }
+
     return out;
   }
 
@@ -337,21 +556,136 @@
 
   function renderStrategy() {
     const sections = [
-      { key: 'archetypes', label: 'Archetypes' },
-      { key: 'matchups', label: 'Predator Guide' },
       { key: 'teams', label: 'Team Comps' },
+      { key: 'myteam', label: 'My Team' },
+      { key: 'compare', label: 'Compare' },
+      { key: 'matchups', label: 'Predator Guide' },
+      { key: 'archetypes', label: 'Archetypes' },
       { key: 'combos', label: 'Combos' },
     ];
-    const active = state.strategySection || 'archetypes';
+    const active = state.strategySection || 'teams';
     const nav = `<div class="stage-tabs">${sections.map(s => `<button class="stage-tab ${s.key === active ? 'active' : ''}" data-strat="${s.key}">${esc(s.label)}</button>`).join('')}</div>`;
 
     let body = '';
     if (active === 'archetypes') body = renderArchetypes();
     else if (active === 'matchups') body = renderMatchups();
     else if (active === 'teams') body = renderTeamComps();
+    else if (active === 'compare') body = renderCompare();
+    else if (active === 'myteam') body = renderMyTeam();
     else body = renderCombos();
 
-    return { nav, body, searchable: active !== 'teams' };
+    const searchableSections = ['archetypes', 'matchups', 'combos'];
+    return { nav, body, searchable: searchableSections.includes(active) };
+  }
+
+  // ---------------------------------------------------------------------
+  // SETUP WIZARD
+  // ---------------------------------------------------------------------
+  function pillRow(items) {
+    return `<div class="stage-tabs">${items.join('')}</div>`;
+  }
+
+  function renderWizard() {
+    if (!wizardRoot) return;
+    if (!state.wizardOpen || !state.wizardDraft) { wizardRoot.innerHTML = ''; return; }
+    const d = state.wizardDraft;
+
+    const playerPills = [1, 2, 3, 4, 5, 6].map(n => {
+      const disabled = n === 6 && !d.expansion;
+      return `<button class="stage-tab ${d.players === n ? 'active' : ''}" ${disabled ? 'disabled' : ''} data-players="${n}">${n}${disabled ? ' 🔒' : ''}</button>`;
+    });
+
+    const expansionPills = [
+      `<button class="stage-tab ${!d.expansion ? 'active' : ''}" data-expansion="no">No</button>`,
+      `<button class="stage-tab ${d.expansion ? 'active' : ''}" data-expansion="yes">Yes</button>`,
+    ];
+
+    const difficultyPills = [1, 2, 3, 4, 5, 6, 7].map(n =>
+      `<button class="stage-tab ${d.difficulty === n ? 'active' : ''}" data-difficulty="${n}">${n}</button>`);
+
+    const predatorChoices = DATA.predators.filter(p => p.name && (d.expansion || p.expansion !== 'Eggspansion'));
+    const predatorList = predatorChoices.map(p => {
+      const checked = d.predators.includes(p.name);
+      const capReached = !checked && d.predators.length >= 3;
+      return `<label class="check-row ${capReached ? 'disabled' : ''}">
+        <input type="checkbox" data-predator="${esc(p.name)}" ${checked ? 'checked' : ''} ${capReached ? 'disabled' : ''}>
+        ${esc(p.name)} <span class="text-muted">(${p.species ? esc(p.species) : 'species unknown'})</span>
+      </label>`;
+    }).join('');
+
+    wizardRoot.innerHTML = `
+      <div class="modal-backdrop" id="wizard-backdrop">
+        <div class="modal-card">
+          <h2>Set up your game</h2>
+          <p class="modal-sub">Answer what you know — reopen this anytime from the ⚙ Setup button.</p>
+
+          <div class="modal-field">
+            <label>Players</label>
+            ${pillRow(playerPills)}
+          </div>
+
+          <div class="modal-field">
+            <label>Eggspansion pack?</label>
+            ${pillRow(expansionPills)}
+          </div>
+
+          <div class="modal-field">
+            <label>Difficulty</label>
+            ${pillRow(difficultyPills)}
+          </div>
+
+          <div class="modal-field">
+            <label>Known predators <span class="modal-optional">(optional — pick up to 3 if the board's already set up)</span></label>
+            <div class="predator-check-list">${predatorList}</div>
+          </div>
+
+          <div class="modal-actions">
+            <button class="btn-secondary" id="wizard-skip" type="button">Skip for now</button>
+            <button class="btn-primary" id="wizard-submit" type="button">Show My Options</button>
+          </div>
+        </div>
+      </div>`;
+
+    wizardRoot.querySelectorAll('[data-players]').forEach(el => {
+      el.addEventListener('click', () => { if (!el.disabled) { d.players = Number(el.dataset.players); render(); } });
+    });
+    wizardRoot.querySelectorAll('[data-expansion]').forEach(el => {
+      el.addEventListener('click', () => {
+        d.expansion = el.dataset.expansion === 'yes';
+        if (!d.expansion) {
+          if (d.players === 6) d.players = 5;
+          d.predators = d.predators.filter(name => {
+            const p = DATA.predators.find(x => x.name === name);
+            return p && p.expansion !== 'Eggspansion';
+          });
+        }
+        render();
+      });
+    });
+    wizardRoot.querySelectorAll('[data-difficulty]').forEach(el => {
+      el.addEventListener('click', () => { d.difficulty = Number(el.dataset.difficulty); render(); });
+    });
+    wizardRoot.querySelectorAll('[data-predator]').forEach(el => {
+      el.addEventListener('change', () => {
+        const name = el.dataset.predator;
+        if (el.checked) { if (d.predators.length < 3) d.predators.push(name); else el.checked = false; }
+        else { d.predators = d.predators.filter(n => n !== name); }
+        render();
+      });
+    });
+    const skipBtn = document.getElementById('wizard-skip');
+    if (skipBtn) skipBtn.addEventListener('click', () => { state.wizardOpen = false; render(); });
+    const submitBtn = document.getElementById('wizard-submit');
+    if (submitBtn) submitBtn.addEventListener('click', () => {
+      saveSetup({ ...d, predators: [...d.predators] });
+      state.wizardOpen = false;
+      state.tab = 'strategy';
+      state.strategySection = 'teams';
+      [...tabbar.children].forEach(t => t.classList.toggle('active', t.dataset.tab === 'strategy'));
+      render();
+    });
+    const backdrop = document.getElementById('wizard-backdrop');
+    if (backdrop) backdrop.addEventListener('click', (e) => { if (e.target === backdrop) { state.wizardOpen = false; render(); } });
   }
 
   // ---------------------------------------------------------------------
@@ -412,7 +746,27 @@
         render();
       });
     });
+
+    appEl.querySelectorAll('[data-myteam]').forEach(el => {
+      el.addEventListener('change', () => {
+        const name = el.dataset.myteam;
+        state.myTeam = el.checked ? [...state.myTeam, name] : state.myTeam.filter(n => n !== name);
+        render();
+      });
+    });
+
+    appEl.querySelectorAll('[data-compare]').forEach(el => {
+      el.addEventListener('change', () => {
+        if (el.dataset.compare === 'a') state.compareA = el.value; else state.compareB = el.value;
+        render();
+      });
+    });
+
+    renderWizard();
   }
 
+  state.setup = loadSetup();
+  state.wizardDraft = state.setup ? { ...state.setup, predators: [...state.setup.predators] } : defaultDraft();
+  if (!state.setup) state.wizardOpen = true;
   render();
 })();
