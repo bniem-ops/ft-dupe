@@ -19,22 +19,10 @@
   --radius: 12px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #1a1510;
-    --surface: #241e17;
-    --surface-2: #30281e;
-    --border: #453a29;
-    --text: #f2ead6;
-    --text-muted: #ad9d7c;
-    --accent: #e2884a;
-    --accent-2: #8ebd66;
-    --predator: #4fb3c9;
-    --unknown: #6b5c40;
-    --danger: #e07268;
-    --shadow: 0 1px 3px rgba(0,0,0,0.35);
-  }
-}
+/* Always light — no dark-mode variant. Was previously switched via
+   prefers-color-scheme, but the dark palette read as muddy brown rather
+   than intentional, so the app now sticks to one polished light theme
+   regardless of system setting. */
 
 * { box-sizing: border-box; }
 
