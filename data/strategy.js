@@ -168,6 +168,16 @@ window.FLOCK_STRATEGY = {
       synergy: "None of their kits touch Bonus Cards, so Chicksune's Stage 1 card-immunity effect doesn't cost them anything — lead with these against her." },
     { title: "Grub Prep", chickens: ["Shellock Holmes", "solo tech pick"],
       synergy: "Clear high-health Grubs from both decks ahead of a Sheriff of Rottingham fight to defang his scaling return attack before it spikes." },
+    { title: "Manufactured Bruise", chickens: ["Cluck Norris", "Broods Lee", "Atilla the Hen"],
+      synergy: "Always on Purpose lets Cluck Norris take 1 damage on demand for 2 eggs — a controllable trigger for Broods Lee's Bolsterer (+1 strength to nearby hurt teammates) instead of waiting on the Predator to land a hit. Atilla stacks Just Reward on top by tanking the real damage, so the team banks eggs and strength from both a manufactured bruise and genuine tanking." },
+    { title: "Full Belly, Full Health", chickens: ["Madam Chickovsky", "General Tso or any heavy attacker"],
+      synergy: "Ladies' Aid lets Chickovsky give 1 food to a nearby player and heal herself 1 heart, once per turn. Since Attack costs 1 food per point of strength, she can quietly bankroll a hard-hitting teammate's swings while keeping her own health topped off — no Heal action needed from either of them." },
+    { title: "Backup Swing", chickens: ["Cluckleberry Finn", "Wingston Coophill"],
+      synergy: "Quite Friendly lets Cluckleberry bring a nearby player into combat with her (the other player attacks second) — a way to get Wingston, the fragile Serama who often can't afford to pick fights alone, into the action on someone else's initiative, where Evasion gives him real odds to dodge the return hit." },
+    { title: "Egg Harvest", chickens: ["Annie Yolkley", "Cluckleberry Finn"],
+      synergy: "Bacaw! drops an egg wherever Annie takes damage, collectible by any player in that spot. Station Cluckleberry nearby during Annie's fights and those eggs cash in at double value through Superior Product at the Egg Exchange." },
+    { title: "Grub Cleanup Crew", chickens: ["Shellock Holmes", "Eggatha Christie"],
+      synergy: "Plots & Ploys lets Shellock burn through his Grub cards' hearts as a damage shield, discarding them once fully spent. Eggatha's Tomb Raider then attacks those discarded Grubs for value and permanently removes any that get revived, so nothing wasted goes to waste twice." },
   ],
 
   // Team comps and the fun squad moved to data/recommend.js — that engine
