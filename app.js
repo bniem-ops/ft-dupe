@@ -145,6 +145,21 @@
       ${abilities}`;
   }
 
+  // Role chips + one-line summary, sourced from the same archetypes data
+  // that used to back a standalone "Roles" tab — folded directly onto each
+  // chicken's card instead, since it's the same chicken either way.
+  function chickenRoleBlock(c) {
+    const arch = window.FLOCK_STRATEGY && window.FLOCK_STRATEGY.archetypes
+      ? window.FLOCK_STRATEGY.archetypes.find(a => a.name === c.name)
+      : null;
+    if (!arch) return '';
+    return `
+      <div class="ability">
+        ${roleChips(arch.roles)}
+        <div class="atext">${esc(arch.summary)}</div>
+      </div>`;
+  }
+
   function renderChickenCard(c, idx) {
     const key = 'chk-' + idx;
     const isOpen = state.openCards.has(key);
@@ -171,6 +186,7 @@
           </div>
         </div>
         <div class="card-body">
+          ${chickenRoleBlock(c)}
           <div class="stage-tabs">${stageTabs}</div>
           ${chickenStageContent(c, openStageIdx)}
           ${c.flavorQuote ? `<div class="flavor">"${esc(c.flavorQuote)}"</div>` : ''}
@@ -205,6 +221,27 @@
     });
     total += 1; if (p.lootDrop) filled++;
     return { total, filled };
+  }
+
+  // Threat/counters/caution, sourced from the same predatorGuide data that
+  // used to back a standalone "Predator Guide" tab — folded directly onto
+  // each predator's card instead, same reasoning as chickenRoleBlock above.
+  function predatorGuideBlock(p) {
+    const STRAT = window.FLOCK_STRATEGY;
+    const guide = STRAT && STRAT.predatorGuide ? STRAT.predatorGuide.find(g => g.predator === p.name) : null;
+    if (!guide) return '';
+    return `
+      <div class="ability">
+        <div class="aname">Threat</div>
+        <div class="atext">${esc(guide.threat)}</div>
+      </div>
+      <div class="section-title" style="margin:10px 0 4px 0;">Best counters</div>
+      ${guide.counters.map(c => `
+        <div class="ability">
+          <div class="aname" style="color:var(--accent-2);">${esc(c.chicken)}</div>
+          <div class="atext">${esc(c.why)}</div>
+        </div>`).join('')}
+      ${guide.caution ? `<div class="note" style="margin-top:6px;">⚠ ${esc(guide.caution)}</div>` : ''}`;
   }
 
   function renderPredatorCard(p, idx) {
@@ -245,6 +282,7 @@
             <div class="label">Loot Drop</div>
             ${p.lootDrop ? esc(p.lootDrop) : '<span class="value unknown">Not yet transcribed</span>'}
           </div>
+          ${predatorGuideBlock(p)}
         </div>
       </div>`;
   }
@@ -356,21 +394,6 @@
     return `<div style="margin:4px 0 6px 0;">${list.map(r => `<span class="role-chip">${esc(r)}</span>`).join('')}</div>`;
   }
 
-  // Per-chicken role reference (one entry per chicken) — distinct from the
-  // named team archetypes below, which are a different dataset entirely.
-  function renderRoles() {
-    if (!STRAT) return `<div class="empty-state">Strategy data not loaded.</div>`;
-    const q = state.search.trim().toLowerCase();
-    const items = STRAT.archetypes.filter(a => !q || [a.name, ...a.roles, a.summary].join(' ').toLowerCase().includes(q));
-    if (!items.length) return `<div class="empty-state">No chickens match "${esc(state.search)}"</div>`;
-    return items.map(a => staticCard(`
-      <div class="ability">
-        <div class="aname">${esc(a.name)}</div>
-        ${roleChips(a.roles)}
-        <div class="atext">${esc(a.summary)}</div>
-      </div>`, 'chicken-card')).join('');
-  }
-
   // The 11 named team archetypes (Balanced Core, Grub Guild, etc.) that
   // back Team Comps' suggestions — browsable here unfiltered, independent
   // of any particular player count/expansion/difficulty setup.
@@ -388,29 +411,6 @@
         ${roleChips(a.core)}
         ${a.caution ? `<div class="note">⚠ ${esc(a.caution)}</div>` : ''}
       </div>`)).join('');
-  }
-
-  function renderMatchups() {
-    if (!STRAT) return `<div class="empty-state">Strategy data not loaded.</div>`;
-    const q = state.search.trim().toLowerCase();
-    const items = STRAT.predatorGuide.filter(p => !q || [p.predator, p.species, p.threat, ...p.counters.map(c => c.chicken + ' ' + c.why)].join(' ').toLowerCase().includes(q));
-    if (!items.length) return `<div class="empty-state">No predators match "${esc(state.search)}"</div>`;
-    return items.map(p => staticCard(`
-        <div class="ability">
-          <div class="aname">${esc(p.predator)}
-            <span class="stage-badge">${esc(p.species)}</span>${p.note ? ` <span class="stage-badge">${esc(p.note)}</span>` : ''}
-          </div>
-          <div class="atext">${esc(p.threat)}</div>
-        </div>
-        <div style="margin-top:6px;">
-          <div class="section-title" style="margin:8px 0 4px 4px;">Best counters</div>
-          ${p.counters.map(c => `
-            <div class="ability">
-              <div class="aname" style="color:var(--accent-2);">${esc(c.chicken)}</div>
-              <div class="atext">${esc(c.why)}</div>
-            </div>`).join('')}
-        </div>
-        <div class="note" style="margin-top:6px;">⚠ ${esc(p.caution)}</div>`, 'predator-card')).join('');
   }
 
   function renderTeamComps() {
@@ -507,55 +507,6 @@
       </div>`);
   }
 
-  function renderComparisonBody(nameA, nameB) {
-    const cA = DATA.chickens.find(c => c.name === nameA);
-    const cB = DATA.chickens.find(c => c.name === nameB);
-    if (!cA || !cB) return '';
-
-    const archA = STRAT.archetypes.find(a => a.name === nameA);
-    const archB = STRAT.archetypes.find(a => a.name === nameB);
-
-    const profile = (c, arch) => staticCard(`
-      <div class="ability">
-        <div class="aname">${esc(c.name)}</div>
-        <div class="sub" style="margin-bottom:6px;">${c.breed ? esc(c.breed) : ''}${arch ? roleChips(arch.roles) : ''}</div>
-        ${c.stages.map(st => `
-          <div style="margin-top:8px;">
-            <div class="section-title" style="margin:6px 0 4px 0;">${esc(st.label)}</div>
-            <div class="stat-grid">
-              ${statBlock('Health', st.health)}
-              ${statBlock('Attack', st.attackStrength)}
-              ${statBlock('Production', st.production)}
-            </div>
-            ${st.abilities.map(a => `<div class="ability"><div class="aname">${esc(a.name || 'Ability')}</div><div class="atext">${esc(a.text)}</div></div>`).join('')}
-          </div>`).join('')}
-      </div>`, 'chicken-card');
-
-    return `
-      ${quickTakeCard(nameA, nameB)}
-      ${profile(cA, archA)}
-      ${profile(cB, archB)}`;
-  }
-
-  function renderCompare() {
-    const roster = DATA.chickens.filter(c => c.name).map(c => c.name).sort();
-    if (roster.length < 2) return `<div class="empty-state">Need at least 2 named chickens in the data to compare.</div>`;
-    if (!state.compareA) state.compareA = roster[0];
-    if (!state.compareB) state.compareB = roster.find(n => n !== state.compareA) || roster[1];
-
-    const picker = (which, current) => `
-      <select class="searchbar" data-compare="${which}" style="margin-bottom:0;">
-        ${roster.map(n => `<option value="${esc(n)}" ${n === current ? 'selected' : ''}>${esc(n)}</option>`).join('')}
-      </select>`;
-
-    return `
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
-        ${picker('a', state.compareA)}
-        ${picker('b', state.compareB)}
-      </div>
-      ${renderComparisonBody(state.compareA, state.compareB)}`;
-  }
-
   // ---------------------------------------------------------------------
   // KNOWN PREDATORS (inline, relocated out of the setup wizard — see note
   // where it's rendered: predators aren't revealed until after chickens
@@ -645,7 +596,19 @@
     return out;
   }
 
+  // "My Team" is session-aware: local checkbox picker normally, or the live
+  // Firestore-backed roster once a session is active (see LIVE TABLE SESSION
+  // below) — same tab either way rather than a separate one that only
+  // exists while a session happens to be running.
   function renderMyTeam() {
+    if (state.sessionCode) {
+      ensureSessionSubscription();
+      return renderMyTeamLive();
+    }
+    return renderMyTeamLocal();
+  }
+
+  function renderMyTeamLocal() {
     const REC = window.FLOCK_RECOMMEND;
     const roster = DATA.chickens.filter(c => c.name).map(c => c.name).sort();
     const n = state.setup ? state.setup.players : null;
@@ -721,16 +684,7 @@
     }).join('');
   }
 
-  function renderSessionTeam() {
-    ensureSessionSubscription();
-    if (!state.sessionCode) {
-      return staticCard(`
-        <div class="ability">
-          <div class="aname">No live session yet</div>
-          <div class="atext">Start one from ⚙ Setup → Compare &amp; pick a chicken → Host a live session (or join with a code).</div>
-        </div>`);
-    }
-
+  function renderMyTeamLive() {
     const data = state.sessionData;
     let out = staticCard(`
       <div class="ability">
@@ -783,13 +737,9 @@
       { key: 'weather', label: 'Weather' },
       { key: 'teams', label: 'Team Comps' },
       { key: 'myteam', label: 'My Team' },
-      { key: 'compare', label: 'Compare' },
-      { key: 'matchups', label: 'Predator Guide' },
       { key: 'squads', label: 'Archetypes' },
-      { key: 'roles', label: 'Roles' },
       { key: 'combos', label: 'Combos' },
     ];
-    if (state.sessionCode) sections.splice(5, 0, { key: 'session', label: 'Live Session' });
     const active = state.strategySection || 'teams';
     const nav = `<div class="stage-tabs">${sections.map(s => `<button class="stage-tab ${s.key === active ? 'active' : ''}" data-strat="${s.key}">${esc(s.label)}</button>`).join('')}</div>`;
 
@@ -798,20 +748,16 @@
     else if (active === 'predators') body = renderPredators();
     else if (active === 'weather') body = renderWeather();
     else if (active === 'squads') body = renderSquadArchetypes();
-    else if (active === 'roles') body = renderRoles();
-    else if (active === 'matchups') body = renderMatchups();
     else if (active === 'teams') body = renderTeamComps();
-    else if (active === 'compare') body = renderCompare();
     else if (active === 'myteam') body = renderMyTeam();
-    else if (active === 'session') body = renderSessionTeam();
     else body = renderCombos();
 
     const searchPlaceholders = {
       chickens: 'Search chickens & abilities…', predators: 'Search predators & effects…', weather: 'Search weather cards…',
-      squads: 'Search…', roles: 'Search…', matchups: 'Search…', combos: 'Search…',
+      squads: 'Search…', combos: 'Search…',
     };
-    const searchableSections = ['chickens', 'predators', 'weather', 'squads', 'roles', 'matchups', 'combos'];
-    const rawDataSections = ['chickens', 'predators', 'weather'];
+    const searchableSections = ['chickens', 'predators', 'weather', 'squads', 'combos'];
+    const rawDataSections = ['weather'];
     return {
       nav, body,
       searchable: searchableSections.includes(active),
@@ -1115,7 +1061,7 @@
           el.disabled = true; el.textContent = 'Saving…';
           try {
             await window.FLOCK_SESSION.submitPick(state.sessionCode, state.playerName, name);
-            goToStrategySection('session');
+            goToStrategySection('myteam');
           } catch (err) {
             el.disabled = false; el.textContent = originalText;
           }
@@ -1266,13 +1212,6 @@
           predators = predators.filter(n => n !== name);
         }
         saveSetup({ ...state.setup, predators });
-        render();
-      });
-    });
-
-    appEl.querySelectorAll('[data-compare]').forEach(el => {
-      el.addEventListener('change', () => {
-        if (el.dataset.compare === 'a') state.compareA = el.value; else state.compareB = el.value;
         render();
       });
     });
