@@ -569,7 +569,7 @@
     }).join('');
     return `
       <div class="section-title" style="margin:14px 4px 8px 4px;">Known predators <span class="modal-optional">(optional — up to 3, once the board's revealed)</span></div>
-      <div class="predator-check-list">${list}</div>`;
+      <div class="predator-check-list" data-scroll-id="known-predators-picker">${list}</div>`;
   }
 
   // ---------------------------------------------------------------------
@@ -593,7 +593,7 @@
       out += `<div class="section-title">Synergies in this team</div>`;
       out += analysis.combos.map(c => staticCard(`
         <div class="ability">
-          <div class="aname">${esc(c.title)} <span class="stage-badge">${c.status === 'active' ? 'Active' : 'Partial'}</span></div>
+          <div class="aname">${esc(c.title)} <span class="stage-badge">${c.satisfiedCount}/${c.totalSlots} chickens</span></div>
           ${roleChips(c.matchedChickens || [])}
           <div class="atext">${esc(c.synergy)}</div>
         </div>`)).join('');
@@ -649,7 +649,7 @@
         <div class="atext">Select the chickens you're actually playing to get tailored advice below.</div>
       </div>`);
 
-    out += `<div class="chicken-picker">${roster.map(name => `
+    out += `<div class="chicken-picker" data-scroll-id="myteam-picker">${roster.map(name => `
       <label class="check-row">
         <input type="checkbox" data-myteam="${esc(name)}" ${state.myTeam.includes(name) ? 'checked' : ''}>
         ${esc(name)}
@@ -736,7 +736,7 @@
     const pickedNames = picks.map(p => p.chicken);
     const waitingCount = Math.max(0, (data.players || 0) - picks.length);
 
-    out += `<div class="chicken-picker">`;
+    out += `<div class="chicken-picker" data-scroll-id="session-picks-list">`;
     out += picks.map(p => `<div class="check-row"><strong>${esc(p.name)}</strong>&nbsp;— ${esc(p.chicken)}</div>`).join('');
     if (waitingCount > 0) {
       out += Array.from({ length: waitingCount }).map(() => `<div class="check-row text-muted">Waiting for a player…</div>`).join('');
@@ -751,7 +751,7 @@
 
     out += `
       <div class="section-title" style="margin-top:14px;">Known predators <span class="modal-optional">(syncs to everyone)</span></div>
-      <div class="predator-check-list">${sessionPredatorChecklist(data)}</div>`;
+      <div class="predator-check-list" data-scroll-id="session-predator-picker">${sessionPredatorChecklist(data)}</div>`;
 
     return out;
   }
@@ -1148,6 +1148,14 @@
   // ---------------------------------------------------------------------
   function render() {
     const wasSearchFocused = document.activeElement && document.activeElement.id === 'search';
+    // Scrollable pickers (chicken/predator checklists) get rebuilt from scratch
+    // on every state change, which would otherwise snap them back to the top
+    // every time a single checkbox is toggled — save/restore their scroll offset
+    // across the rebuild instead.
+    const scrollPositions = {};
+    appEl.querySelectorAll('[data-scroll-id]').forEach(el => {
+      scrollPositions[el.dataset.scrollId] = el.scrollTop;
+    });
     updateProgress();
 
     let html;
@@ -1165,6 +1173,11 @@
     }
 
     appEl.innerHTML = html;
+
+    appEl.querySelectorAll('[data-scroll-id]').forEach(el => {
+      const pos = scrollPositions[el.dataset.scrollId];
+      if (pos) el.scrollTop = pos;
+    });
 
     const search = document.getElementById('search');
     if (search) {

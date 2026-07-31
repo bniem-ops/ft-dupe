@@ -234,8 +234,10 @@
       const satisfiedSlots = matchedPerSlot.filter(names => names.length > 0);
       if (!satisfiedSlots.length) return null;
       const matchedChickens = [...new Set(matchedPerSlot.flat())];
-      const status = satisfiedSlots.length === entries.length ? 'active' : 'partial';
-      return { ...combo, status, matchedChickens };
+      const satisfiedCount = satisfiedSlots.length;
+      const totalSlots = entries.length;
+      const status = satisfiedCount === totalSlots ? 'active' : 'partial';
+      return { ...combo, status, satisfiedCount, totalSlots, matchedChickens };
     }).filter(Boolean);
 
     // Leveling pace: sum of "meals to reach next stage" across stage 1 & 2
