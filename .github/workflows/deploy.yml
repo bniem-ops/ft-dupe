@@ -24,6 +24,8 @@ jobs:
           node-version: 20
       - name: Build data from txt templates
         run: node scripts/build_data.js
+      - name: Cache-bust asset URLs
+        run: node scripts/cachebust.js
       - uses: actions/upload-pages-artifact@v3
         with:
           path: .
