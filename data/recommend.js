@@ -57,6 +57,12 @@
       minPlayers: 2, maxPlayers: 6,
       blurb: 'Stacks weather immunities (Cumberbill goes fully immune by Stage 3; Madam Chickovsky and Eggatha cover specific cards) plus Chickira\'s ability to force a re-draw on whatever\'s left. Denies an entire threat category rather than out-fighting it.' },
 
+    { id: 'passive-sustain', title: 'Passive Sustain', tag: 'Sustain', resilience: 'medium',
+      core: ['Beowing', 'Chickira', 'Madam Chickovsky', 'Wyatt Chirp', 'Cumberbill Rockefeather', 'Shellock Holmes'],
+      minPlayers: 2, maxPlayers: 6,
+      caution: 'No dedicated Damage role in the core lineup — plan on spending real actions/food on Attack rather than leaning on a big hitter\'s kit.',
+      blurb: 'Three different passive heal triggers stacked on one team — Beowing\'s Berserker, Chickira\'s Shake it Off, and Madam Chickovsky\'s Ladies\' Aid — so the squad barely needs to spend an action on Heal at all. Wyatt Chirp adds a real Tank and Shellock Holmes covers Grub Control, the two roles the core trio is missing on its own.' },
+
     { id: 'tank-glasscannon', title: 'Tank & Glass Cannon', tag: 'Tank + Damage', resilience: 'high',
       core: ['Atilla the Hen', 'Wingston Coophill', 'Broods Lee', 'Cluck Norris', 'Beowing', 'Shellock Holmes'],
       minPlayers: 2, maxPlayers: 6,
