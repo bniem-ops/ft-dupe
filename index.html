@@ -10,8 +10,11 @@
 
 <header class="topbar">
   <div class="topbar-title-row">
-    <h1>🐔 Flock Together</h1>
-    <button id="setup-btn" class="setup-btn" type="button">⚙️ Setup</button>
+    <h1>Flock Together</h1>
+    <div class="topbar-actions">
+      <button id="rules-btn" class="setup-btn" type="button">📜 Rules</button>
+      <button id="setup-btn" class="setup-btn" type="button">⚙️ Setup</button>
+    </div>
   </div>
   <div class="progress" id="progress"></div>
 </header>
@@ -22,9 +25,6 @@
 <nav class="tabbar" id="tabbar">
   <button class="tab active" data-tab="strategy">
     <span class="tab-icon">🏠</span><span>Home</span>
-  </button>
-  <button class="tab" data-tab="rules">
-    <span class="tab-icon">📜</span><span>Rules</span>
   </button>
 </nav>
 

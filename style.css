@@ -59,6 +59,11 @@ body {
   margin: 0;
   font-size: 1.25rem;
 }
+.topbar-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
 .setup-btn {
   flex-shrink: 0;
   background: var(--surface-2);

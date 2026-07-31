@@ -14,6 +14,7 @@
   const tabbar = document.getElementById('tabbar');
   const wizardRoot = document.getElementById('wizard-root');
   const setupBtn = document.getElementById('setup-btn');
+  const rulesBtn = document.getElementById('rules-btn');
 
   function defaultDraft() { return { players: 3, expansion: false, difficulty: 4, predators: [] }; }
   function loadSetup() {
@@ -42,6 +43,15 @@
       state.wizardDraft = state.setup ? { ...state.setup, predators: [...state.setup.predators] } : defaultDraft();
       state.wizardOpen = true;
       state.wizardStep = 1;
+      render();
+    });
+  }
+
+  if (rulesBtn) {
+    rulesBtn.addEventListener('click', () => {
+      state.tab = 'rules';
+      state.search = '';
+      [...tabbar.children].forEach(t => t.classList.remove('active'));
       render();
     });
   }
