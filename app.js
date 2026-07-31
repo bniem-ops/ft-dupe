@@ -617,7 +617,8 @@
       <div class="ability">
         <div class="aname">Pick your team${n ? ` (${n} player${n > 1 ? 's' : ''})` : ''}</div>
         <div class="atext">Select the chickens you're actually playing to get tailored advice below.</div>
-      </div>`);
+      </div>
+      ${state.myTeam.length ? `<button class="btn-secondary" id="clear-myteam" type="button" style="margin-top:10px;">Clear team</button>` : ''}`);
 
     out += `<div class="chicken-picker" data-scroll-id="myteam-picker">${roster.map(name => `
       <label class="check-row">
@@ -1199,6 +1200,14 @@
         render();
       });
     });
+
+    const clearMyTeamBtn = document.getElementById('clear-myteam');
+    if (clearMyTeamBtn) {
+      clearMyTeamBtn.addEventListener('click', () => {
+        state.myTeam = [];
+        render();
+      });
+    }
 
     appEl.querySelectorAll('[data-known-predator]').forEach(el => {
       el.addEventListener('change', () => {
