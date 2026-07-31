@@ -1065,7 +1065,7 @@
 
     return `
       <div class="modal-backdrop" id="wizard-backdrop">
-        <div class="modal-card">
+        <div class="modal-card modal-card-wide">
           <h2>Compare &amp; pick your chicken</h2>
           <p class="modal-sub">You're handed two Chicken Books at the start of the game — compare them, then lock in the one you're keeping.</p>
           ${quickTakeCard(state.compareA, state.compareB)}

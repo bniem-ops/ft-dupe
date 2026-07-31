@@ -438,6 +438,7 @@ main {
   .modal-backdrop { align-items: center; }
   .modal-card { border-radius: var(--radius); max-height: 80vh; }
   .compare-cards { grid-template-columns: 1fr 1fr; }
+  .modal-card-wide { max-width: 960px; }
 }
 
 @media (min-width: 720px) {
