@@ -66,6 +66,7 @@
   // Progress summary
   // ---------------------------------------------------------------------
   function updateProgress() {
+    if (!progressEl) return;
     const namedChickens = DATA.chickens.filter(c => c.name).length;
     const statFullChickens = DATA.chickens.filter(c => c.name && c.stages.every(s => s.health && s.attackStrength && s.production)).length;
 
@@ -75,10 +76,20 @@
     const allWeather = [...Object.values(DATA.weather.seasons || {}).flat(), ...(DATA.weather.eggspansion || [])];
     const weatherFull = allWeather.filter(w => w.name && w.effect).length;
 
-    progressEl.textContent =
-      `Chickens ${statFullChickens}/${DATA.chickens.length} statted (${namedChickens} named) · ` +
-      `Predators ${statFullPredators}/${DATA.predators.length} statted (${namedPredators} named) · ` +
-      `Weather ${weatherFull}/${allWeather.length} statted`;
+    const issues = [];
+    if (namedChickens < DATA.chickens.length) issues.push(`${DATA.chickens.length - namedChickens} chicken slot${DATA.chickens.length - namedChickens > 1 ? 's' : ''} unnamed`);
+    else if (statFullChickens < namedChickens) issues.push(`${namedChickens - statFullChickens} chicken${namedChickens - statFullChickens > 1 ? 's' : ''} missing stats`);
+    if (namedPredators < DATA.predators.length) issues.push(`${DATA.predators.length - namedPredators} predator slot${DATA.predators.length - namedPredators > 1 ? 's' : ''} unnamed`);
+    else if (statFullPredators < namedPredators) issues.push(`${namedPredators - statFullPredators} predator${namedPredators - statFullPredators > 1 ? 's' : ''} missing stats`);
+    if (weatherFull < allWeather.length) issues.push(`${allWeather.length - weatherFull} weather card${allWeather.length - weatherFull > 1 ? 's' : ''} incomplete`);
+
+    if (issues.length) {
+      progressEl.textContent = `⚠ ${issues.join(' · ')}`;
+      progressEl.style.display = '';
+    } else {
+      progressEl.textContent = '';
+      progressEl.style.display = 'none';
+    }
   }
 
   // ---------------------------------------------------------------------
