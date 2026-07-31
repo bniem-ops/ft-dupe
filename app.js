@@ -3,7 +3,7 @@
 
   const state = {
     tab: 'chickens', search: '', openCards: new Set(), openStage: {},
-    strategySection: 'archetypes',
+    strategySection: 'teams',
     setup: null, wizardOpen: false, wizardDraft: null, wizardStep: 1,
     compareA: null, compareB: null, myTeam: [],
     sessionCode: null, sessionData: null, isHost: false, playerName: '', joinError: null,
@@ -338,7 +338,9 @@
     return `<div style="margin:4px 0 6px 0;">${list.map(r => `<span class="role-chip">${esc(r)}</span>`).join('')}</div>`;
   }
 
-  function renderArchetypes() {
+  // Per-chicken role reference (one entry per chicken) — distinct from the
+  // named team archetypes below, which are a different dataset entirely.
+  function renderRoles() {
     if (!STRAT) return `<div class="empty-state">Strategy data not loaded.</div>`;
     const q = state.search.trim().toLowerCase();
     const items = STRAT.archetypes.filter(a => !q || [a.name, ...a.roles, a.summary].join(' ').toLowerCase().includes(q));
@@ -349,6 +351,25 @@
         ${roleChips(a.roles)}
         <div class="atext">${esc(a.summary)}</div>
       </div>`, 'chicken-card')).join('');
+  }
+
+  // The 11 named team archetypes (Balanced Core, Grub Guild, etc.) that
+  // back Team Comps' suggestions — browsable here unfiltered, independent
+  // of any particular player count/expansion/difficulty setup.
+  function renderSquadArchetypes() {
+    const REC = window.FLOCK_RECOMMEND;
+    if (!REC) return `<div class="empty-state">Strategy data not loaded.</div>`;
+    const q = state.search.trim().toLowerCase();
+    const items = REC.ARCHETYPES.filter(a => !q || [a.title, a.tag, a.blurb, ...a.core].join(' ').toLowerCase().includes(q));
+    if (!items.length) return `<div class="empty-state">No archetypes match "${esc(state.search)}"</div>`;
+    return items.map(a => staticCard(`
+      <div class="ability">
+        <div class="aname">${esc(a.title)} <span class="stage-badge">${esc(a.tag)}</span></div>
+        <div class="sub" style="margin:2px 0 6px 0;">${a.minPlayers === a.maxPlayers ? `${a.minPlayers} player` : `${a.minPlayers}–${a.maxPlayers} players`} · ${esc(a.resilience)} resilience${a.requiresExpansion ? ' · needs Eggspansion' : ''}</div>
+        <div class="atext">${esc(a.blurb)}</div>
+        ${roleChips(a.core)}
+        ${a.caution ? `<div class="note">⚠ ${esc(a.caution)}</div>` : ''}
+      </div>`)).join('');
   }
 
   function renderMatchups() {
@@ -734,7 +755,8 @@
       { key: 'myteam', label: 'My Team' },
       { key: 'compare', label: 'Compare' },
       { key: 'matchups', label: 'Predator Guide' },
-      { key: 'archetypes', label: 'Archetypes' },
+      { key: 'squads', label: 'Archetypes' },
+      { key: 'roles', label: 'Roles' },
       { key: 'combos', label: 'Combos' },
     ];
     if (state.sessionCode) sections.splice(2, 0, { key: 'session', label: 'Live Session' });
@@ -742,7 +764,8 @@
     const nav = `<div class="stage-tabs">${sections.map(s => `<button class="stage-tab ${s.key === active ? 'active' : ''}" data-strat="${s.key}">${esc(s.label)}</button>`).join('')}</div>`;
 
     let body = '';
-    if (active === 'archetypes') body = renderArchetypes();
+    if (active === 'squads') body = renderSquadArchetypes();
+    else if (active === 'roles') body = renderRoles();
     else if (active === 'matchups') body = renderMatchups();
     else if (active === 'teams') body = renderTeamComps();
     else if (active === 'compare') body = renderCompare();
@@ -750,7 +773,7 @@
     else if (active === 'session') body = renderSessionTeam();
     else body = renderCombos();
 
-    const searchableSections = ['archetypes', 'matchups', 'combos'];
+    const searchableSections = ['squads', 'roles', 'matchups', 'combos'];
     return { nav, body, searchable: searchableSections.includes(active) };
   }
 
