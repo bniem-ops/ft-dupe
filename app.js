@@ -2,7 +2,7 @@
   const DATA = window.FLOCK_DATA || { chickens: [], predators: [], weather: { seasons: {}, eggspansion: [], unsorted: [] } };
 
   const state = {
-    tab: 'chickens', search: '', openCards: new Set(), openStage: {},
+    tab: 'strategy', search: '', openCards: new Set(), openStage: {},
     strategySection: 'teams',
     setup: null, wizardOpen: false, wizardDraft: null, wizardStep: 1,
     compareA: null, compareB: null, myTeam: [],
@@ -751,6 +751,9 @@
 
   function renderStrategy() {
     const sections = [
+      { key: 'chickens', label: 'Chickens' },
+      { key: 'predators', label: 'Predators' },
+      { key: 'weather', label: 'Weather' },
       { key: 'teams', label: 'Team Comps' },
       { key: 'myteam', label: 'My Team' },
       { key: 'compare', label: 'Compare' },
@@ -759,12 +762,15 @@
       { key: 'roles', label: 'Roles' },
       { key: 'combos', label: 'Combos' },
     ];
-    if (state.sessionCode) sections.splice(2, 0, { key: 'session', label: 'Live Session' });
+    if (state.sessionCode) sections.splice(5, 0, { key: 'session', label: 'Live Session' });
     const active = state.strategySection || 'teams';
     const nav = `<div class="stage-tabs">${sections.map(s => `<button class="stage-tab ${s.key === active ? 'active' : ''}" data-strat="${s.key}">${esc(s.label)}</button>`).join('')}</div>`;
 
     let body = '';
-    if (active === 'squads') body = renderSquadArchetypes();
+    if (active === 'chickens') body = renderChickens();
+    else if (active === 'predators') body = renderPredators();
+    else if (active === 'weather') body = renderWeather();
+    else if (active === 'squads') body = renderSquadArchetypes();
     else if (active === 'roles') body = renderRoles();
     else if (active === 'matchups') body = renderMatchups();
     else if (active === 'teams') body = renderTeamComps();
@@ -773,8 +779,18 @@
     else if (active === 'session') body = renderSessionTeam();
     else body = renderCombos();
 
-    const searchableSections = ['squads', 'roles', 'matchups', 'combos'];
-    return { nav, body, searchable: searchableSections.includes(active) };
+    const searchPlaceholders = {
+      chickens: 'Search chickens & abilities…', predators: 'Search predators & effects…', weather: 'Search weather cards…',
+      squads: 'Search…', roles: 'Search…', matchups: 'Search…', combos: 'Search…',
+    };
+    const searchableSections = ['chickens', 'predators', 'weather', 'squads', 'roles', 'matchups', 'combos'];
+    const rawDataSections = ['chickens', 'predators', 'weather'];
+    return {
+      nav, body,
+      searchable: searchableSections.includes(active),
+      searchPlaceholder: searchPlaceholders[active] || 'Search…',
+      showLegend: !rawDataSections.includes(active),
+    };
   }
 
   // ---------------------------------------------------------------------
@@ -1116,22 +1132,16 @@
 
     let html;
     if (state.tab === 'strategy') {
-      const { nav, body, searchable } = renderStrategy();
+      const { nav, body, searchable, searchPlaceholder, showLegend } = renderStrategy();
       html = `
-        ${STRAT ? `<div class="legend">${esc(STRAT.legend)}</div>` : ''}
+        ${STRAT && showLegend ? `<div class="legend">${esc(STRAT.legend)}</div>` : ''}
         ${nav}
-        ${searchable ? `<input type="text" class="searchbar" id="search" placeholder="Search…" value="${esc(state.search)}">` : ''}
+        ${searchable ? `<input type="text" class="searchbar" id="search" placeholder="${searchPlaceholder}" value="${esc(state.search)}">` : ''}
         <div id="list">${body}</div>`;
     } else {
-      const searchPlaceholder = { chickens: 'Search chickens & abilities…', predators: 'Search predators & effects…', weather: 'Search weather cards…', rules: 'Search rules…' }[state.tab];
-      let body = '';
-      if (state.tab === 'chickens') body = renderChickens();
-      else if (state.tab === 'predators') body = renderPredators();
-      else if (state.tab === 'weather') body = renderWeather();
-      else body = renderRules();
       html = `
-        <input type="text" class="searchbar" id="search" placeholder="${searchPlaceholder}" value="${esc(state.search)}">
-        <div id="list">${body}</div>`;
+        <input type="text" class="searchbar" id="search" placeholder="Search rules…" value="${esc(state.search)}">
+        <div id="list">${renderRules()}</div>`;
     }
 
     appEl.innerHTML = html;
