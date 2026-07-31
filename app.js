@@ -2,17 +2,18 @@
   const DATA = window.FLOCK_DATA || { chickens: [], predators: [], weather: { seasons: {}, eggspansion: [], unsorted: [] } };
 
   const state = {
-    tab: 'strategy', search: '', openCards: new Set(), openStage: {},
+    search: '', openCards: new Set(), openStage: {},
     strategySection: 'teams',
     setup: null, wizardOpen: false, wizardDraft: null, wizardStep: 1,
     compareA: null, compareB: null, myTeam: [],
     sessionCode: null, sessionData: null, isHost: false, playerName: '', joinError: null,
+    rulesOpen: false, rulesSearch: '',
   };
 
   const appEl = document.getElementById('app');
   const progressEl = document.getElementById('progress');
-  const tabbar = document.getElementById('tabbar');
   const wizardRoot = document.getElementById('wizard-root');
+  const rulesRoot = document.getElementById('rules-root');
   const setupBtn = document.getElementById('setup-btn');
   const rulesBtn = document.getElementById('rules-btn');
 
@@ -29,15 +30,6 @@
     try { localStorage.setItem('flockSetup', JSON.stringify(setup)); } catch (e) { /* storage unavailable */ }
   }
 
-  tabbar.addEventListener('click', (e) => {
-    const btn = e.target.closest('.tab');
-    if (!btn) return;
-    state.tab = btn.dataset.tab;
-    state.search = ''; // search is scoped to whichever tab/section is showing
-    [...tabbar.children].forEach(t => t.classList.toggle('active', t === btn));
-    render();
-  });
-
   if (setupBtn) {
     setupBtn.addEventListener('click', () => {
       state.wizardDraft = state.setup ? { ...state.setup, predators: [...state.setup.predators] } : defaultDraft();
@@ -49,12 +41,17 @@
 
   if (rulesBtn) {
     rulesBtn.addEventListener('click', () => {
-      state.tab = 'rules';
-      state.search = '';
-      [...tabbar.children].forEach(t => t.classList.remove('active'));
-      render();
+      state.rulesOpen = true;
+      renderRulesModal();
     });
   }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && state.rulesOpen) {
+      state.rulesOpen = false;
+      renderRulesModal();
+    }
+  });
 
   // ---------------------------------------------------------------------
   function esc(s) {
@@ -336,14 +333,14 @@
   function renderRules() {
     const RULES = window.FLOCK_RULES;
     if (!RULES) return `<div class="empty-state">Rules data not loaded.</div>`;
-    const q = state.search.trim().toLowerCase();
+    const q = state.rulesSearch.trim().toLowerCase();
     const items = RULES.sections.filter(s => {
       if (!q) return true;
       const hay = [s.title, ...s.body, ...(s.table ? s.table.rows.flat() : []), ...(s.tables ? s.tables.flatMap(t => t.rows.flat()) : [])].join(' ').toLowerCase();
       return hay.includes(q);
     });
     let out = q ? '' : staticCard(`<div class="ability"><div class="atext">${esc(RULES.intro)}</div></div>`);
-    if (!items.length) return out + `<div class="empty-state">No rules match "${esc(state.search)}"</div>`;
+    if (!items.length) return out + `<div class="empty-state">No rules match "${esc(state.rulesSearch)}"</div>`;
     return out + items.map(ruleSectionCard).join('');
   }
 
@@ -838,9 +835,7 @@
 
   function goToStrategySection(section) {
     state.wizardOpen = false;
-    state.tab = 'strategy';
     state.strategySection = section;
-    [...tabbar.children].forEach(t => t.classList.toggle('active', t.dataset.tab === 'strategy'));
     render();
   }
 
@@ -1155,6 +1150,42 @@
     }
   }
 
+  // Rules is a popup over the home screen rather than a page you navigate
+  // away to, so it lives in its own root (like the setup wizard) with its
+  // own scoped search state instead of sharing the home page's search bar.
+  function renderRulesModal() {
+    if (!rulesRoot) return;
+    if (!state.rulesOpen) { rulesRoot.innerHTML = ''; return; }
+    const wasFocused = document.activeElement && document.activeElement.id === 'rules-search';
+    const caret = wasFocused ? document.activeElement.selectionStart : null;
+    rulesRoot.innerHTML = `
+      <div class="modal-backdrop" id="rules-backdrop">
+        <div class="modal-card modal-card-wide">
+          <div class="modal-title-row">
+            <h2>📜 Rules</h2>
+            <button class="modal-close" id="rules-close" type="button" aria-label="Close rules">✕</button>
+          </div>
+          <input type="text" class="searchbar" id="rules-search" placeholder="Search rules…" value="${esc(state.rulesSearch)}">
+          <div>${renderRules()}</div>
+        </div>
+      </div>`;
+
+    const backdrop = document.getElementById('rules-backdrop');
+    backdrop.addEventListener('click', (e) => {
+      if (e.target === backdrop) { state.rulesOpen = false; renderRulesModal(); }
+    });
+    document.getElementById('rules-close').addEventListener('click', () => {
+      state.rulesOpen = false;
+      renderRulesModal();
+    });
+    const search = document.getElementById('rules-search');
+    search.addEventListener('input', (e) => { state.rulesSearch = e.target.value; renderRulesModal(); });
+    if (wasFocused) {
+      search.focus({ preventScroll: true });
+      search.setSelectionRange(caret, caret);
+    }
+  }
+
   // ---------------------------------------------------------------------
   function render() {
     const wasSearchFocused = document.activeElement && document.activeElement.id === 'search';
@@ -1168,19 +1199,12 @@
     });
     updateProgress();
 
-    let html;
-    if (state.tab === 'strategy') {
-      const { nav, body, searchable, searchPlaceholder, showLegend } = renderStrategy();
-      html = `
-        ${STRAT && showLegend ? `<div class="legend">${esc(STRAT.legend)}</div>` : ''}
-        ${nav}
-        ${searchable ? `<input type="text" class="searchbar" id="search" placeholder="${searchPlaceholder}" value="${esc(state.search)}">` : ''}
-        <div id="list">${body}</div>`;
-    } else {
-      html = `
-        <input type="text" class="searchbar" id="search" placeholder="Search rules…" value="${esc(state.search)}">
-        <div id="list">${renderRules()}</div>`;
-    }
+    const { nav, body, searchable, searchPlaceholder, showLegend } = renderStrategy();
+    const html = `
+      ${STRAT && showLegend ? `<div class="legend">${esc(STRAT.legend)}</div>` : ''}
+      ${nav}
+      ${searchable ? `<input type="text" class="searchbar" id="search" placeholder="${searchPlaceholder}" value="${esc(state.search)}">` : ''}
+      <div id="list">${body}</div>`;
 
     appEl.innerHTML = html;
 
@@ -1269,6 +1293,7 @@
     });
 
     renderWizard();
+    renderRulesModal();
   }
 
   state.setup = loadSetup();
