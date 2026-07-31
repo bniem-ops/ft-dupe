@@ -141,7 +141,7 @@
       </button>`).join('');
 
     return `
-      <div class="card ${isOpen ? 'open' : ''}" data-key="${key}">
+      <div class="card chicken-card ${isOpen ? 'open' : ''}" data-key="${key}">
         <div class="card-head" data-toggle="${key}">
           <div class="card-title">
             <span class="name">${esc(name)}</span>
@@ -202,7 +202,7 @@
       <button class="stage-tab ${i === openStageIdx ? 'active' : ''}" data-key="${key}" data-stage="${i}">Stage ${s.stage}</button>`).join('');
 
     return `
-      <div class="card ${isOpen ? 'open' : ''}" data-key="${key}">
+      <div class="card predator-card ${isOpen ? 'open' : ''}" data-key="${key}">
         <div class="card-head" data-toggle="${key}">
           <div class="card-title">
             <span class="name">${esc(name)}</span>
@@ -331,8 +331,8 @@
   // ---------------------------------------------------------------------
   const STRAT = window.FLOCK_STRATEGY;
 
-  function staticCard(inner) {
-    return `<div class="card open" style="cursor:default;"><div class="card-body" style="border-top:none;padding-top:14px;">${inner}</div></div>`;
+  function staticCard(inner, extraClass = '') {
+    return `<div class="card open ${extraClass}" style="cursor:default;"><div class="card-body" style="border-top:none;padding-top:14px;">${inner}</div></div>`;
   }
   function roleChips(list) {
     return `<div style="margin:4px 0 6px 0;">${list.map(r => `<span class="role-chip">${esc(r)}</span>`).join('')}</div>`;
@@ -348,7 +348,7 @@
         <div class="aname">${esc(a.name)}</div>
         ${roleChips(a.roles)}
         <div class="atext">${esc(a.summary)}</div>
-      </div>`)).join('');
+      </div>`, 'chicken-card')).join('');
   }
 
   function renderMatchups() {
@@ -371,7 +371,7 @@
               <div class="atext">${esc(c.why)}</div>
             </div>`).join('')}
         </div>
-        <div class="note" style="margin-top:6px;">⚠ ${esc(p.caution)}</div>`)).join('');
+        <div class="note" style="margin-top:6px;">⚠ ${esc(p.caution)}</div>`, 'predator-card')).join('');
   }
 
   function renderTeamComps() {
@@ -490,7 +490,7 @@
             </div>
             ${st.abilities.map(a => `<div class="ability"><div class="aname">${esc(a.name || 'Ability')}</div><div class="atext">${esc(a.text)}</div></div>`).join('')}
           </div>`).join('')}
-      </div>`);
+      </div>`, 'chicken-card');
 
     return `
       ${quickTakeCard(nameA, nameB)}
@@ -591,7 +591,7 @@
           <div class="atext">${p.favorable
             ? `Your team already counters this — ${p.matchedCounters.map(m => esc(m.chicken)).join(', ')}.`
             : `No natural counter on this team yet. Level up and stock resources before engaging, or let the fight come to you.`}</div>
-        </div>`)).join('');
+        </div>`, 'predator-card')).join('');
     }
 
     return out;
@@ -990,7 +990,7 @@
       </button>`).join('');
 
     return `
-      <div class="card open compare-card">
+      <div class="card open compare-card chicken-card">
         <div class="card-body" style="border-top:none;padding-top:14px;">
           <select class="searchbar" data-compare="${which}" style="margin-bottom:10px;">
             ${DATA.chickens.filter(x => x.name).map(x => x.name).sort().map(n => `<option value="${esc(n)}" ${n === c.name ? 'selected' : ''}>${esc(n)}</option>`).join('')}

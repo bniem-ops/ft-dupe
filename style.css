@@ -1,31 +1,38 @@
+/* Palette pulled from the official art (seacowboardgames.com/art): warm
+   rust/gold farmland + forest green for the chickens' world (cover art,
+   game board, Chicken Book illustrations), a cool teal-blue "night" mood
+   for the Predator Books (Bear, Snake, Coyote, etc. are all lit this way),
+   parchment neutrals for everything structural. */
 :root {
-  --bg: #f7f5f0;
-  --surface: #ffffff;
-  --surface-2: #f0ede4;
-  --border: #e0dbcc;
-  --text: #2b2620;
-  --text-muted: #756e60;
-  --accent: #c1662f;
-  --accent-2: #6b8f4e;
-  --unknown: #b8b1a0;
+  --bg: #f6f0e3;
+  --surface: #fffcf5;
+  --surface-2: #eee2c8;
+  --border: #ddcda3;
+  --text: #2c2013;
+  --text-muted: #77694c;
+  --accent: #c1652c;
+  --accent-2: #66823f;
+  --predator: #1f6e82;
+  --unknown: #b6a67c;
   --danger: #b8453a;
-  --shadow: 0 1px 3px rgba(43,38,32,0.08);
+  --shadow: 0 1px 3px rgba(44,32,19,0.10);
   --radius: 12px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #1b1814;
-    --surface: #26221d;
-    --surface-2: #302b24;
-    --border: #3d372e;
-    --text: #f1ede4;
-    --text-muted: #a89f8e;
-    --accent: #e08a4f;
-    --accent-2: #8fbf6c;
-    --unknown: #5c5548;
+    --bg: #1a1510;
+    --surface: #241e17;
+    --surface-2: #30281e;
+    --border: #453a29;
+    --text: #f2ead6;
+    --text-muted: #ad9d7c;
+    --accent: #e2884a;
+    --accent-2: #8ebd66;
+    --predator: #4fb3c9;
+    --unknown: #6b5c40;
     --danger: #e07268;
-    --shadow: 0 1px 3px rgba(0,0,0,0.3);
+    --shadow: 0 1px 3px rgba(0,0,0,0.35);
   }
 }
 
@@ -111,6 +118,7 @@ main {
 }
 .tab-icon { font-size: 1.3rem; }
 .tab.active { color: var(--accent); }
+.tab.active[data-tab="predators"] { color: var(--predator); }
 
 .searchbar {
   width: 100%;
@@ -140,6 +148,9 @@ main {
   margin-bottom: 10px;
   overflow: hidden;
 }
+.chicken-card { border-left: 3px solid var(--accent); }
+.predator-card { border-left: 3px solid var(--predator); }
+.predator-card .aname { color: var(--predator); }
 
 .card-head {
   display: flex;
