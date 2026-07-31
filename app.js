@@ -594,6 +594,7 @@
       out += analysis.combos.map(c => staticCard(`
         <div class="ability">
           <div class="aname">${esc(c.title)} <span class="stage-badge">${c.status === 'active' ? 'Active' : 'Partial'}</span></div>
+          ${roleChips(c.matchedChickens || [])}
           <div class="atext">${esc(c.synergy)}</div>
         </div>`)).join('');
     }

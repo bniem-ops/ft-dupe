@@ -228,10 +228,14 @@
     const combos = (window.FLOCK_STRATEGY.combos || []).map(combo => {
       const entries = combo.chickens.map(e => namesIn(e, roster)).filter(names => names.length > 0);
       if (!entries.length) return null;
-      const satisfied = entries.filter(names => names.some(n => teamNames.includes(n)));
-      if (satisfied.length === entries.length) return { ...combo, status: 'active' };
-      if (satisfied.length > 0) return { ...combo, status: 'partial' };
-      return null;
+      // Per slot, which of ITS matched roster names are actually on this team —
+      // e.g. a "General Tso or J.R.R. Yolkien" slot only counts the one you picked.
+      const matchedPerSlot = entries.map(names => names.filter(n => teamNames.includes(n)));
+      const satisfiedSlots = matchedPerSlot.filter(names => names.length > 0);
+      if (!satisfiedSlots.length) return null;
+      const matchedChickens = [...new Set(matchedPerSlot.flat())];
+      const status = satisfiedSlots.length === entries.length ? 'active' : 'partial';
+      return { ...combo, status, matchedChickens };
     }).filter(Boolean);
 
     // Leveling pace: sum of "meals to reach next stage" across stage 1 & 2
