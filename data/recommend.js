@@ -240,6 +240,16 @@
 
     // Leveling pace: sum of "meals to reach next stage" across stage 1 & 2
     // for each team member = total meals needed to fully level that bird.
+    // Raw cost isn't the whole story though — a chicken whose kit is part of
+    // a detected synergy is worth leveling ahead of a cheaper bench-warmer,
+    // since it's their Stage 2/3 ability that actually realizes the combo.
+    const comboTitlesByChicken = {};
+    combos.forEach(c => {
+      (c.matchedChickens || []).forEach(name => {
+        (comboTitlesByChicken[name] = comboTitlesByChicken[name] || []).push(c.title);
+      });
+    });
+
     const dataChickens = (window.FLOCK_DATA && window.FLOCK_DATA.chickens) || [];
     const pace = teamNames.map(name => {
       const c = dataChickens.find(x => x.name === name);
@@ -248,9 +258,14 @@
         const n = parseInt(s.mealsToNext, 10);
         return sum + (Number.isFinite(n) ? n : 0);
       }, 0);
-      return { name, total: total || null };
-    }).filter(x => x && x.total);
-    pace.sort((a, b) => a.total - b.total);
+      return total ? { name, total, comboTitles: comboTitlesByChicken[name] || [] } : null;
+    }).filter(Boolean);
+    pace.sort((a, b) => {
+      const aCritical = a.comboTitles.length > 0;
+      const bCritical = b.comboTitles.length > 0;
+      if (aCritical !== bCritical) return aCritical ? -1 : 1;
+      return a.total - b.total;
+    });
 
     const grubPickers = picked.filter(a => a.roles.includes('Grub Control')).map(a => a.name);
 

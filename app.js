@@ -601,9 +601,17 @@
 
     if (analysis.pace.length) {
       out += `<div class="section-title">Leveling pace</div>`;
+      const top = analysis.pace[0];
+      const cheapestTotal = Math.min(...analysis.pace.map(p => p.total));
+      const topReason = top.comboTitles.length
+        ? (top.total === cheapestTotal
+            ? `cheapest pick, and it's what ${top.comboTitles.map(esc).join(' & ')} needs`
+            : `costs a bit more, but it's what ${top.comboTitles.map(esc).join(' & ')} needs — worth it over a cheaper bench-warmer`)
+        : `cheapest to unlock their full kit`;
       out += staticCard(`
         <div class="ability">
-          <div class="atext">Total meals to reach Stage 3 — ${analysis.pace.map(p => `${esc(p.name)} (${p.total})`).join(', ')}. Feed <strong>${esc(analysis.pace[0].name)}</strong> first — cheapest to unlock their full kit.</div>
+          <div class="atext">Total meals to reach Stage 3 — ${analysis.pace.map(p => `${esc(p.name)} (${p.total}${p.comboTitles.length ? ' 🔗' : ''})`).join(', ')}. Feed <strong>${esc(top.name)}</strong> first — ${topReason}.</div>
+          ${analysis.pace.some(p => p.comboTitles.length) ? '<div class="note" style="margin-top:6px;">🔗 = part of a synergy detected above — weighted ahead of raw meal cost.</div>' : ''}
         </div>`);
     }
 
