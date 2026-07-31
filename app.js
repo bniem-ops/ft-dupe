@@ -425,17 +425,10 @@
     }
 
     const setup = state.setup;
-    const { results, tip } = REC.suggestTeams(setup);
+    const { results, tip } = REC.suggestTeams({ players: setup.players, expansion: setup.expansion, difficulty: setup.difficulty });
 
-    let out = staticCard(`
-      <div class="ability">
-        <div class="aname">Your setup</div>
-        <div class="atext">${setup.players} player${setup.players > 1 ? 's' : ''} · Eggspansion ${setup.expansion ? 'On' : 'Off'} · Difficulty ${esc(setup.difficulty)}${setup.predators.length ? ' · Facing: ' + setup.predators.map(esc).join(', ') : ''}</div>
-      </div>`);
-
+    let out = '';
     if (tip) out += `<div class="note" style="margin:0 0 10px 4px;">${esc(tip)}</div>`;
-
-    out += renderKnownPredatorsPicker();
 
     if (!results.length) {
       out += `<div class="empty-state">No archetype fully fits that combination yet — try toggling Eggspansion on, since most archetypes need it to staff higher player counts.</div>`;
@@ -445,7 +438,6 @@
           <div class="aname">${esc(r.title)} <span class="stage-badge">${esc(r.tag)}</span></div>
           <div class="atext">${esc(r.blurb)}</div>
           ${roleChips(r.squad)}
-          ${r.covers.length ? `<div class="note" style="color:var(--accent-2);font-style:normal;">✓ Already covers: ${r.covers.map(esc).join(', ')}</div>` : ''}
           ${r.caution ? `<div class="note">⚠ ${esc(r.caution)}</div>` : ''}
           ${r.lockedCount ? `<div class="note">+${r.lockedCount} more pick${r.lockedCount > 1 ? 's' : ''} available for this archetype with Eggspansion on</div>` : ''}
         </div>`)).join('');
@@ -774,8 +766,9 @@
   // predator is ever revealed, so this only asks Eggspansion/Players/
   // Difficulty. Step 2 is the card-format compare-and-pick — the moment of
   // being handed two Chicken Books and choosing one. Known predators moved
-  // out entirely; see renderKnownPredatorsPicker(), used on the Team Comps
-  // and My Team views once the board is actually set up.
+  // out entirely; see renderKnownPredatorsPicker(), used on the My Team view
+  // once the board is actually set up (Team Comps stays scenario-agnostic —
+  // just suggested squads for your player count/expansion/difficulty).
   function pillRow(items) {
     return `<div class="stage-tabs">${items.join('')}</div>`;
   }
