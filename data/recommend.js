@@ -169,18 +169,20 @@
     // a caution note attached.
     const reorderByResilience = d >= 5;
 
-    let viable = ARCHETYPES.filter(a => N >= a.minPlayers && N <= a.maxPlayers)
-      .map(a => {
-        const avail = availableCore(a, expansion);
-        return { archetype: a, avail, locked: lockedByExpansion(a, expansion) };
-      })
-      .filter(x => x.avail.length >= N);
+    // Shows every archetype regardless of player count — min/maxPlayers no
+    // longer excludes anything here (that distinction still lives on the
+    // Archetypes tab's player-range text). Only a genuinely empty core
+    // (nothing available under the current expansion setting) drops a card.
+    let viable = ARCHETYPES.map(a => {
+      const avail = availableCore(a, expansion);
+      return { archetype: a, avail, locked: lockedByExpansion(a, expansion) };
+    }).filter(x => x.avail.length > 0);
 
     if (reorderByResilience) {
       viable = [...viable].sort((x, y) => RESILIENCE_RANK[x.archetype.resilience] - RESILIENCE_RANK[y.archetype.resilience]);
     }
 
-    const results = viable.slice(0, 5).map(({ archetype, avail, locked }) => {
+    const results = viable.map(({ archetype, avail, locked }) => {
       const squad = avail.slice(0, N);
       const covers = (predators || []).filter(predName => {
         const guide = (window.FLOCK_STRATEGY.predatorGuide || []).find(p => p.predator === predName);

@@ -418,9 +418,10 @@
     return `<div style="margin:4px 0 6px 0;">${list.map(r => `<span class="role-chip">${esc(r)}</span>`).join('')}</div>`;
   }
 
-  // The 11 named team archetypes (Balanced Core, Grub Guild, etc.) that
-  // back Team Comps' suggestions — browsable here unfiltered, independent
-  // of any particular player count/expansion/difficulty setup.
+  // The 13 named team archetypes (Balanced Core, Grub Guild, etc.), shown
+  // as a static reference list independent of any Setup state — contrast
+  // with Team Comps, which shows the same archetypes reordered/annotated
+  // by your current difficulty and Eggspansion setting.
   function renderSquadArchetypes() {
     const REC = window.FLOCK_RECOMMEND;
     if (!REC) return `<div class="empty-state">Strategy data not loaded.</div>`;
@@ -455,7 +456,7 @@
     if (tip) out += `<div class="note" style="margin:0 0 10px 4px;">${esc(tip)}</div>`;
 
     if (!results.length) {
-      out += `<div class="empty-state">No archetype fully fits that combination yet — try toggling Eggspansion on, since most archetypes need it to staff higher player counts.</div>`;
+      out += `<div class="empty-state">No archetypes available — try toggling Eggspansion on.</div>`;
     } else {
       out += results.map(r => staticCard(`
         <div class="ability">
@@ -674,10 +675,10 @@
   // whichever dropdown currently has this chicken selected.
   function chickenStage3StatCard(c) {
     const s3 = c.stages[2], s2 = c.stages[1];
-    return `<div class="stat-grid" style="margin-top:10px;">
-      ${statBlock('Health (Stage 3)', s3 ? s3.health : null)}
-      ${statBlock('Attack (Stage 3)', s3 ? s3.attackStrength : null)}
-      ${statBlock('Meals from Stage 2', s2 ? s2.mealsToNext : null)}
+    return `<div class="stat-grid" style="margin-top:10px;grid-template-columns:repeat(3,1fr);">
+      ${statBlock('Health', s3 ? s3.health : null)}
+      ${statBlock('Attack', s3 ? s3.attackStrength : null)}
+      ${statBlock('Meals to Stage 3', s2 ? s2.mealsToNext : null)}
     </div>`;
   }
 
