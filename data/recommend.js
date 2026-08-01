@@ -204,6 +204,28 @@
   }
 
   // --- Custom team analysis ---------------------------------------------
+  // Best-fit named archetype for an arbitrary hand-picked team — not a
+  // strict requirement (real teams rarely hit every core pick), just
+  // "closest neighbor" by core-list overlap. Scoped to archetypes actually
+  // sized for this many players, so a 1-chicken solo archetype can't show a
+  // misleading 100% fit against an unrelated 4-player squad.
+  function detectArchetype(teamNames) {
+    const N = teamNames.length;
+    if (!N) return null;
+    const candidates = ARCHETYPES.filter(a => N >= a.minPlayers && N <= a.maxPlayers);
+    const scored = candidates.map(a => {
+      const matched = a.core.filter(name => teamNames.includes(name));
+      return { archetype: a, matched, fit: matched.length / a.core.length };
+    }).filter(s => s.matched.length > 0);
+    if (!scored.length) return null;
+    scored.sort((x, y) => y.fit - x.fit || y.matched.length - x.matched.length);
+    const top = scored[0];
+    return {
+      id: top.archetype.id, title: top.archetype.title, tag: top.archetype.tag,
+      matched: top.matched, total: top.archetype.core.length,
+    };
+  }
+
   function gapNote(gaps, difficulty) {
     if (!gaps.length) return 'Solid coverage across tank, economy, support, control, and damage.';
     const d = Number(difficulty) || 4;
@@ -225,6 +247,8 @@
     const gaps = KEY_ROLES.filter(r => !roleCounts[r]);
     const gapMessage = gapNote(gaps, difficulty);
 
+    const archetypeMatch = detectArchetype(teamNames);
+
     const combos = (window.FLOCK_STRATEGY.combos || []).map(combo => {
       const entries = combo.chickens.map(e => namesIn(e, roster)).filter(names => names.length > 0);
       if (!entries.length) return null;
@@ -237,7 +261,11 @@
       const satisfiedCount = satisfiedSlots.length;
       const totalSlots = entries.length;
       const status = satisfiedCount === totalSlots ? 'active' : 'partial';
-      return { ...combo, status, satisfiedCount, totalSlots, matchedChickens };
+      // Informational only — doesn't affect sorting/priority anywhere, just
+      // lets the UI note when a detected synergy also happens to be part of
+      // this team's closest-matching named archetype.
+      const tiesToArchetype = !!(archetypeMatch && matchedChickens.some(n => archetypeMatch.matched.includes(n)));
+      return { ...combo, status, satisfiedCount, totalSlots, matchedChickens, tiesToArchetype };
     }).filter(Boolean);
 
     // Leveling pace: sum of "meals to reach next stage" across stage 1 & 2
@@ -245,10 +273,16 @@
     // Raw cost isn't the whole story though — a chicken whose kit is part of
     // a detected synergy is worth leveling ahead of a cheaper bench-warmer,
     // since it's their Stage 2/3 ability that actually realizes the combo.
+    // An ACTIVE combo (every slot already filled on this team) outranks a
+    // PARTIAL one (still missing a teammate) — rushing to level your half of
+    // a combo you can't trigger yet shouldn't outrank a cheaper, unattached
+    // pick just because a matching combo exists on paper.
     const comboTitlesByChicken = {};
+    const activeComboByChicken = {};
     combos.forEach(c => {
       (c.matchedChickens || []).forEach(name => {
         (comboTitlesByChicken[name] = comboTitlesByChicken[name] || []).push(c.title);
+        if (c.status === 'active') activeComboByChicken[name] = true;
       });
     });
 
@@ -260,18 +294,18 @@
         const n = parseInt(s.mealsToNext, 10);
         return sum + (Number.isFinite(n) ? n : 0);
       }, 0);
-      return total ? { name, total, comboTitles: comboTitlesByChicken[name] || [] } : null;
+      return total ? { name, total, comboTitles: comboTitlesByChicken[name] || [], comboActive: !!activeComboByChicken[name] } : null;
     }).filter(Boolean);
     pace.sort((a, b) => {
-      const aCritical = a.comboTitles.length > 0;
-      const bCritical = b.comboTitles.length > 0;
-      if (aCritical !== bCritical) return aCritical ? -1 : 1;
+      const rank = p => (p.comboActive ? 0 : (p.comboTitles.length ? 1 : 2));
+      const ra = rank(a), rb = rank(b);
+      if (ra !== rb) return ra - rb;
       return a.total - b.total;
     });
 
     const grubPickers = picked.filter(a => a.roles.includes('Grub Control')).map(a => a.name);
 
-    return { picked, gaps, gapMessage, combos, pace, grubPickers };
+    return { picked, gaps, gapMessage, archetypeMatch, combos, pace, grubPickers };
   }
 
   function predatorPriority(teamNames, predatorNames) {

@@ -539,6 +539,16 @@
         <div class="atext" style="margin-top:6px;">${esc(analysis.gapMessage)}</div>
       </div>`);
 
+    if (analysis.archetypeMatch) {
+      const am = analysis.archetypeMatch;
+      out += staticCard(`
+        <div class="ability">
+          <div class="aname">Closest archetype: ${esc(am.title)} <span class="stage-badge">${esc(am.tag)}</span></div>
+          <div class="atext" style="margin-top:2px;">${am.matched.length}/${am.total} core picks on this team</div>
+          ${roleChips(am.matched)}
+        </div>`);
+    }
+
     if (analysis.combos.length) {
       out += `<div class="section-title">Synergies in this team</div>`;
       out += analysis.combos.map(c => staticCard(`
@@ -546,6 +556,7 @@
           <div class="aname">${esc(c.title)} <span class="stage-badge">${c.satisfiedCount}/${c.totalSlots} chickens</span></div>
           ${roleChips(c.matchedChickens || [])}
           <div class="atext">${esc(c.synergy)}</div>
+          ${c.tiesToArchetype ? `<div class="note" style="color:var(--accent-2);font-style:normal;margin-top:4px;">✓ Ties into your closest archetype, ${esc(analysis.archetypeMatch.title)}</div>` : ''}
         </div>`)).join('');
     }
 
@@ -553,15 +564,20 @@
       out += `<div class="section-title">Leveling pace</div>`;
       const top = analysis.pace[0];
       const cheapestTotal = Math.min(...analysis.pace.map(p => p.total));
-      const topReason = top.comboTitles.length
+      const topReason = top.comboActive
         ? (top.total === cheapestTotal
             ? `cheapest pick, and it's what ${top.comboTitles.map(esc).join(' & ')} needs`
             : `costs a bit more, but it's what ${top.comboTitles.map(esc).join(' & ')} needs — worth it over a cheaper bench-warmer`)
-        : `cheapest to unlock their full kit`;
+        : top.comboTitles.length
+          ? (top.total === cheapestTotal
+              ? `cheapest pick, and it sets up ${top.comboTitles.map(esc).join(' & ')} once you add the other piece`
+              : `costs a bit more, but it sets up ${top.comboTitles.map(esc).join(' & ')} once you add the other piece`)
+          : `cheapest to unlock their full kit`;
       out += staticCard(`
         <div class="ability">
-          <div class="atext">Total meals to reach Stage 3 — ${analysis.pace.map(p => `${esc(p.name)} (${p.total}${p.comboTitles.length ? ' 🔗' : ''})`).join(', ')}. Feed <strong>${esc(top.name)}</strong> first — ${topReason}.</div>
-          ${analysis.pace.some(p => p.comboTitles.length) ? '<div class="note" style="margin-top:6px;">🔗 = part of a synergy detected above — weighted ahead of raw meal cost.</div>' : ''}
+          <div class="atext">Total meals to reach Stage 3 — ${analysis.pace.map(p => `${esc(p.name)} (${p.total}${p.comboActive ? ' 🔗' : (p.comboTitles.length ? ' 🧩' : '')})`).join(', ')}. Feed <strong>${esc(top.name)}</strong> first — ${topReason}.</div>
+          ${analysis.pace.some(p => p.comboActive) ? '<div class="note" style="margin-top:6px;">🔗 = part of an active synergy detected above — weighted ahead of everything else.</div>' : ''}
+          ${analysis.pace.some(p => !p.comboActive && p.comboTitles.length) ? '<div class="note" style="margin-top:2px;">🧩 = sets up a synergy that\'s still missing a teammate — weighted above non-synergy picks, below active ones.</div>' : ''}
         </div>`);
     }
 
