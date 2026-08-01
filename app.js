@@ -544,7 +544,7 @@
       out += staticCard(`
         <div class="ability">
           <div class="aname">Closest archetype: ${esc(am.title)} <span class="stage-badge">${esc(am.tag)}</span></div>
-          <div class="atext" style="margin-top:2px;">${am.matched.length}/${am.total} core picks on this team</div>
+          <div class="atext" style="margin-top:2px;">${am.matched.length} chicken${am.matched.length > 1 ? 's' : ''} on this team fit${am.matched.length > 1 ? '' : 's'} this archetype</div>
           ${roleChips(am.matched)}
         </div>`);
     }
