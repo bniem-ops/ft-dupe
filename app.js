@@ -17,7 +17,31 @@
   const setupBtn = document.getElementById('setup-btn');
   const rulesBtn = document.getElementById('rules-btn');
 
-  function defaultDraft() { return { players: 3, expansion: false, difficulty: 4, predators: [] }; }
+  function defaultDraft() { return { players: 3, expansion: false, difficulty: 4, predators: [null, null, null] }; }
+
+  // Both "my team" (N player slots) and "known predators" (3 slots) use the
+  // same fixed-length-with-nulls shape so a dropdown-per-slot UI has a
+  // stable position to bind to. pad/truncate rather than reject, so a
+  // player-count change later doesn't have to be a special case.
+  function normalizeSlots(arr, n) {
+    const a = (arr || []).slice(0, n);
+    while (a.length < n) a.push(null);
+    return a;
+  }
+
+  function normalizeMyTeamSlots(n) {
+    state.myTeam = normalizeSlots(state.myTeam, n);
+  }
+
+  // Used by the wizard's "This is my pick" button (local mode) — drops the
+  // pick into the first open player slot instead of appending, since the
+  // team is now a fixed N-slot array, not an open-ended list.
+  function addToMyTeam(name) {
+    normalizeMyTeamSlots(state.setup ? state.setup.players : 1);
+    if (state.myTeam.includes(name)) return;
+    const emptyIdx = state.myTeam.indexOf(null);
+    state.myTeam[emptyIdx !== -1 ? emptyIdx : 0] = name;
+  }
   function loadSetup() {
     try {
       const raw = localStorage.getItem('flockSetup');
@@ -504,22 +528,39 @@
   // where it's rendered: predators aren't revealed until after chickens
   // are picked, so this only makes sense once the board is actually set up)
   // ---------------------------------------------------------------------
+  const BOSS_ROW = staticCard(`
+    <div class="ability">
+      <div class="aname">4th Predator (the Boss)</div>
+      <div class="atext">Stays face-down until the last regular Predator falls — always a surprise.</div>
+    </div>`, 'predator-card');
+
+  // Shared by the local (state.setup.predators) and live-session
+  // (Firestore data.predators) known-predator pickers — 3 fixed slots
+  // instead of an open checklist, same reasoning as the chicken picker:
+  // "3 known predators, boss unknown" is the actual game state, not "up to
+  // 3 of however many."
+  function predatorSlotsMarkup(known, expansionOn, attrName) {
+    const choices = DATA.predators.filter(p => p.name && (expansionOn || p.expansion !== 'Eggspansion')).map(p => p.name).sort();
+    const slots = known.map((picked, i) => {
+      const options = choices.filter(name => name === picked || !known.includes(name));
+      return staticCard(`
+        <div class="ability">
+          <div class="aname">Predator ${i + 1}</div>
+          <select class="searchbar" data-${attrName}="${i}" style="margin-top:6px;">
+            <option value="">— unknown —</option>
+            ${options.map(name => `<option value="${esc(name)}" ${name === picked ? 'selected' : ''}>${esc(name)}</option>`).join('')}
+          </select>
+        </div>`, 'predator-card');
+    }).join('');
+    return slots + BOSS_ROW;
+  }
+
   function renderKnownPredatorsPicker() {
     if (!state.setup) return '';
-    const expansionOn = state.setup.expansion;
-    const known = state.setup.predators;
-    const choices = DATA.predators.filter(p => p.name && (expansionOn || p.expansion !== 'Eggspansion'));
-    const list = choices.map(p => {
-      const checked = known.includes(p.name);
-      const capReached = !checked && known.length >= 3;
-      return `<label class="check-row ${capReached ? 'disabled' : ''}">
-        <input type="checkbox" data-known-predator="${esc(p.name)}" ${checked ? 'checked' : ''} ${capReached ? 'disabled' : ''}>
-        ${esc(p.name)} <span class="text-muted">(${p.species ? esc(p.species) : 'species unknown'})</span>
-      </label>`;
-    }).join('');
+    const known = normalizeSlots(state.setup.predators, 3);
     return `
-      <div class="section-title" style="margin:14px 4px 8px 4px;">Known predators <span class="modal-optional">(optional — up to 3, once the board's revealed)</span></div>
-      <div class="predator-check-list" data-scroll-id="known-predators-picker">${list}</div>`;
+      <div class="section-title" style="margin:14px 4px 8px 4px;">Known predators <span class="modal-optional">(once the board's revealed)</span></div>
+      ${predatorSlotsMarkup(known, state.setup.expansion, 'known-predator-slot')}`;
   }
 
   // ---------------------------------------------------------------------
@@ -553,7 +594,7 @@
       out += `<div class="section-title">Synergies in this team</div>`;
       out += analysis.combos.map(c => staticCard(`
         <div class="ability">
-          <div class="aname">${esc(c.title)} <span class="stage-badge">${c.satisfiedCount}/${c.totalSlots} chickens</span></div>
+          <div class="aname">${esc(c.title)} <span class="stage-badge">${c.status === 'active' ? '🔗' : '🧩'} ${c.satisfiedCount}/${c.totalSlots} chickens</span></div>
           ${roleChips(c.matchedChickens || [])}
           <div class="atext">${esc(c.synergy)}</div>
           ${c.tiesToArchetype ? `<div class="note" style="color:var(--accent-2);font-style:normal;margin-top:4px;">✓ Ties into your closest archetype, ${esc(analysis.archetypeMatch.title)}</div>` : ''}
@@ -616,43 +657,82 @@
     return renderMyTeamLocal();
   }
 
+  // Compact stats shown right in a <select> option's text — native options
+  // can't hold rich markup, so this is plain text with icons standing in
+  // for the labels: heart=health, sword=attack, basket=meals to Stage 3.
+  function chickenOptionLabel(name) {
+    const c = DATA.chickens.find(x => x.name === name);
+    if (!c) return name;
+    const s3 = c.stages[2], s2 = c.stages[1];
+    const h = s3 && s3.health != null ? s3.health : '?';
+    const a = s3 && s3.attackStrength != null ? s3.attackStrength : '?';
+    const m = s2 && s2.mealsToNext != null ? s2.mealsToNext : '?';
+    return `${name} — ❤${h} ⚔${a} 🧺${m}`;
+  }
+
+  // Fuller version of the same 3 numbers, shown as a stat-grid card under
+  // whichever dropdown currently has this chicken selected.
+  function chickenStage3StatCard(c) {
+    const s3 = c.stages[2], s2 = c.stages[1];
+    return `<div class="stat-grid" style="margin-top:10px;">
+      ${statBlock('Health (Stage 3)', s3 ? s3.health : null)}
+      ${statBlock('Attack (Stage 3)', s3 ? s3.attackStrength : null)}
+      ${statBlock('Meals from Stage 2', s2 ? s2.mealsToNext : null)}
+    </div>`;
+  }
+
   function renderMyTeamLocal() {
     const REC = window.FLOCK_RECOMMEND;
+
+    if (!state.setup) {
+      return staticCard(`
+        <div class="ability">
+          <div class="aname">Set up your game to build a team</div>
+          <div class="atext">Tap ⚙ Setup above and answer player count, Eggspansion, and difficulty — My Team is sized to how many players you're actually playing with.</div>
+        </div>`);
+    }
+
+    const n = state.setup.players;
+    normalizeMyTeamSlots(n);
     const roster = DATA.chickens.filter(c => c.name).map(c => c.name).sort();
-    const n = state.setup ? state.setup.players : null;
 
     let out = staticCard(`
       <div class="ability">
-        <div class="aname">Pick your team${n ? ` (${n} player${n > 1 ? 's' : ''})` : ''}</div>
-        <div class="atext">Select the chickens you're actually playing to get tailored advice below.</div>
+        <div class="aname">Pick your team (${n} player${n > 1 ? 's' : ''})</div>
+        <div class="atext">One chicken per player — get tailored advice below as you fill each slot.</div>
       </div>
-      ${state.myTeam.length ? `<button class="btn-secondary" id="clear-myteam" type="button" style="margin-top:10px;">Clear team</button>` : ''}`);
+      ${state.myTeam.some(Boolean) ? `<button class="btn-secondary" id="clear-myteam" type="button" style="margin-top:10px;">Clear team</button>` : ''}`);
 
-    out += `<div class="chicken-picker" data-scroll-id="myteam-picker">${roster.map(name => `
-      <label class="check-row">
-        <input type="checkbox" data-myteam="${esc(name)}" ${state.myTeam.includes(name) ? 'checked' : ''}>
-        ${esc(name)}
-      </label>`).join('')}</div>`;
+    out += state.myTeam.map((picked, i) => {
+      const chicken = picked ? DATA.chickens.find(c => c.name === picked) : null;
+      const options = roster.filter(name => name === picked || !state.myTeam.includes(name));
+      return staticCard(`
+        <div class="ability">
+          <div class="aname">Player ${i + 1}</div>
+          <select class="searchbar" data-myteam-slot="${i}" style="margin:6px 0 0 0;">
+            <option value="">— choose a chicken —</option>
+            ${options.map(name => `<option value="${esc(name)}" ${name === picked ? 'selected' : ''}>${esc(chickenOptionLabel(name))}</option>`).join('')}
+          </select>
+          ${chicken ? chickenStage3StatCard(chicken) : ''}
+        </div>`, 'chicken-card');
+    }).join('');
 
-    if (!state.myTeam.length || !REC) {
+    const teamNames = state.myTeam.filter(Boolean);
+    if (!teamNames.length || !REC) {
       out += `<div class="empty-state">Pick at least one chicken above to see analysis.</div>`;
       return out;
     }
 
-    out += renderTeamAnalysis(state.myTeam, state.setup ? state.setup.difficulty : null, state.setup ? state.setup.predators : []);
+    out += renderTeamAnalysis(teamNames, state.setup.difficulty, state.setup.predators.filter(Boolean));
 
-    if (state.setup) {
-      if (!state.setup.predators.length) {
-        out += staticCard(`
-          <div class="ability">
-            <div class="aname">Know any predators yet?</div>
-            <div class="atext">Add them once the board's revealed to get a suggested engagement order.</div>
-          </div>`);
-      }
-      out += renderKnownPredatorsPicker();
-    } else {
-      out += `<div class="note" style="margin-top:8px;">Run ⚙ Setup (expansion/players/difficulty) to unlock a suggested engagement order.</div>`;
+    if (!state.setup.predators.some(Boolean)) {
+      out += staticCard(`
+        <div class="ability">
+          <div class="aname">Know any predators yet?</div>
+          <div class="atext">Add them once the board's revealed to get a suggested engagement order.</div>
+        </div>`);
     }
+    out += renderKnownPredatorsPicker();
 
     return out;
   }
@@ -680,17 +760,8 @@
   }
 
   function sessionPredatorChecklist(data) {
-    const expansionOn = data.expansion;
-    const known = data.predators || [];
-    const choices = DATA.predators.filter(p => p.name && (expansionOn || p.expansion !== 'Eggspansion'));
-    return choices.map(p => {
-      const checked = known.includes(p.name);
-      const capReached = !checked && known.length >= 3;
-      return `<label class="check-row ${capReached ? 'disabled' : ''}">
-        <input type="checkbox" data-session-predator="${esc(p.name)}" ${checked ? 'checked' : ''} ${capReached ? 'disabled' : ''}>
-        ${esc(p.name)} <span class="text-muted">(${p.species ? esc(p.species) : 'species unknown'})</span>
-      </label>`;
-    }).join('');
+    const known = normalizeSlots(data.predators, 3);
+    return predatorSlotsMarkup(known, data.expansion, 'session-predator-slot');
   }
 
   function renderMyTeamLive() {
@@ -714,14 +785,14 @@
     out += `</div>`;
 
     if (pickedNames.length) {
-      out += renderTeamAnalysis(pickedNames, data.difficulty, data.predators || []);
+      out += renderTeamAnalysis(pickedNames, data.difficulty, (data.predators || []).filter(Boolean));
     } else {
       out += `<div class="empty-state">No picks yet — once someone locks in a chicken, it shows up here for everyone.</div>`;
     }
 
     out += `
       <div class="section-title" style="margin-top:14px;">Known predators <span class="modal-optional">(syncs to everyone)</span></div>
-      <div class="predator-check-list" data-scroll-id="session-predator-picker">${sessionPredatorChecklist(data)}</div>`;
+      ${sessionPredatorChecklist(data)}`;
 
     return out;
   }
@@ -847,9 +918,10 @@
         d.expansion = el.dataset.expansion === 'yes';
         if (!d.expansion) {
           if (d.players === 6) d.players = 5;
-          d.predators = d.predators.filter(name => {
+          d.predators = d.predators.map(name => {
+            if (!name) return name;
             const p = DATA.predators.find(x => x.name === name);
-            return p && p.expansion !== 'Eggspansion';
+            return p && p.expansion === 'Eggspansion' ? null : name;
           });
         }
         renderWizard();
@@ -1077,7 +1149,7 @@
           }
           return;
         }
-        if (!state.myTeam.includes(name)) state.myTeam = [...state.myTeam, name];
+        addToMyTeam(name);
         goToStrategySection('myteam');
       });
     });
@@ -1202,10 +1274,10 @@
       });
     });
 
-    appEl.querySelectorAll('[data-myteam]').forEach(el => {
+    appEl.querySelectorAll('[data-myteam-slot]').forEach(el => {
       el.addEventListener('change', () => {
-        const name = el.dataset.myteam;
-        state.myTeam = el.checked ? [...state.myTeam, name] : state.myTeam.filter(n => n !== name);
+        const i = Number(el.dataset.myteamSlot);
+        state.myTeam[i] = el.value || null;
         render();
       });
     });
@@ -1213,38 +1285,28 @@
     const clearMyTeamBtn = document.getElementById('clear-myteam');
     if (clearMyTeamBtn) {
       clearMyTeamBtn.addEventListener('click', () => {
-        state.myTeam = [];
+        state.myTeam = state.myTeam.map(() => null);
         render();
       });
     }
 
-    appEl.querySelectorAll('[data-known-predator]').forEach(el => {
+    appEl.querySelectorAll('[data-known-predator-slot]').forEach(el => {
       el.addEventListener('change', () => {
         if (!state.setup) return;
-        const name = el.dataset.knownPredator;
-        let predators = state.setup.predators;
-        if (el.checked) {
-          if (predators.length < 3) predators = [...predators, name];
-          else { el.checked = false; return; }
-        } else {
-          predators = predators.filter(n => n !== name);
-        }
+        const i = Number(el.dataset.knownPredatorSlot);
+        const predators = normalizeSlots(state.setup.predators, 3);
+        predators[i] = el.value || null;
         saveSetup({ ...state.setup, predators });
         render();
       });
     });
 
-    appEl.querySelectorAll('[data-session-predator]').forEach(el => {
+    appEl.querySelectorAll('[data-session-predator-slot]').forEach(el => {
       el.addEventListener('change', () => {
         if (!state.sessionCode || !state.sessionData || !window.FLOCK_SESSION) return;
-        const name = el.dataset.sessionPredator;
-        let predators = state.sessionData.predators || [];
-        if (el.checked) {
-          if (predators.length < 3) predators = [...predators, name];
-          else { el.checked = false; return; }
-        } else {
-          predators = predators.filter(n => n !== name);
-        }
+        const i = Number(el.dataset.sessionPredatorSlot);
+        const predators = normalizeSlots(state.sessionData.predators, 3);
+        predators[i] = el.value || null;
         window.FLOCK_SESSION.setKnownPredators(state.sessionCode, predators);
       });
     });
