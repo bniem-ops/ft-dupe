@@ -132,17 +132,6 @@ main {
 .card-title .name { font-weight: 600; font-size: 1rem; }
 .card-title .sub { font-size: 0.82rem; color: var(--text-muted); }
 
-.completeness {
-  flex-shrink: 0;
-  font-size: 0.72rem;
-  padding: 3px 8px;
-  border-radius: 999px;
-  background: var(--surface-2);
-  color: var(--text-muted);
-  white-space: nowrap;
-}
-.completeness.full { background: color-mix(in srgb, var(--accent-2) 20%, transparent); color: var(--accent-2); }
-
 .chevron {
   transition: transform 0.15s ease;
   color: var(--text-muted);

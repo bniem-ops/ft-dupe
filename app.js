@@ -126,18 +126,6 @@
   // ---------------------------------------------------------------------
   // CHICKENS
   // ---------------------------------------------------------------------
-  function chickenCompleteness(c) {
-    let total = 0, filled = 0;
-    c.stages.forEach((s, i) => {
-      total += 3; // health, attack, production
-      if (s.health) filled++;
-      if (s.attackStrength) filled++;
-      if (s.production) filled++;
-      if (i < c.stages.length - 1) { total += 1; if (s.mealsToNext) filled++; }
-      total += 1; if (s.abilities.length) filled++;
-    });
-    return { total, filled };
-  }
 
   // Abilities stack — a chicken keeps every prior stage's abilities on top
   // of its new one (rulebook p.13). Renders the cumulative set for the
@@ -187,8 +175,6 @@
   function renderChickenCard(c, idx) {
     const key = 'chk-' + idx;
     const isOpen = state.openCards.has(key);
-    const { total, filled } = chickenCompleteness(c);
-    const full = filled === total;
     const name = c.name || `Eggspansion slot #${idx + 1}`;
     const openStageIdx = state.openStage[key] ?? 0;
 
@@ -205,7 +191,6 @@
             <span class="sub">${c.breed ? esc(c.breed) : 'Breed unknown'}</span>
           </div>
           <div style="display:flex;align-items:center;gap:8px;">
-            <span class="completeness ${full ? 'full' : ''}">${filled}/${total}</span>
             <span class="chevron">▶</span>
           </div>
         </div>
@@ -235,18 +220,6 @@
   // ---------------------------------------------------------------------
   // PREDATORS
   // ---------------------------------------------------------------------
-  function predatorCompleteness(p) {
-    let total = 0, filled = 0;
-    p.stages.forEach(s => {
-      total += 3;
-      if (s.healthMultiplier) filled++;
-      if (s.effect) filled++;
-      if (s.returnAttack) filled++;
-    });
-    total += 1; if (p.lootDrop) filled++;
-    return { total, filled };
-  }
-
   // Threat/counters/caution, sourced from the same predatorGuide data that
   // used to back a standalone "Predator Guide" tab — folded directly onto
   // each predator's card instead, same reasoning as chickenRoleBlock above.
@@ -271,8 +244,6 @@
   function renderPredatorCard(p, idx) {
     const key = 'pred-' + idx;
     const isOpen = state.openCards.has(key);
-    const { total, filled } = predatorCompleteness(p);
-    const full = filled === total;
     const name = p.name || `Eggspansion slot #${idx + 1}`;
     const openStageIdx = state.openStage[key] ?? 0;
     const stage = p.stages[openStageIdx];
@@ -288,7 +259,6 @@
             <span class="sub">${p.species ? esc(p.species) : 'Species unknown'}${p.note ? ' · ' + esc(p.note) : ''}</span>
           </div>
           <div style="display:flex;align-items:center;gap:8px;">
-            <span class="completeness ${full ? 'full' : ''}">${filled}/${total}</span>
             <span class="chevron">▶</span>
           </div>
         </div>
@@ -450,12 +420,20 @@
     }
 
     const setup = state.setup;
-    const { results } = REC.suggestTeams({ players: setup.players, expansion: setup.expansion, difficulty: setup.difficulty });
+    const { results: allResults } = REC.suggestTeams({ players: setup.players, expansion: setup.expansion, difficulty: setup.difficulty });
+
+    const q = state.search.trim().toLowerCase();
+    const results = !q ? allResults : allResults.filter(r => {
+      const hay = [r.title, r.tag, r.blurb, ...r.squad].join(' ').toLowerCase();
+      return hay.includes(q);
+    });
 
     let out = '';
 
-    if (!results.length) {
+    if (!allResults.length) {
       out += `<div class="empty-state">No archetypes available — try toggling Eggspansion on.</div>`;
+    } else if (!results.length) {
+      out += `<div class="empty-state">No archetypes match "${esc(state.search)}"</div>`;
     } else {
       out += results.map(r => staticCard(`
         <div class="ability">
@@ -834,9 +812,9 @@
 
     const searchPlaceholders = {
       chickens: 'Search chickens & abilities…', predators: 'Search predators & effects…', weather: 'Search weather cards…',
-      squads: 'Search…', combos: 'Search…',
+      squads: 'Search…', combos: 'Search…', teams: 'Search team comps…',
     };
-    const searchableSections = ['chickens', 'predators', 'weather', 'squads', 'combos'];
+    const searchableSections = ['chickens', 'predators', 'weather', 'squads', 'combos', 'teams'];
     const rawDataSections = ['weather'];
     return {
       nav, body,
