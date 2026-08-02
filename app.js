@@ -445,15 +445,14 @@
       return staticCard(`
         <div class="ability">
           <div class="aname">Set up your game to see tailored comps</div>
-          <div class="atext">Tap ⚙ My Game above and answer player count, Eggspansion, and difficulty — the suggestions here are computed from that, not a fixed list.</div>
+          <div class="atext">Tap 🎲 My Game above and answer player count, Eggspansion, and difficulty — the suggestions here are computed from that, not a fixed list.</div>
         </div>`);
     }
 
     const setup = state.setup;
-    const { results, tip } = REC.suggestTeams({ players: setup.players, expansion: setup.expansion, difficulty: setup.difficulty });
+    const { results } = REC.suggestTeams({ players: setup.players, expansion: setup.expansion, difficulty: setup.difficulty });
 
     let out = '';
-    if (tip) out += `<div class="note" style="margin:0 0 10px 4px;">${esc(tip)}</div>`;
 
     if (!results.length) {
       out += `<div class="empty-state">No archetypes available — try toggling Eggspansion on.</div>`;
@@ -689,7 +688,7 @@
       return staticCard(`
         <div class="ability">
           <div class="aname">Set up your game to build a team</div>
-          <div class="atext">Tap ⚙ My Game above and answer player count, Eggspansion, and difficulty — My Team is sized to how many players you're actually playing with.</div>
+          <div class="atext">Tap 🎲 My Game above and answer player count, Eggspansion, and difficulty — My Team is sized to how many players you're actually playing with.</div>
         </div>`);
     }
 
@@ -885,7 +884,7 @@
       <div class="modal-backdrop" id="wizard-backdrop">
         <div class="modal-card">
           <h2>Set up your game</h2>
-          <p class="modal-sub">Answer what you know before chickens are dealt — reopen this anytime from the ⚙ My Game button.</p>
+          <p class="modal-sub">Answer what you know before chickens are dealt — reopen this anytime from the 🎲 My Game button.</p>
 
           <div class="modal-field">
             <label>Eggspansion pack?</label>
