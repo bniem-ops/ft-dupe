@@ -9,4 +9,9 @@ Thumbs.db
 data/chickens.json
 data/predators.json
 data/weather.json
-data/app-data.js
+data/bonusCards.json
+data/grubCards.json
+data/generated.mjs
+
+# Compiled engine/ TypeScript output
+engine/dist/

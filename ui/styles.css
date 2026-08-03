@@ -1,0 +1,349 @@
+:root {
+  --coop: #f4e3c1;
+  --outside: #dcefd2;
+  --card-bg: #fffaf0;
+  --border: #8a6d3b;
+  --accent: #b5651d;
+  --danger: #a33;
+  --text: #3a2c1a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: #efe3c8;
+  color: var(--text);
+}
+
+h1, h2, h3, h4 {
+  margin: 0 0 0.4em;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card-bg);
+  padding: 0.4em 0.8em;
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+button:hover:not(:disabled) {
+  background: #f6ecd8;
+}
+
+select, input[type='number'], input[type='text'] {
+  font: inherit;
+  padding: 0.3em;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+/* --- Setup --- */
+
+.setup {
+  max-width: 640px;
+  margin: 2em auto;
+  padding: 1.5em;
+  background: var(--card-bg);
+  border: 2px solid var(--border);
+  border-radius: 10px;
+}
+
+.setup form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8em;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+}
+
+.field.checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.player-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+}
+
+fieldset {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
+}
+
+/* --- Game shell --- */
+
+.error-banner {
+  background: #f8d7da;
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  padding: 0.6em 1em;
+  margin: 0.6em;
+  border-radius: 6px;
+}
+
+.game {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1em;
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+}
+
+.game-over {
+  max-width: 640px;
+  margin: 3em auto;
+  text-align: center;
+}
+
+/* --- Board --- */
+
+.board {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8em;
+}
+
+.locations {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.8em;
+}
+
+.location-card, .coop-card, .weather-card, .bonus-deck-card, .grub-card {
+  background: var(--outside);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.7em;
+}
+
+.coop-card, .weather-card, .bonus-deck-card {
+  background: var(--coop);
+}
+
+.board-middle {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.8em;
+}
+
+.grubs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.8em;
+}
+
+.location-card.pickable, .coop-card.pickable, .predator-card.clickable, .grub-face.clickable {
+  outline: 3px solid var(--accent);
+  cursor: pointer;
+}
+
+.predator-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5em;
+  margin: 0.4em 0;
+}
+
+.predator-card.hidden {
+  color: #888;
+  font-style: italic;
+}
+
+.predator-card.defeated {
+  opacity: 0.6;
+}
+
+.health-bar {
+  height: 8px;
+  background: #ddd;
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 0.3em 0;
+}
+
+.health-fill {
+  height: 100%;
+  background: var(--danger);
+}
+
+.ref-text {
+  font-size: 0.85em;
+  color: #555;
+  margin-top: 0.2em;
+}
+
+.ref-text.loot {
+  color: var(--accent);
+}
+
+.tokens {
+  display: flex;
+  gap: 0.3em;
+  flex-wrap: wrap;
+  margin-top: 0.4em;
+}
+
+.token {
+  display: inline-block;
+  color: #fff;
+  border-radius: 50%;
+  width: 1.8em;
+  height: 1.8em;
+  line-height: 1.8em;
+  text-align: center;
+  font-size: 0.75em;
+}
+
+.grub-face {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5em;
+}
+
+.grub-face.empty {
+  color: #888;
+  font-style: italic;
+}
+
+.deck-counts {
+  font-size: 0.85em;
+  color: #555;
+  margin-top: 0.4em;
+}
+
+/* --- Player panels --- */
+
+.players {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0.8em;
+}
+
+.player-panel {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.8em;
+}
+
+.player-panel.current {
+  outline: 3px solid var(--accent);
+}
+
+.player-panel.dead {
+  opacity: 0.5;
+}
+
+.hearts {
+  margin: 0.3em 0;
+}
+
+.heart.full {
+  color: var(--danger);
+}
+
+.heart.empty {
+  color: #ccc;
+}
+
+.stats-row {
+  display: flex;
+  gap: 0.8em;
+  margin: 0.4em 0;
+}
+
+.meal-counter, .extra-action {
+  font-size: 0.9em;
+  margin: 0.2em 0;
+}
+
+details {
+  margin-top: 0.4em;
+}
+
+.ability-future {
+  opacity: 0.5;
+}
+
+/* --- Action bar / turn controls --- */
+
+.action-bar, .turn-controls {
+  background: var(--card-bg);
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  padding: 0.8em;
+  position: sticky;
+  bottom: 0;
+}
+
+.turn-status {
+  display: flex;
+  align-items: center;
+  gap: 0.8em;
+  margin-bottom: 0.6em;
+}
+
+.pending-hint {
+  background: #fff3cd;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 0.5em;
+  margin-bottom: 0.6em;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.actions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.5em;
+}
+
+.action-with-amount {
+  display: flex;
+  gap: 0.4em;
+}
+
+.action-with-amount input {
+  width: 4em;
+}
+
+.end-turn {
+  margin-top: 0.8em;
+  width: 100%;
+  background: var(--accent);
+  color: #fff;
+  font-weight: bold;
+}
+
+.egg-exchange {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4em;
+  margin: 0.6em 0;
+}
