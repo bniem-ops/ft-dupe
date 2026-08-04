@@ -1,43 +1,29 @@
-// Firebase Web SDK config for the "live table session" feature (session.js).
-// This is NOT a secret — Firebase web config is meant to ship in the client;
-// access control comes from Firestore Security Rules, not from hiding this
-// object. Safe to commit.
+// Firebase Web SDK config. This is NOT a secret — Firebase web config is
+// meant to ship in the client; access control comes from Firestore
+// Security Rules, not from hiding this object. Safe to commit.
 //
-// To go live:
-//   1. https://console.firebase.google.com/ → Add project (free Spark plan
-//      is plenty for this).
-//   2. Build → Firestore Database → Create database (start in production
-//      mode — the security rules below lock it down appropriately).
-//   3. Project settings (gear icon) → General → "Your apps" → Add app → Web
-//      (</>) → register it (no Firebase Hosting needed) → copy the
-//      firebaseConfig object it gives you and paste the values below.
-//   4. Firestore Database → Rules tab, paste:
+// Points at a fresh "ft-dupe" project (not the old companion app's
+// "ft-strategy" project — deliberately separate, per the earlier decision
+// to not reuse that project for the real engine). Nothing in engine/ or
+// ui/ reads Firestore yet; that's phase 8 (remote multiplayer sync) in
+// docs/engine-plan.md, still not started. session.js (the only current
+// consumer of this file, via `window.FLOCK_FIREBASE_CONFIG`) is itself
+// orphaned right now — it was only loaded by the old app.js/index.html,
+// deleted this session — so there's no live traffic hitting this project
+// today regardless of what its Firestore rules are set to.
 //
-//        rules_version = '2';
-//        service cloud.firestore {
-//          match /databases/{database}/documents {
-//            match /sessions/{code} {
-//              allow read, update: if true;
-//              allow create: if request.resource.data.keys().hasAll(
-//                ['expansion', 'players', 'difficulty', 'predators', 'picks', 'createdAt']
-//              );
-//              allow delete: if false;
-//            }
-//          }
-//        }
-//
-//      Access is "knowledge of the join code" — the same trust model as a
-//      Kahoot/Jackbox party code. Fine for a casual at-the-table companion
-//      app with no sensitive data. Sessions aren't auto-expired; Firestore's
-//      free-tier limits are far beyond what personal use needs.
-//
-// Until you do this, the "Host a live session" / "Join with a code" wizard
-// options stay disabled and the app works exactly as before (local-only).
+// The rules that used to be documented here were for the OLD companion
+// app's pre-game team-picker schema (`sessions/{code}` with
+// expansion/players/difficulty/predators/picks/createdAt) — not
+// applicable to the real GameState shape (engine/src/types.ts), and the
+// "trust model" question (open item in docs/engine-plan.md) isn't
+// resolved yet either. Real rules get designed together in phase 8, once
+// both of those are settled — not before.
 window.FLOCK_FIREBASE_CONFIG = {
-  apiKey: 'AIzaSyDzUNt-qEgKUr-OcC3-lfDlddTE1wVpEDU',
-  authDomain: 'ft-strategy.firebaseapp.com',
-  projectId: 'ft-strategy',
-  storageBucket: 'ft-strategy.firebasestorage.app',
-  messagingSenderId: '903974076107',
-  appId: '1:903974076107:web:f07c12eb7aa1aced80e54e',
+  apiKey: 'AIzaSyD90r0nG4Dq3T4AdarFnihZe9NlrZ38Paw',
+  authDomain: 'ft-dupe.firebaseapp.com',
+  projectId: 'ft-dupe',
+  storageBucket: 'ft-dupe.firebasestorage.app',
+  messagingSenderId: '846522470051',
+  appId: '1:846522470051:web:df598090ef84b1aea27916',
 };

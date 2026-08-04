@@ -22,7 +22,18 @@ const MIME_TYPES = {
 
 const server = http.createServer((req, res) => {
   const urlPath = decodeURIComponent(req.url.split('?')[0]);
-  let filePath = path.join(ROOT, urlPath === '/' ? '/ui/index.html' : urlPath);
+
+  // A real redirect, not just serving ui/index.html's bytes at "/" — the
+  // page's relative references (href="styles.css", src="src/app.js") must
+  // resolve against .../ui/, or the browser 404s them against root with no
+  // visible error (blank white page, no styles, no JS).
+  if (urlPath === '/') {
+    res.writeHead(302, { Location: '/ui/index.html' });
+    res.end();
+    return;
+  }
+
+  let filePath = path.join(ROOT, urlPath);
 
   // Guard against escaping ROOT via "..".
   if (!filePath.startsWith(ROOT)) {
