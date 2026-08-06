@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame } from '../src/setup.js';
-import { layEgg, heal, brood, move, drawCard, attack, eat, forage } from '../src/actions.js';
+import { layEgg, heal, brood, completeRevival, move, drawCard, attack, eat, forage } from '../src/actions.js';
 import { GameState } from '../src/types.js';
 import { baseConfig } from './testHelpers.js';
 
@@ -45,7 +45,7 @@ test('heal never exceeds maxHealth', () => {
   assert.equal(healed.players.find((p) => p.id === 'p1')!.health, 3);
 });
 
-test('brood revives a dead player, costs 1 egg, and skips the brooder\'s next turn', () => {
+test('brood costs 1 egg, skips the brooder\'s next turn, and draws 2 revival choices (not an immediate revive)', () => {
   const state = createGame(baseConfig());
   const ready = withPlayer(state, 'p1', { eggs: 1 });
   const withDeadTarget = withPlayer(ready, 'p2', { alive: false });
@@ -54,10 +54,22 @@ test('brood revives a dead player, costs 1 egg, and skips the brooder\'s next tu
 
   const result = brood(withDeadTarget, 'p1', 'p2');
   const brooder = result.players.find((p) => p.id === 'p1')!;
-  const revived = result.players.find((p) => p.id === 'p2')!;
+  const downed = result.players.find((p) => p.id === 'p2')!;
   assert.equal(brooder.eggs, 0);
   assert.equal(brooder.skipNextTurn, true);
-  assert.equal(revived.alive, true);
+  assert.equal(downed.alive, false);
+  assert.equal(downed.pendingRevivalChoices?.length, 2);
+
+  const withAnotherEgg = withPlayer(result, 'p1', { eggs: 1 });
+  assert.throws(() => brood(withAnotherEgg, 'p1', 'p2')); // already has a pending choice
+
+  const revived = completeRevival(result, 'p2', downed.pendingRevivalChoices![0]);
+  const p2 = revived.players.find((p) => p.id === 'p2')!;
+  assert.equal(p2.alive, true);
+  assert.equal(p2.stage, 1);
+  assert.equal(p2.chickenName, downed.pendingRevivalChoices![0]);
+  assert.equal(p2.pendingRevivalChoices, null);
+  assert.equal(p2.justRevivedPendingFirstTurn, true);
 });
 
 test('move sets the player\'s location with no cost beyond the action', () => {
@@ -68,9 +80,11 @@ test('move sets the player\'s location with no cost beyond the action', () => {
 
 test('drawCard respects the hand limit and removes the card from the shared deck', () => {
   const state = createGame(baseConfig());
+  // p1 is Shellock Holmes (Naturalist: starts with 1 Bonus Card already).
+  const startingHandSize = state.players.find((p) => p.id === 'p1')!.bonusCardHand.length;
   const drawn = drawCard(state, 'p1');
   const p1 = drawn.players.find((p) => p.id === 'p1')!;
-  assert.equal(p1.bonusCardHand.length, 1);
+  assert.equal(p1.bonusCardHand.length, startingHandSize + 1);
   assert.equal(drawn.bonusDeck.drawPile.length, state.bonusDeck.drawPile.length - 1);
 
   const atLimit = withPlayer(state, 'p1', { bonusCardHand: [0, 1] }); // limit is 2
@@ -81,17 +95,24 @@ test('attack on a Predator requires being nearby and revealed, and costs food pe
   const state = createGame(baseConfig());
   const eggsmeralda = state.predators.find((p) => p.name === 'Eggsmeralda')!;
   const farAway = withPlayer(state, 'p1', { food: 5, location: 'Grit Stones' });
-  assert.throws(() => attack(farAway, 'p1', 'predator', 'Eggsmeralda', 2));
+  assert.throws(() => attack(farAway, 'p1', 'predator', 'Eggsmeralda', 1));
 
   const nearby = withPlayer(state, 'p1', { food: 5, location: eggsmeralda.location });
-  const result = attack(nearby, 'p1', 'predator', 'Eggsmeralda', 2);
-  assert.equal(result.players.find((p) => p.id === 'p1')!.food, 3);
+  const result = attack(nearby, 'p1', 'predator', 'Eggsmeralda', 1);
+  assert.equal(result.players.find((p) => p.id === 'p1')!.food, 4);
 
-  const poor = withPlayer(nearby, 'p1', { food: 1 });
-  assert.throws(() => attack(poor, 'p1', 'predator', 'Eggsmeralda', 2));
+  const poor = withPlayer(nearby, 'p1', { food: 0 });
+  assert.throws(() => attack(poor, 'p1', 'predator', 'Eggsmeralda', 1));
 
   const boss = withPlayer(nearby, 'p1', { location: 'Badlands' });
   assert.throws(() => attack(boss, 'p1', 'predator', 'Ursula Bone', 1)); // not revealed yet
+});
+
+test('attack strength is capped at the chicken\'s stat (+ weather/ability modifiers)', () => {
+  const state = createGame(baseConfig());
+  const eggsmeralda = state.predators.find((p) => p.name === 'Eggsmeralda')!;
+  const nearby = withPlayer(state, 'p1', { food: 5, location: eggsmeralda.location }); // Shellock Holmes Chick: attackStrength 1
+  assert.throws(() => attack(nearby, 'p1', 'predator', 'Eggsmeralda', 2));
 });
 
 test('attack on a Grub requires matching Inside/Outside and a face-up card', () => {

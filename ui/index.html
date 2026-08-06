@@ -8,17 +8,18 @@
   <script type="importmap">
   {
     "imports": {
-      "preact": "/ui/vendor/preact.js",
-      "preact/hooks": "/ui/vendor/hooks.js",
-      "htm": "/ui/vendor/htm.js",
-      "htm/preact": "/ui/vendor/htm-preact.js",
-      "#data/generated.mjs": "/data/generated.mjs"
+      "preact": "./vendor/preact.js",
+      "preact/hooks": "./vendor/hooks.js",
+      "htm": "./vendor/htm.js",
+      "htm/preact": "./vendor/htm-preact.js",
+      "#data/generated.mjs": "../data/generated.mjs"
     }
   }
   </script>
 </head>
 <body>
   <div id="app"></div>
+  <script src="../data/firebase-config.js"></script>
   <script type="module" src="src/app.js"></script>
 </body>
 </html>

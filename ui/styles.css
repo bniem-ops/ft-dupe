@@ -83,6 +83,13 @@ select, input[type='number'], input[type='text'] {
   gap: 0.6em;
 }
 
+.lobby-seats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  margin: 1em 0;
+}
+
 fieldset {
   border: 1px solid var(--border);
   border-radius: 6px;

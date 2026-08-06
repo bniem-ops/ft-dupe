@@ -48,6 +48,23 @@ function LocationCard({ name, state, dispatch, pendingPick, setPendingPick }) {
   const predator = state.predators.find((p) => p.location === name);
   const pickingMove = pendingPick?.type === 'move';
   const pickingAttackTarget = pendingPick?.type === 'attack' && pendingPick.step === 'target';
+  const pickingCardTarget = pendingPick?.type === 'cardTarget' && pendingPick.step === 'target';
+
+  function selectPredator() {
+    if (pickingCardTarget) {
+      dispatch({
+        type: pendingPick.actionType,
+        playerId: pendingPick.playerId,
+        [pendingPick.handIndexField]: pendingPick.handIndex,
+        ...pendingPick.extraParams,
+        targetType: 'predator',
+        targetId: predator.name,
+      });
+      setPendingPick(null);
+    } else {
+      setPendingPick({ ...pendingPick, step: 'strength', targetType: 'predator', targetId: predator.name });
+    }
+  }
 
   return html`
     <div
@@ -65,27 +82,41 @@ function LocationCard({ name, state, dispatch, pendingPick, setPendingPick }) {
       ${predator &&
       html`<${PredatorCard}
         predator=${predator}
-        clickable=${pickingAttackTarget && predator.revealed && !predator.defeated}
-        onSelect=${() => setPendingPick({ ...pendingPick, step: 'strength', targetType: 'predator', targetId: predator.name })}
+        clickable=${(pickingAttackTarget || pickingCardTarget) && predator.revealed && !predator.defeated}
+        onSelect=${selectPredator}
       />`}
       <${PlayerTokens} state=${state} location=${name} />
     </div>
   `;
 }
 
-function GrubCard({ side, deckSide, pendingPick, setPendingPick }) {
+function GrubCard({ side, deckSide, dispatch, pendingPick, setPendingPick }) {
   const pickingAttackTarget = pendingPick?.type === 'attack' && pendingPick.step === 'target';
+  const pickingCardTarget = pendingPick?.type === 'cardTarget' && pendingPick.step === 'target';
   const card = deckSide.faceUp ? loadGrubCards()[deckSide.faceUp.cardId] : null;
+
+  function select() {
+    if (pickingCardTarget) {
+      dispatch({
+        type: pendingPick.actionType,
+        playerId: pendingPick.playerId,
+        [pendingPick.handIndexField]: pendingPick.handIndex,
+        ...pendingPick.extraParams,
+        targetType: 'grub',
+        targetId: side,
+      });
+      setPendingPick(null);
+    } else {
+      setPendingPick({ ...pendingPick, step: 'strength', targetType: 'grub', targetId: side });
+    }
+  }
 
   return html`
     <div class="grub-card">
       <h4>${side === 'inside' ? 'Inside Grub' : 'Outside Grub'}</h4>
       ${card
         ? html`
-            <div
-              class=${`grub-face ${pickingAttackTarget ? 'clickable' : ''}`}
-              onClick=${pickingAttackTarget ? () => setPendingPick({ ...pendingPick, step: 'strength', targetType: 'grub', targetId: side }) : undefined}
-            >
+            <div class=${`grub-face ${pickingAttackTarget || pickingCardTarget ? 'clickable' : ''}`} onClick=${pickingAttackTarget || pickingCardTarget ? select : undefined}>
               <div class="grub-name">${card.name ?? 'Unnamed Grub'}</div>
               <div class="health-text">${deckSide.faceUp.currentHealth} / ${card.health}</div>
               ${card.effect && html`<div class="ref-text">Defend: ${card.effect}</div>`}
@@ -140,8 +171,8 @@ export function Board({ state, dispatch, pendingPick, setPendingPick }) {
       </div>
 
       <div class="grubs">
-        <${GrubCard} side="inside" deckSide=${state.grubDecks.inside} pendingPick=${pendingPick} setPendingPick=${setPendingPick} />
-        <${GrubCard} side="outside" deckSide=${state.grubDecks.outside} pendingPick=${pendingPick} setPendingPick=${setPendingPick} />
+        <${GrubCard} side="inside" deckSide=${state.grubDecks.inside} dispatch=${dispatch} pendingPick=${pendingPick} setPendingPick=${setPendingPick} />
+        <${GrubCard} side="outside" deckSide=${state.grubDecks.outside} dispatch=${dispatch} pendingPick=${pendingPick} setPendingPick=${setPendingPick} />
       </div>
     </div>
   `;

@@ -32,16 +32,30 @@ export const OUTSIDE_LOCATIONS: readonly Location[] = [
 
 export type DifficultyLevel = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 
+// Every "...until the next Egg Exchange" clause (Sal Moe Nella, Professor
+// Moltiarty, Layonardo) shares one lifecycle: applied by a predator combat
+// effect, checked by the relevant action/turn step, cleared for everyone
+// the moment the next Egg Exchange fires (advanceDay) — calendar-based,
+// not conditioned on that player actually exchanging eggs. See
+// docs/rules-audit.md phase 6 (ability effect engine).
+export type StatusEffectType =
+  | 'cannotEat'
+  | 'cannotHeal'
+  | 'cannotLeaveLocation'
+  | 'cannotParticipateInEggExchange'
+  | 'skipProduction';
+
 // A die roll source, injected rather than calling Math.random() directly
 // so turn/production logic stays deterministically testable.
 export type RNG = () => number;
 
-// Combat hook extension points. Phase 4 ships with no real
-// implementations (all three default to a no-op returning `{}`) — the
-// Weather/Predator/Chicken-ability *content* (free-text roll-table
-// effects) is phase 6's job. `dodged` is the one cross-cutting behavior
-// phase 4 needs structurally: "Dodging a return attack also dodges the
-// Predator effect" (core_rules.md).
+// Combat hook extension points. When a slot is omitted, combat.ts's
+// runCombatEffects defaults to looking up real content from the phase 6
+// ability registries (engine/src/abilities/) instead of a no-op — tests
+// (or future callers) can still pass an explicit hook here to fully
+// override that default, same as before phase 6. `dodged` is the one
+// cross-cutting behavior phase 4 needed structurally: "Dodging a return
+// attack also dodges the Predator effect" (core_rules.md).
 export interface CombatContext {
   state: GameState;
   attackerId: string;
@@ -51,18 +65,30 @@ export interface CombatContext {
 
 export interface CombatStageResult {
   dodged?: boolean;
+  // Phase 6 additions: the executable-now Predator/weather/chicken combat
+  // effects, summed across all 3 hook stages and applied by
+  // resolvePredatorAttack alongside the base return-attack/defeat logic.
+  returnAttackDelta?: number; // e.g. Ursula Bone +1..+3, Thick Feathers -1, Bandit Mask -1
+  returnAttackOverride?: number; // Cleopoultra: "only suffer -1 return attack" — a fixed cap, not a delta
+  predatorDodges?: boolean; // Cleopoultra: attacker's damage to the predator is suppressed
+  predatorHealthDelta?: number; // predator self-heal (Eggsmeralda, Chicksune)
+  attackerFoodDelta?: number; // Hens Gruber losses (negative)
+  attackerStatusEffects?: StatusEffectType[];
+  discardAfterCombat?: ('bonus' | 'grub')[]; // Hendel's Mother
 }
 
 export interface CombatHooks {
-  weatherEffect?: (ctx: CombatContext) => CombatStageResult;
-  targetEffect?: (ctx: CombatContext) => CombatStageResult;
-  chickenAbilities?: (ctx: CombatContext) => CombatStageResult;
+  weatherEffect?: (ctx: CombatContext, rng: RNG) => CombatStageResult;
+  targetEffect?: (ctx: CombatContext, rng: RNG) => CombatStageResult;
+  chickenAbilities?: (ctx: CombatContext, rng: RNG) => CombatStageResult;
 }
 
 export interface GameConfig {
   // Any length >= 1 (solo supported). Chicken choice is a player decision,
-  // not something the engine assigns.
-  players: { id: string; chickenName: string }[];
+  // not something the engine assigns. startingLocation is only valid for
+  // chickens whose ability grants mayChooseStartingLocation (e.g.
+  // General Tso's Traveler) — createGame throws if set otherwise.
+  players: { id: string; chickenName: string; startingLocation?: Location }[];
   difficulty: DifficultyLevel;
   eggspansion: boolean;
   rng: RNG;
@@ -103,15 +129,53 @@ export interface PlayerState {
   mealCounter: number;
   location: Location;
   extraActionTokenAvailable: boolean; // once per season
-  skipNextTurn: boolean; // set by Brood (core_rules.md); revival flow is phase 8
-  alive: boolean; // death/revival flow is phase 8 — flag exists so state has a home for it
+  skipNextTurn: boolean; // set by Brood (core_rules.md)
+  alive: boolean; // false on death; see pendingRevivalChoices/justRevivedPendingFirstTurn below for the phase 9 revival flow
   bonusCardHand: BonusCardId[];
   grubHand: HeldGrubCard[];
   bonusCardHandLimit: number; // base 2 per core_rules.md; ability-driven changes are phase 5
   // Loot Drops held (predator name used as the reference — look up
   // .lootDrop text via data.ts when needed). Interpreting what a loot
-  // drop *does* is phase 5/6; this just tracks that it's held.
+  // drop *does* is phase 6/7; this just tracks that it's held.
   lootDrops: string[];
+  // Phase 6 additions.
+  statusEffectsUntilNextEggExchange: StatusEffectType[];
+  foragedThisTurn: boolean; // transient, reset in startTurn — drives Fair weather
+  // "Once during this phase" (Nighttime's -1 action, Sunny's +1 action) —
+  // reset whenever a new weather card is drawn, not per-turn.
+  weatherAdjustmentUsedThisPhase: boolean;
+  // "Free action... once per turn" abilities (Ladies' Aid, Always on
+  // Purpose, Quick Claws, Long Shanks) — reset in startTurn. A single flag
+  // is sufficient since only the player's *current* stage ability is
+  // active and no chicken has two such abilities at once.
+  freeAbilityUsedThisTurn: boolean;
+  // Phase 7: pre-committed "pending" modifiers from a played Bonus Card or
+  // Grub Reward, consumed (and cleared) by the next matching action —
+  // same pattern as phase 6's damageMitigation, needed because a
+  // synchronous reducer can't pause mid-resolution to ask "reroll now?".
+  pendingFreeAttackPoint: boolean; // consumed by attack(): 1 point exempt from the food cost
+  pendingPredatorRollReduction: number; // consumed by the next Predator-roll combat
+  pendingIncomingDamageReduction: number; // consumed by the next return-attack/Grub-defend damage
+  pendingDodgeNextAttack: boolean; // consumed by the next attack (Predator or Grub)
+  pendingWeatherImmuneUntilNextTurn: boolean; // cleared at this player's next startTurn
+  pendingRerollNextRoll: boolean; // consumed by the next production/forage/layEgg/Grub-defend roll
+  pendingIgnorePredatorRoll: boolean; // Scorpion Grub Reward — consumed by the next Predator attack
+  // Permanent Grub Reward upgrades (docs/rules-audit.md's "Permanent
+  // Upgrade" rewards) — applied once at play time, checked every time
+  // afterward, same treatment as phase 6's permanent Loot Drop patches.
+  permanentEggProductionBonus: number; // Caterpillar — added to the production roll before the threshold check
+  permanentReturnAttackReductionRoll: { threshold: number; amount: number } | null; // Roly Poly
+  permanentNoBonusCardHandLimit: boolean; // Large Spider
+  permanentForageBonusUntilNextWeather: number; // Lizard — cleared when a new weather card is drawn
+  permanentWeatherImmuneUntilNextCard: boolean; // Lunar Moth — cleared when a new weather card is drawn
+  // Phase 9: revival flow. A dead player with choices pending stays
+  // alive: false until completeRevival resolves — avoids a transient
+  // "revived but no stats yet" state that startTurn could otherwise hit.
+  pendingRevivalChoices: string[] | null; // the 2 drawn chicken names, set by brood()
+  // Set true by completeRevival, cleared at this player's own endTurn —
+  // core_rules.md's "must take their first turn back as a Chick" clause,
+  // checked by gameStatus.ts's evaluateGameStatus alongside `alive`.
+  justRevivedPendingFirstTurn: boolean;
 }
 
 export interface PredatorState {
@@ -162,7 +226,8 @@ export interface GameState {
   grubDecks: GrubDecksState;
   bonusDeck: BonusDeckState;
   weather: WeatherState;
-  gameOver: boolean; // stubbed — real win/lose evaluation is phase 8
+  gameOver: boolean; // see engine/src/gameStatus.ts for real evaluation (phase 9)
+  won: boolean; // only meaningful once gameOver is true
   actionLog: Action[];
 }
 
@@ -181,9 +246,56 @@ export type Action =
       targetType: 'predator' | 'grub';
       targetId: string; // predator name, or 'inside'/'outside' for the face-up Grub
       attackStrength: number;
+      // Pre-committed damage mitigation (Misdirection, Eggpire Strikes
+      // Back) — see actions.ts's attack() for why this is a commitment,
+      // not a mid-resolution prompt.
+      mitigation?: { resource: 'bonusCards' | 'eggs'; amount: number };
     }
   | { type: 'eat'; playerId: string; amount: number }
-  | { type: 'forage'; playerId: string };
+  | { type: 'forage'; playerId: string }
+  // Phase 6: "Free action" chicken abilities — validated against the
+  // acting player's unlocked CHICKEN_ABILITIES entry, don't consume
+  // actionsRemainingThisTurn, gated to once per turn via
+  // freeAbilityUsedThisTurn. Named by shape (reusable if another chicken
+  // gets a similar ability later), not by the specific chicken.
+  | { type: 'giftFood'; playerId: string; targetPlayerId: string } // Ladies' Aid
+  | { type: 'sacrificeHealthForEggs'; playerId: string } // Always on Purpose
+  | { type: 'payEggForCard'; playerId: string } // Quick Claws
+  | { type: 'freeOutsideMove'; playerId: string; destination: Location } // Long Shanks
+  | { type: 'drawTwoKeepOne'; playerId: string; keep: 0 | 1 } // Foresight
+  // Phase 7: playing a held Bonus Card or Grub Reward. Free (no action
+  // cost) per core_rules.md. `option` selects between a choiceGain card's
+  // two branches; targetPlayerId/targetType+targetId/amount/
+  // discardExtraCardIndex are only required by the specific card's shape
+  // (validated in actions.ts against the BONUS_CARD_EFFECTS/GRUB_REWARDS
+  // registry entry — unneeded ones are ignored).
+  | {
+      type: 'playBonusCard';
+      playerId: string;
+      cardHandIndex: number;
+      option?: 1 | 2;
+      targetPlayerId?: string;
+      targetType?: 'predator' | 'grub';
+      targetId?: string;
+      amount?: number;
+      discardExtraCardIndex?: number;
+    }
+  | {
+      type: 'useGrubReward';
+      playerId: string;
+      grubHandIndex: number;
+      option?: 1 | 2;
+      targetPlayerId?: string;
+      targetType?: 'predator' | 'grub';
+      targetId?: string;
+      amount?: number;
+      discardExtraCardIndex?: number;
+    }
+  // Phase 9: resolves a dead player's brood()-drawn revival choice. Not
+  // turn-gated, no action cost — same "playable any time" reasoning as
+  // Bonus Cards, since a revived player's stats need to be locked in
+  // before their own turn starts, not necessarily on someone else's turn.
+  | { type: 'completeRevival'; playerId: string; chickenName: string };
 
 export function rollDie(rng: RNG): number {
   return Math.floor(rng() * 6) + 1;

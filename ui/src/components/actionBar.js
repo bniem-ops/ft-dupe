@@ -11,13 +11,18 @@ function eatCap(stage) {
   return stage === 1 ? 1 : stage === 2 ? 2 : 0;
 }
 
-export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction, pendingPick, setPendingPick }) {
+export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction, pendingPick, setPendingPick, myPlayerId }) {
   const [healAmount, setHealAmount] = useState(1);
   const [eatAmount, setEatAmount] = useState(0);
   const [attackStrength, setAttackStrength] = useState(1);
   const [broodTarget, setBroodTarget] = useState('');
 
-  const noActions = state.actionsRemainingThisTurn <= 0;
+  // In a remote session, only the device that claimed this seat may act
+  // for them — a UX nicety, not a security boundary (the engine's own
+  // assertCanAct is the real guard). myPlayerId is null in local hotseat
+  // play, where anyone can act on any seat, same as before phase 8.
+  const canAct = myPlayerId == null || myPlayerId === player.id;
+  const noActions = state.actionsRemainingThisTurn <= 0 || !canAct;
   const deadPlayers = state.players.filter((p) => !p.alive);
   const pickingAttackStrength = pendingPick?.type === 'attack' && pendingPick.step === 'strength';
 
@@ -29,7 +34,9 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
     <div class="action-bar">
       <div class="turn-status">
         <strong>${player.id}'s turn</strong> — ${state.actionsRemainingThisTurn} action(s) left
-        ${player.extraActionTokenAvailable && html`<button type="button" onClick=${onUseExtraAction}>Use Extra Action Token</button>`}
+        ${!canAct && html`<span class="ref-text">(waiting for ${player.id}'s device)</span>`}
+        ${player.extraActionTokenAvailable &&
+        html`<button type="button" disabled=${!canAct} onClick=${onUseExtraAction}>Use Extra Action Token</button>`}
       </div>
 
       ${pendingPick?.type === 'move' &&
@@ -37,6 +44,8 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
       ${pendingPick?.type === 'attack' &&
       pendingPick.step === 'target' &&
       html`<div class="pending-hint">Click a Predator or Grub on the board to target. <button type="button" onClick=${cancelPick}>Cancel</button></div>`}
+      ${pendingPick?.type === 'cardTarget' &&
+      html`<div class="pending-hint">Click a Predator or Grub on the board to target the card. <button type="button" onClick=${cancelPick}>Cancel</button></div>`}
       ${pickingAttackStrength &&
       html`
         <div class="pending-hint">
@@ -50,6 +59,7 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
           />
           <button
             type="button"
+            disabled=${!canAct}
             onClick=${() => {
               dispatch({
                 type: 'attack',
@@ -121,7 +131,7 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
         <button type="button" disabled=${noActions} onClick=${() => dispatch({ type: 'forage', playerId: player.id })}>Forage</button>
       </div>
 
-      <button type="button" class="end-turn" onClick=${onEndTurn}>End Turn</button>
+      <button type="button" class="end-turn" disabled=${!canAct} onClick=${onEndTurn}>End Turn</button>
     </div>
   `;
 }

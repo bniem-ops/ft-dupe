@@ -14,11 +14,25 @@ no bundler) covering the 8 actions, combat, and day/season/turn
 progression, with all chicken/predator/card/Loot text rendered as
 read-only reference (see phase 5 below for the scope boundary and what
 had to change in `engine/src/data.ts` to make it browser-safe). Phase 6
-(ability effect engine) up next. No deadline — motivating use case is
-playing remotely with friends/family in different parts of the country
-(not the Labor Day 2026 in-person playtest, which uses the physical
-game). Revisit and refine this doc as work actually begins; it's a
-living plan, not a spec to freeze.
+(ability effect engine) done — the 77 "executable now" chicken/predator/
+weather items from `docs/rules-audit.md` are now live rules, not just
+reference text (see phase 6 below). Phase 7 (Bonus/Grub card engine)
+done — the 98 "executable now" Bonus Card (57 of 66 copies)/Grub defend
+roll (24)/Grub Reward (17) items are implemented, including a UI Play
+button so cards are actually usable in the browser, not just enforced
+(see phase 7 below). Phase 9 (win/lose conditions, death/Brood/revival
+flow) done, taken out of order ahead of phase 8 since it was smaller and
+self-contained — real win/lose evaluation and the full Brood → choose a
+new Chicken Book → rejoin as a Chick flow both work now (see phase 9
+below). 155 tests passing. Phase 8 (remote multiplayer sync) done — the
+UI can now create/join a Firestore-backed session, claim seats, and play
+a fully synced game across devices, with the client-side engine as the
+only reducer (see phase 8 below for the design). `ft-dupe`'s Cloud
+Firestore is enabled and its rules are published for the shared-write
+trust model; a standalone REST round-trip (create session → claim seat →
+push/read a synced GameState) confirmed live against the real project.
+That was the last item on the original roadmap; revisit and refine this
+doc as new work comes up — it's a living plan, not a spec to freeze.
 
 ## What "engine" means here
 
@@ -145,7 +159,15 @@ own rather than only valuable once everything else is done.
    effect/return-attack, weather, Bonus/Grub card, and Loot Drop text as
    read-only reference so players can self-adjudicate it by hand, but
    doesn't provide buttons to "play" or "apply" any of it — the engine
-   doesn't execute that content yet (phases 6-7).
+   doesn't execute that content yet (phases 6-7). **Update after phase
+   6:** this framing now only holds for the "needs hook" (H) items and
+   Bonus/Grub cards (still phase 7) — the "executable now" chicken/
+   predator/weather ability text the UI renders is live rules as of
+   phase 6, not just reference; the same displayed text now describes
+   what the engine actually does. **Update after phase 7:** Bonus/Grub
+   card text now has an actual "Play" button next to it (not just
+   reference) for the 98 executable-now items; only the "needs hook"
+   items across every category remain click-free reference text.
    Turn-loop orchestration (calling `startTurn`/`endTurn`/`advanceDay`
    in the right sequence, skipping dead players' turns, handling the
    day-end Grub-discard/Egg-Exchange prompt) lives in `ui/src/app.js`,
@@ -170,38 +192,188 @@ own rather than only valuable once everything else is done.
    `data.ts` (it hadn't, so `loadChickens`/`findPredator`/etc. weren't
    actually reachable from outside the engine until this was added).
 
-6. **Ability effect engine.** Implement the "executable now" abilities
-   from phase 2 as data-driven modifiers/hooks grouped by effect shape
-   (stat modifier, action-cost change, extra action, damage mitigation,
-   location override, etc.) rather than bespoke per-chicken code.
+6. **Ability effect engine — done.** Implemented the 77 "executable now"
+   chicken (32) / predator (29) / weather (16) items from phase 2 —
+   Bonus/Grub cards stayed out of scope for phase 7. New
+   `engine/src/abilities/` (`types.ts`, `chickens.ts`, `predators.ts`,
+   `weather.ts`): each content source is a registry of small, optional-
+   field objects — one field per effect *shape* (starting resource,
+   weather immunity, roll-table outcome, stat modifier, free action,
+   damage mitigation, etc.), not one per named ability, so the ~30 shapes
+   that recur across 77 items stayed data, not bespoke code per card.
+   Combat's 3 hooks (`weatherEffect`/`targetEffect`/`chickenAbilities`,
+   phase 4) now default to real registry lookups instead of no-ops when
+   `config.hooks` doesn't override them — existing test overrides still
+   work unchanged. New call sites needed beyond combat: turn-start
+   (Nighttime/Tornado/Sunny/Earthquake), turn-end (Hail/Lightning Storm/
+   Severe Wind), production (Daylight Savings' threshold, High
+   Producer's extra roll), Forage (The Forager's roll, Drought's cost,
+   Fair's bonus), Lay Egg (Well-Laid Plans' roll), Egg Exchange
+   (Pouring Rain/Snow, Superior Product's rate, per-status blocks),
+   and 5 new "free action" `Action` variants (`giftFood`,
+   `sacrificeHealthForEggs`, `payEggForCard`, `freeOutsideMove`,
+   `drawTwoKeepOne`) for abilities that grant a bonus action rather than
+   modifying an existing one. New `PlayerState` fields:
+   `statusEffectsUntilNextEggExchange` (unifies every "...until the next
+   Egg Exchange" clause), `foragedThisTurn`, `weatherAdjustmentUsedThisPhase`
+   ("once per phase" effects), `freeAbilityUsedThisTurn`. Two items are
+   wired but currently inert, both noted in code: **Just Reward** (needs
+   Tank, an H item, to ever fire) and **Gas Mask** (the one single-use
+   *activatable* Loot Drop among these — its grant already worked from
+   phase 4; activating it on demand is deferred to phase 7's held-effect-
+   playing mechanism, the same problem Bonus/Grub cards need solved
+   anyway). Also fixed a real gap found along the way: `attack`'s
+   strength was never actually capped at the chicken's stat — harmless
+   until Dust Storm/Adrenaline needed a real "max attack strength" to
+   modify. 55 new tests across `abilities-weather.test.ts`,
+   `abilities-chickens.test.ts`, `abilities-predators.test.ts` (105
+   total, zero regressions). No UI changes — `ui/` already renders all of
+   this text; it just went from inert reference to enforced rules. The 75
+   "needs hook" (H) items are unchanged, still no-op.
 
-7. **Bonus/Grub card engine.** Bonus Cards turned out to be mostly
-   distinct effects rather than a handful of categories — the one
-   structural shape worth a shared primitive is the binary-choice card
-   ("Option 1 — X, OR Option 2 — Y"), often cost-gated. Grub Cards split
-   on single-use vs. "Permanent Upgrade" rewards. Group by these real
-   shapes (from phase 2's classification), not by card.
+7. **Bonus/Grub card engine — done.** Implemented the 98 "executable now"
+   items from phase 2: 57 of 66 Bonus Card copies (27 unique effects, 5
+   unique needs-hook effects deferred), all 24 Grub defend rolls, and 17
+   of 24 Grub Rewards (7 needs-hook deferred: Dung Beetle, Four Leaf
+   Clover, Garden Snail, Lucky Cricket, Spotted Lanternfly, Wasp Swarm,
+   Firefly). New `engine/src/abilities/grubCards.ts`
+   (`GRUB_DEFEND_EFFECTS`, reusing `PredatorEffect`'s roll-table shape
+   as-is since Grub defend rolls turned out structurally identical to
+   Predator ones — no new type needed; `GRUB_REWARDS`) and
+   `engine/src/abilities/bonusCards.ts` (`BONUS_CARD_EFFECTS`, keyed by
+   the card's `shorthand` text since Bonus Cards have no printed name/id).
+   Both Reward/Bonus-Card shapes share one `CardEffect` interface (one
+   optional field per shape: signed resource deltas, choice-of-two,
+   bounded teammate gifts, direct enemy damage, permanent one-time-patch
+   upgrades, and 6 new "pending" `PlayerState` fields for reactive
+   attack-time effects — dodge, damage reduction, predator-roll
+   reduction, a free attack point, reroll-your-next-roll — consumed by
+   the next matching action, same pre-committed pattern as phase 6's
+   Misdirection). Two new free (no action cost) `Action` types,
+   `playBonusCard`/`useGrubReward`, both routing through a shared
+   `resolveCardEffect` in `actions.ts`. `combat.ts`'s `resolveGrubAttack`
+   now actually rolls the target Grub's defend effect and can deal return
+   damage to the attacker — previously Grubs had zero retaliation risk,
+   which was the exact bug a playtester hit (see
+   `docs/playtest-feedback.md`'s Four Leaf Clover entry, now closed).
+   Unlike phase 6, this phase needed real UI work too, since playing a
+   card is player-initiated rather than an automatic trigger: `ui/`'s
+   `playerPanel.js` now renders a "Play" button per held card (with
+   inline option/teammate/amount pickers, or a board-click target pick
+   for enemy-damage cards, reusing `actionBar.js`/`board.js`'s existing
+   `pendingPick` machinery) instead of read-only text. 43 new tests
+   across `abilities-grubDefend.test.ts`, `abilities-bonusCards.test.ts`,
+   `abilities-grubRewards.test.ts` (148 total, zero regressions). Note:
+   "Reroll your own die" can't literally re-prompt after seeing a roll in
+   a synchronous reducer, so it's modeled as a pre-committed "best of 2"
+   at the point of rolling instead. I verified the dev server serves the
+   rebuilt engine and UI files correctly, but couldn't click through the
+   new Play buttons myself (no browser-automation tool available in this
+   environment) — worth a manual pass before considering this fully
+   verified.
 
-8. **Remote multiplayer sync.** Extend the Firestore session schema from
-   "picks" to full game state: `phase`, `season`, `day`, `weathervane`,
-   `players[]` (chicken/stage/health/food/eggs/hand/position),
-   `predators[]` (stage/health/revealed), grub decks, turn order, an
-   action log. The sync *primitive* is already proven by `session.js`;
-   this phase is schema and turn-locking (whose write wins, how a
-   player's turn is exclusively theirs), not new infrastructure.
+8. **Remote multiplayer sync — done.** Trust model resolved: shared write
+   access (any device with the session code can write the doc), same as
+   the old team-picker — not per-player Firestore security rules. No
+   Cloud Functions / server-side reducer: every device runs the exact
+   same `applyAction`/`endTurn`/`advanceDay`/`createGame` calls it always
+   has, and a remote-mode client also pushes the resulting `GameState` to
+   `sessions/{code}` after computing it; every device (including the
+   writer) re-renders from whatever `onSnapshot` delivers next, rather
+   than trusting its own optimistic compute. Last-write-wins, no
+   transactions/revision counters.
+   New `ui/src/remoteSession.js` replaces the orphaned root `session.js`
+   (deleted — its schema was the old companion app's pre-game picker,
+   unrelated to `GameState`). `toSyncedState`/`fromSyncedDoc` are the
+   serialization boundary: `config.rng`/`config.hooks` are functions (not
+   JSON-safe, and don't need to be shared — a roll's outcome is already
+   baked into the resulting state, so each device keeps rolling with its
+   own local `Math.random()`), and `actionLog` is dropped from the synced
+   doc (unbounded growth risk against Firestore's 1MiB doc cap; nothing
+   in the UI reads it). `dayEndPending` rides alongside `state` in the
+   doc rather than being derived from it, since `currentPlayerIndex`
+   alone can't distinguish "the last player's turn is in progress" from
+   "the last player just ended their turn and day-end is pending."
+   New UI flow: `Setup` gains a "Play Remotely" entry point into
+   `ui/src/components/lobby.js`'s two screens — `RemoteHome` (create a
+   session with the host-only settings: player count/difficulty/
+   eggspansion/predators, or join one by its 4-char code) and `Lobby`
+   (each device claims one unclaimed seat by picking its own chicken,
+   host starts once every seat is filled). `app.js` threads a
+   `myPlayerId` (the seat this device claimed, persisted in
+   `localStorage` per session code) through `ActionBar`, `TurnControls`,
+   and `PlayerPanel`; a `canAct(seatId)` check (`myPlayerId == null` in
+   local hotseat play, unrestricted, exactly today's behavior) disables
+   action/card/revival controls that aren't this device's seat. This is
+   a UX nicety, not a security boundary — the reducer's own
+   `assertCanAct` is the real guard, consistent with the shared-write
+   trust model.
+   Verified against the real `ft-dupe` project via a standalone Firestore
+   REST script (no browser-automation tool available to click through an
+   actual two-device session, so this is schema/data-layer verification,
+   not a UI click-through): create a session doc, claim a seat, push a
+   synced `GameState`, read it back — round-trip confirmed correct.
+   Getting there needed two console-side steps beyond this session's code
+   changes, both done: enabling the Cloud Firestore API for `ft-dupe`
+   (it had never been turned on) and publishing open rules matching the
+   shared-write trust model:
+   ```
+   rules_version = '2';
+   service cloud.firestore {
+     match /databases/{database}/documents {
+       match /sessions/{code} { allow read, write: if true; }
+     }
+   }
+   ```
+   Worth remembering: a 4-char code is only ~1M combinations, so this is
+   obscurity, not real access control — fine for casual friends/family
+   play, not for anything sensitive. `npm test` stays at 155/155 (no
+   engine changes this phase — everything is additive in `ui/` plus the
+   new `ui/src/remoteSession.js`).
 
-9. **Win/lose conditions, death/Brood/revival flow.** Small in scope,
-   sequenced last because it depends on combat (phase 4) and turns
-   (phase 3) both existing.
+9. **Win/lose conditions, death/Brood/revival flow — done.** New
+   `engine/src/gameStatus.ts` (`evaluateGameStatus`) checks the two
+   state-derivable conditions from core_rules.md's Objective section —
+   all players dead (loss) and all 4 Predators defeated with everyone
+   truly back (win) — called from `reducer.ts`'s `applyAction` (catches a
+   win on the killing blow, and card-driven self-damage deaths) and
+   `turn.ts`'s `endTurn` (catches an end-of-turn weather death, since
+   `endTurn` is called directly by `ui/src/app.js`, not through
+   `applyAction`). The third condition — the season timing out before all
+   Predators are defeated — is a timing event, not a state fact, so it's
+   its own branch in `advanceDay`'s Fall-day-8 rollover instead (preserves
+   an already-landed win rather than overwriting it). `GameState` gained
+   a `won` field alongside the existing `gameOver`. `applyAction` now
+   rejects any action once `gameOver` is true.
+   Revival: `brood()` no longer revives immediately — it draws 2 Chicken
+   Book candidates (names not currently in use by a living player,
+   respecting `eggspansion`, same pool-filtering pattern as predator
+   selection in `setup.ts`) and the target stays `alive: false` until a
+   new `completeRevival` action (playable any time, like a Bonus Card)
+   locks in stage-1 stats + starting grants for the chosen chicken —
+   extracted a shared `baseChickStats` helper out of `setup.ts`'s
+   `createPlayer` so the grant logic isn't duplicated. A new
+   `justRevivedPendingFirstTurn` flag (set by `completeRevival`, cleared
+   at that player's own next `endTurn`) implements core_rules.md's edge
+   case: a revived player who hasn't taken their first turn back yet
+   doesn't count as "truly alive" for the win check, even though
+   `alive` is already `true`.
+   UI: `app.js` now routes every state-producing path (dispatch, End
+   Turn, day-end submit) through one `applyStateUpdate` helper that
+   switches to a real win/loss screen instead of only the day-end path
+   checking `gameOver`; `playerPanel.js` shows a "choose your chicken to
+   rejoin" button pair for a player with a pending revival choice. 7 new
+   tests in `gameStatus.test.ts` plus updates to the pre-existing
+   `brood`/Fall-day-7 tests (155 total, zero regressions). Same caveat as
+   phase 7: verified the dev server serves the rebuilt files, couldn't
+   click through the new screens myself.
 
 ## Open questions (not blocking yet, worth deciding before the phase that needs them)
 
 - ~~**Solo mode**~~ — resolved: phase 3's state design supports any player
   count including solo (1) from the start.
-- **Trust model:** friends/family play, so does every player need
-  Firestore security rules limiting them to writing only their own
-  fields, or is a shared "anyone can write the doc" model (like today's
-  team-picker) acceptable? Affects phase 8's schema design.
+- ~~**Trust model**~~ — resolved: shared write access (like today's
+  team-picker), not per-player Firestore security rules. See phase 8.
 - **Mistake correction:** physical play lets you informally fudge a
   misplay. Should the engine allow reversing recent actions, or lock in
   each action like a strict digital implementation?

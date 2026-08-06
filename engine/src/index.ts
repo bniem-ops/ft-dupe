@@ -9,3 +9,6 @@ export * from './grubs.js';
 export * from './reducer.js';
 export * from './helpers.js';
 export * from './random.js';
+export * from './abilities/bonusCards.js';
+export * from './abilities/grubCards.js';
+export * from './gameStatus.js';

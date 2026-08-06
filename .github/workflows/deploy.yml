@@ -1,55 +1,58 @@
-# Disabled for now — we're mid-rebuild (engine/ + ui/ rules engine, phases
-# 1-5 of docs/engine-plan.md) and don't want GitHub Pages deploying a
-# half-finished game. Local dev only (npm run dev) until the phases that
-# matter are done.
-#
-# It was also broken as of the last run anyway: scripts/cachebust.js still
-# uses CommonJS `require` (package.json gained "type": "module" in phase 3
-# and nobody updated this script — same class of bug scripts/build_data.js
-# had, fixed there in phase 5) AND it rewrites a root index.html that no
-# longer exists (deleted this session along with the old companion app).
-# Both need fixing before this is re-enabled, not just uncommenting.
-#
-# To re-enable: uncomment everything below and fix the two issues above.
-#
-# name: Deploy to GitHub Pages
-#
-# on:
-#   push:
-#     branches: [main]
-#   workflow_dispatch:
-#
-# permissions:
-#   contents: read
-#   pages: write
-#   id-token: write
-#
-# concurrency:
-#   group: pages
-#   cancel-in-progress: true
-#
-# jobs:
-#   build:
-#     runs-on: ubuntu-latest
-#     steps:
-#       - uses: actions/checkout@v4
-#       - uses: actions/setup-node@v4
-#         with:
-#           node-version: 20
-#       - name: Build data from txt templates
-#         run: node scripts/build_data.js
-#       - name: Cache-bust asset URLs
-#         run: node scripts/cachebust.js
-#       - uses: actions/upload-pages-artifact@v3
-#         with:
-#           path: .
-#
-#   deploy:
-#     needs: build
-#     runs-on: ubuntu-latest
-#     environment:
-#       name: github-pages
-#       url: ${{ steps.deployment.outputs.page_url }}
-#     steps:
-#       - id: deployment
-#         uses: actions/deploy-pages@v4
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm ci
+      - name: Build data from txt templates
+        run: node scripts/build_data.js
+      - name: Compile the TypeScript engine
+        run: npm run build
+      - name: Cache-bust asset URLs
+        run: node scripts/cachebust.js
+      # Stage only what's actually served — `ui/src/engine.js` imports
+      # engine/dist via a relative path (`../../engine/dist/src/index.js`),
+      # so it has to sit next to ui/ and data/ at the artifact root, same
+      # relative layout as the repo itself. Staging (rather than uploading
+      # the checkout root directly) keeps .git/ and node_modules/ out of
+      # the deployed site.
+      - name: Stage site
+        run: |
+          mkdir -p _site/engine
+          cp -r ui _site/ui
+          cp -r data _site/data
+          cp -r engine/dist _site/engine/dist
+          cp index.html _site/index.html
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

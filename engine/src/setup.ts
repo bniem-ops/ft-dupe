@@ -9,9 +9,11 @@ import {
   OUTSIDE_LOCATIONS,
   WeatherState,
   GrubDecksState,
+  BonusDeckState,
   Season,
   DifficultyLevel,
 } from './types.js';
+import { getActiveChickenAbilities } from './abilities/chickens.js';
 import {
   chickenStage,
   findPredator,
@@ -205,34 +207,87 @@ function setupGrubDecks(rng: () => number): GrubDecksState {
   return { inside, outside };
 }
 
-function createPlayer(id: string, chickenName: string): PlayerState {
+// Stage-1 (Chick) stats + starting-grant ability for a chicken — shared
+// by createPlayer (initial setup) and actions.ts's completeRevival
+// ("rejoin as a Chick" per core_rules.md's revival flow), so the grants
+// aren't duplicated between the two entry points.
+export function baseChickStats(chickenName: string) {
   const stage1 = chickenStage(chickenName, 1);
-  const health = parseIntField(stage1.health, 1);
+  const [ability] = getActiveChickenAbilities(chickenName, 1);
+  return {
+    health: parseIntField(stage1.health, 1),
+    attackStrength: parseIntField(stage1.attackStrength, 1),
+    ability,
+  };
+}
+
+function createPlayer(id: string, chickenName: string, startingLocation: Location | undefined): PlayerState {
+  const { health, attackStrength, ability } = baseChickStats(chickenName);
+
+  if (startingLocation && startingLocation !== 'Coop' && !ability?.mayChooseStartingLocation) {
+    throw new Error(`${chickenName} cannot choose a starting location other than Coop`);
+  }
+
   return {
     id,
     chickenName,
     stage: 1,
     health,
     maxHealth: health,
-    attackStrength: parseIntField(stage1.attackStrength, 1),
-    food: 0,
-    eggs: 0,
+    attackStrength,
+    food: ability?.startingFood ?? 0,
+    eggs: ability?.startingEggs ?? 0,
     mealCounter: 0,
-    location: 'Coop',
+    location: startingLocation ?? 'Coop',
     extraActionTokenAvailable: true,
     skipNextTurn: false,
     alive: true,
     bonusCardHand: [],
     grubHand: [],
-    bonusCardHandLimit: 2,
+    bonusCardHandLimit: ability?.bonusCardHandLimitOverride ?? 2,
     lootDrops: [],
+    statusEffectsUntilNextEggExchange: [],
+    foragedThisTurn: false,
+    weatherAdjustmentUsedThisPhase: false,
+    freeAbilityUsedThisTurn: false,
+    pendingFreeAttackPoint: false,
+    pendingPredatorRollReduction: 0,
+    pendingIncomingDamageReduction: 0,
+    pendingDodgeNextAttack: false,
+    pendingWeatherImmuneUntilNextTurn: false,
+    pendingRerollNextRoll: false,
+    pendingIgnorePredatorRoll: false,
+    permanentEggProductionBonus: 0,
+    permanentReturnAttackReductionRoll: null,
+    permanentNoBonusCardHandLimit: false,
+    permanentForageBonusUntilNextWeather: 0,
+    permanentWeatherImmuneUntilNextCard: false,
+    pendingRevivalChoices: null,
+    justRevivedPendingFirstTurn: false,
   };
+}
+
+// Starting Bonus Card grants (Naturalist, Stargazer) need the shared
+// bonus deck, which doesn't exist until createGame builds it — so this
+// runs as a second pass over already-created players, not inside
+// createPlayer itself.
+function grantStartingBonusCards(players: PlayerState[], bonusDeck: BonusDeckState): { players: PlayerState[]; bonusDeck: BonusDeckState } {
+  let drawPile = [...bonusDeck.drawPile];
+  const updatedPlayers = players.map((player) => {
+    const [ability] = getActiveChickenAbilities(player.chickenName, 1);
+    const count = ability?.startingBonusCards ?? 0;
+    if (count <= 0) return player;
+    const drawn = drawPile.slice(0, count);
+    drawPile = drawPile.slice(count);
+    return { ...player, bonusCardHand: [...player.bonusCardHand, ...drawn] };
+  });
+  return { players: updatedPlayers, bonusDeck: { ...bonusDeck, drawPile } };
 }
 
 export function createGame(config: GameConfig): GameState {
   if (config.players.length < 1) throw new Error('At least 1 player is required (solo is supported)');
 
-  const players = config.players.map((p) => createPlayer(p.id, p.chickenName));
+  let players = config.players.map((p) => createPlayer(p.id, p.chickenName, p.startingLocation));
 
   if (grantsRandomLootDrop(config.difficulty)) {
     const allLootDropPredators = loadPredators()
@@ -242,6 +297,9 @@ export function createGame(config: GameConfig): GameState {
       player.lootDrops.push(pick(allLootDropPredators, config.rng));
     }
   }
+
+  let bonusDeck: BonusDeckState = { drawPile: shuffle([...Array(66).keys()], config.rng), discard: [] };
+  ({ players, bonusDeck } = grantStartingBonusCards(players, bonusDeck));
 
   return {
     config,
@@ -255,9 +313,10 @@ export function createGame(config: GameConfig): GameState {
     actionsRemainingThisTurn: 2,
     predators: setupPredators(config),
     grubDecks: setupGrubDecks(config.rng),
-    bonusDeck: { drawPile: shuffle([...Array(66).keys()], config.rng), discard: [] },
+    bonusDeck,
     weather: setupWeather(config.eggspansion, config.difficulty, config.rng),
     gameOver: false,
+    won: false,
     actionLog: [],
   };
 }

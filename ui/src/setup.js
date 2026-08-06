@@ -6,7 +6,7 @@ function makeDefaultPlayers(count) {
   return Array.from({ length: count }, (_, i) => ({ id: `p${i + 1}`, chickenName: '' }));
 }
 
-export function Setup({ onStart, error }) {
+export function Setup({ onStart, onPlayRemotely, error }) {
   const chickens = loadChickens().filter((c) => c.name);
   const predators = loadPredators().filter((p) => p.name);
 
@@ -47,6 +47,10 @@ export function Setup({ onStart, error }) {
     <div class="setup">
       <h1>Flock Together — New Game</h1>
       ${error && html`<div class="error-banner">${error}</div>`}
+      ${onPlayRemotely &&
+      html`<div class="player-row">
+        <button type="button" onClick=${onPlayRemotely}>Play Remotely (with friends on other devices)</button>
+      </div>`}
       <form onSubmit=${handleSubmit}>
         <label class="field">
           Players

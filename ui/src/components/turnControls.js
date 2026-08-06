@@ -1,9 +1,15 @@
 import { html } from 'htm/preact';
 import { useState } from 'preact/hooks';
 
-export function TurnControls({ state, onSubmitDayEnd }) {
+export function TurnControls({ state, onSubmitDayEnd, myPlayerId }) {
   const [discardSide, setDiscardSide] = useState('inside');
   const [exchanges, setExchanges] = useState({});
+
+  // Day-end is a continuation of the last player's turn in the day — same
+  // seat-gating rule as ActionBar (see actionBar.js for why this is a UX
+  // nicety, not a security boundary).
+  const lastPlayerId = state.turnOrder[state.currentPlayerIndex];
+  const canAct = myPlayerId == null || myPlayerId === lastPlayerId;
 
   function setExchangeAmount(playerId, amount) {
     setExchanges((prev) => ({ ...prev, [playerId]: amount }));
@@ -50,7 +56,7 @@ export function TurnControls({ state, onSubmitDayEnd }) {
           )}
       </div>
 
-      <button type="button" onClick=${submit}>Confirm and Advance</button>
+      <button type="button" disabled=${!canAct} onClick=${submit}>Confirm and Advance</button>
     </div>
   `;
 }

@@ -12,6 +12,7 @@ import {
   applyEggExchange,
   advanceDay,
 } from '../src/turn.js';
+import { GameState } from '../src/types.js';
 import { baseConfig, constantRng } from './testHelpers.js';
 
 test('seasonPhaseForDay matches the confirmed 2/3/2 split', () => {
@@ -35,7 +36,7 @@ test('isPhaseBoundaryDay is true for days 1(non-Spring)/3/6, false for Spring da
 test('resolveProduction: Chick always gains 1 food, no roll', () => {
   const state = createGame(baseConfig());
   const chick = state.players[0];
-  const updated = resolveProduction(chick, constantRng(0));
+  const updated = resolveProduction(state, chick, constantRng(0));
   assert.equal(updated.food, chick.food + 1);
   assert.equal(updated.eggs, chick.eggs);
 });
@@ -43,14 +44,17 @@ test('resolveProduction: Chick always gains 1 food, no roll', () => {
 test('resolveProduction: leveled-up chicken gains an egg only on a high enough roll', () => {
   const state = createGame(baseConfig());
   const leveled = { ...state.players[0], stage: 2 as const }; // Shellock Holmes S2: "Roll 1 die: 3-6 = +1 egg"
-  const missed = resolveProduction(leveled, constantRng(0)); // roll 1 -> below threshold
+  const missed = resolveProduction(state, leveled, constantRng(0)); // roll 1 -> below threshold
   assert.equal(missed.eggs, leveled.eggs);
-  const hit = resolveProduction(leveled, constantRng(0.999)); // roll 6 -> meets threshold
+  const hit = resolveProduction(state, leveled, constantRng(0.999)); // roll 6 -> meets threshold
   assert.equal(hit.eggs, leveled.eggs + 1);
 });
 
 test('startTurn applies production and grants 2 actions', () => {
-  const state = createGame(baseConfig());
+  // No active weather card — isolates this from phase 6's turn-start
+  // weather effects (Nighttime/Sunny/Tornado/Earthquake), covered in
+  // abilities-weather.test.ts.
+  const state: GameState = { ...createGame(baseConfig()), weather: { seasonDecks: { Spring: [], Summer: [], Fall: [] }, active: null } };
   const started = startTurn(state);
   assert.equal(started.actionsRemainingThisTurn, 2);
   const p1 = started.players.find((p) => p.id === 'p1')!;
@@ -142,9 +146,10 @@ test('advanceDay rolls Spring day 7 into Summer day 1, refreshing Extra Action T
   assert.equal(eggsmeralda.health, 6);
 });
 
-test('advanceDay ends the game after Fall day 7', () => {
+test('advanceDay ends the game after Fall day 7 as a loss (Predators still alive)', () => {
   let state = createGame(baseConfig());
   state = { ...state, day: 7, season: 'Fall', phase: 3 };
   const next = advanceDay(state, { discardSide: 'outside' });
   assert.equal(next.gameOver, true);
+  assert.equal(next.won, false);
 });
