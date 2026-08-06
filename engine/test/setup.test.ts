@@ -1,6 +1,17 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createGame, bossHealthBonus, positiveWeatherRemoved, guaranteedPositiveTopCard, grantsRandomLootDrop } from '../src/setup.js';
+import {
+  createGame,
+  bossHealthBonus,
+  positiveWeatherRemoved,
+  guaranteedPositiveTopCard,
+  grantsRandomLootDrop,
+  bossPool,
+  allFourPool,
+  randomizePredatorSelection,
+  dealChickenChoices,
+} from '../src/setup.js';
+import { loadPredators, loadChickens } from '../src/data.js';
 import { baseConfig, seededRng } from './testHelpers.js';
 
 test('createGame sets up players at Coop with stage-1 stats from chickens.json', () => {
@@ -127,4 +138,96 @@ test('solo (1 player) is supported', () => {
   const state = createGame(baseConfig({ players: [{ id: 'solo', chickenName: 'Shellock Holmes' }] }));
   assert.equal(state.players.length, 1);
   assert.equal(state.predators[0].health, state.predators[0].maxHealth); // multiplier x 1 player
+});
+
+test('createGame rejects two players choosing the same chicken', () => {
+  assert.throws(
+    () =>
+      createGame(
+        baseConfig({
+          players: [
+            { id: 'p1', chickenName: 'Shellock Holmes' },
+            { id: 'p2', chickenName: 'Shellock Holmes' },
+          ],
+        }),
+      ),
+    /different chicken/,
+  );
+});
+
+test('randomizePredatorSelection at levels 1-4 draws all 4 distinct predators from the full roster (no exclusion)', () => {
+  const { regular, boss } = randomizePredatorSelection(1, false, seededRng(1));
+  const names = [...regular, boss];
+  assert.equal(new Set(names).size, 4);
+  const allNames = loadPredators().map((p) => p.name);
+  for (const name of names) assert.ok(allNames.includes(name), `${name} should be a real predator`);
+});
+
+test('randomizePredatorSelection at levels 5-6 constrains only the Boss to the pool; regulars are free (and distinct)', () => {
+  const { regular, boss } = randomizePredatorSelection(5, false, seededRng(2));
+  assert.ok(bossPool(5, false)!.includes(boss));
+  const names = [...regular, boss];
+  assert.equal(new Set(names).size, 4);
+});
+
+test('randomizePredatorSelection at levels 7-8 draws all 4 from the named closed pool', () => {
+  const pool = allFourPool(7, false)!;
+  const { regular, boss } = randomizePredatorSelection(7, false, seededRng(3));
+  const names = [...regular, boss];
+  assert.equal(new Set(names).size, 4);
+  for (const name of names) assert.ok(pool.includes(name));
+});
+
+test('randomizePredatorSelection respects Eggspansion off (no Eggspansion-only predator at any level)', () => {
+  for (const difficulty of [1, 5, 7] as const) {
+    const { regular, boss } = randomizePredatorSelection(difficulty, false, seededRng(difficulty));
+    for (const name of [...regular, boss]) {
+      const data = loadPredators().find((p) => p.name === name);
+      assert.equal(data?.expansion, 'Base', `${name} at difficulty ${difficulty} should be a Base predator`);
+    }
+  }
+});
+
+test('dealChickenChoices deals 2 distinct chickens to each player with no repeats across the whole game', () => {
+  const dealt = dealChickenChoices(['p1', 'p2', 'p3'], false, seededRng(4));
+  const allDealt = Object.values(dealt).flat();
+  assert.equal(allDealt.length, 6);
+  assert.equal(new Set(allDealt).size, 6); // every card is unique across all players
+  for (const [name1, name2] of Object.values(dealt)) assert.notEqual(name1, name2);
+});
+
+test('dealChickenChoices respects Eggspansion off', () => {
+  const dealt = dealChickenChoices(['p1', 'p2'], false, seededRng(5));
+  for (const [name1, name2] of Object.values(dealt)) {
+    for (const name of [name1, name2]) {
+      const data = loadChickens().find((c) => c.name === name);
+      assert.equal(data?.expansion, 'Base');
+    }
+  }
+});
+
+test('dealChickenChoices throws when the pool is too small (6 players, no Eggspansion: needs 12, pool has 11)', () => {
+  const sixPlayers = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6'];
+  assert.throws(() => dealChickenChoices(sixPlayers, false, seededRng(6)), /Not enough chickens/);
+});
+
+test('createGame rejects a predator selection with a repeated name', () => {
+  assert.throws(
+    () =>
+      createGame(
+        baseConfig({
+          predators: { regular: ['Eggsmeralda', 'Eggsmeralda', 'Professor Moltiarty'], boss: 'Ursula Bone' },
+        }),
+      ),
+    /All 4 predators must be different/,
+  );
+  assert.throws(
+    () =>
+      createGame(
+        baseConfig({
+          predators: { regular: ['Eggsmeralda', 'Sal Moe Nella', 'Professor Moltiarty'], boss: 'Eggsmeralda' },
+        }),
+      ),
+    /All 4 predators must be different/,
+  );
 });

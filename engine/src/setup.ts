@@ -12,12 +12,14 @@ import {
   BonusDeckState,
   Season,
   DifficultyLevel,
+  RNG,
 } from './types.js';
 import { getActiveChickenAbilities } from './abilities/chickens.js';
 import {
   chickenStage,
   findPredator,
   loadPredators,
+  loadChickens,
   loadGrubCards,
   parseIntField,
   parseHealthMultiplier,
@@ -53,16 +55,83 @@ const EGGSPANSION_ALL_FOUR_POOL = [
   'Snapping Turtle',
 ];
 
-function bossPool(difficulty: DifficultyLevel, eggspansion: boolean): string[] | null {
+// Exported so the UI's difficulty blurb (Create Game screen) can read the
+// exact same pools instead of duplicating the species lists.
+export function bossPool(difficulty: DifficultyLevel, eggspansion: boolean): string[] | null {
   if (difficulty < 5) return null;
   return (eggspansion ? EGGSPANSION_POOL : BASE_POOL).map((s) => SPECIES_TO_PREDATOR[s]);
 }
 
-function allFourPool(difficulty: DifficultyLevel, eggspansion: boolean): string[] | null {
+export function allFourPool(difficulty: DifficultyLevel, eggspansion: boolean): string[] | null {
   if (difficulty < 7) return null;
   return (eggspansion ? EGGSPANSION_ALL_FOUR_POOL : BASE_ALL_FOUR_POOL).map(
     (s) => SPECIES_TO_PREDATOR[s],
   );
+}
+
+// Every predator, filtered only by Eggspansion — the pool for whichever
+// slots aren't constrained to a named species list (core_rules.md: all 4
+// slots at levels 1-4, and the 3 regular slots at levels 5-6, where only
+// the Boss is pool-constrained). No exclusion list: core_rules.md's
+// "never part of this randomization pool" note only applies to the
+// levels 7-8 pool above (see the note's correction alongside this change).
+function fullRandomPool(eggspansion: boolean): string[] {
+  return loadPredators()
+    .filter((p) => p.name && (eggspansion || p.expansion === 'Base'))
+    .map((p) => p.name as string);
+}
+
+// Randomly resolves all 4 predators for a game at any difficulty level —
+// used by the UI at "Start Game" time (before chickens are dealt, per
+// core_rules.md: predators are known first) so the result can be shown to
+// players and then pinned into GameConfig.predators for the eventual
+// createGame() call, rather than re-randomized there.
+export function randomizePredatorSelection(
+  difficulty: DifficultyLevel,
+  eggspansion: boolean,
+  rng: RNG,
+): { regular: [string, string, string]; boss: string } {
+  const fourPool = allFourPool(difficulty, eggspansion);
+  if (fourPool) {
+    const drawn = shuffle(fourPool, rng).slice(0, 4);
+    return { regular: [drawn[0], drawn[1], drawn[2]], boss: drawn[3] };
+  }
+
+  const bPool = bossPool(difficulty, eggspansion);
+  if (bPool) {
+    const boss = pick(bPool, rng);
+    const regularPool = fullRandomPool(eggspansion).filter((name) => name !== boss);
+    const regular = shuffle(regularPool, rng).slice(0, 3) as [string, string, string];
+    return { regular, boss };
+  }
+
+  const pool = fullRandomPool(eggspansion);
+  const drawn = shuffle(pool, rng).slice(0, 4);
+  return { regular: [drawn[0], drawn[1], drawn[2]], boss: drawn[3] };
+}
+
+// Deals 2 chicken candidates to each player from one shared shuffle, so no
+// name can ever land with two players — each pair is exclusively reserved
+// for that seat from the moment of dealing (see setup flow doc).
+export function dealChickenChoices(
+  playerIds: string[],
+  eggspansion: boolean,
+  rng: RNG,
+): Record<string, [string, string]> {
+  const pool = loadChickens()
+    .filter((c) => c.name && (eggspansion || c.expansion === 'Base'))
+    .map((c) => c.name as string);
+  if (pool.length < playerIds.length * 2) {
+    throw new Error(
+      `Not enough chickens (${pool.length}) to deal 2 to each of ${playerIds.length} players`,
+    );
+  }
+  const shuffled = shuffle(pool, rng);
+  const result: Record<string, [string, string]> = {};
+  playerIds.forEach((id, i) => {
+    result[id] = [shuffled[i * 2], shuffled[i * 2 + 1]];
+  });
+  return result;
 }
 
 // Boss health multiplier bonus over its stage-3 base multiplier.
@@ -148,6 +217,15 @@ function createPredator(name: string, isBoss: boolean, playerCount: number, diff
 
 function setupPredators(config: GameConfig): PredatorState[] {
   const selection = resolvePredatorSelection(config);
+
+  // Same one-card-per-name reasoning as the chicken check above. The
+  // difficulty>=7 auto-random path already draws without replacement, so
+  // this only ever actually catches a manual (or manually pinned) selection.
+  const predatorNames = [...selection.regular, selection.boss];
+  if (new Set(predatorNames).size !== predatorNames.length) {
+    throw new Error('All 4 predators must be different');
+  }
+
   const playerCount = config.players.length;
   const regularLocations = OUTSIDE_LOCATIONS.filter((l) => l !== 'Badlands');
   const regulars = selection.regular.map((name, i) => {
@@ -286,6 +364,14 @@ function grantStartingBonusCards(players: PlayerState[], bonusDeck: BonusDeckSta
 
 export function createGame(config: GameConfig): GameState {
   if (config.players.length < 1) throw new Error('At least 1 player is required (solo is supported)');
+
+  // Physically there's only one card per chicken, so two players can't
+  // pick the same one at a real table — the digital setup form has no
+  // equivalent constraint built in, so it's enforced here instead.
+  const chickenNames = config.players.map((p) => p.chickenName);
+  if (new Set(chickenNames).size !== chickenNames.length) {
+    throw new Error('Each player must choose a different chicken');
+  }
 
   let players = config.players.map((p) => createPlayer(p.id, p.chickenName, p.startingLocation));
 

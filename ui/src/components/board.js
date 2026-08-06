@@ -14,11 +14,14 @@ function activeWeatherCard(state) {
   return cards[active.cardIndex] ?? null;
 }
 
-function PlayerTokens({ state, location }) {
+function PlayerTokens({ state, location, playerNames }) {
   const here = state.players.filter((p) => p.alive && p.location === location);
   return html`
     <div class="tokens">
-      ${here.map((p) => html`<span class="token" key=${p.id} style=${{ background: playerColor(state, p.id) }}>${p.id}</span>`)}
+      ${here.map((p) => {
+        const name = playerNames?.[p.id] ?? p.id;
+        return html`<span class="token" key=${p.id} title=${name} style=${{ background: playerColor(state, p.id) }}>${name.slice(0, 2)}</span>`;
+      })}
     </div>
   `;
 }
@@ -44,7 +47,7 @@ function PredatorCard({ predator, clickable, onSelect }) {
   `;
 }
 
-function LocationCard({ name, state, dispatch, pendingPick, setPendingPick }) {
+function LocationCard({ name, state, dispatch, pendingPick, setPendingPick, playerNames }) {
   const predator = state.predators.find((p) => p.location === name);
   const pickingMove = pendingPick?.type === 'move';
   const pickingAttackTarget = pendingPick?.type === 'attack' && pendingPick.step === 'target';
@@ -85,7 +88,7 @@ function LocationCard({ name, state, dispatch, pendingPick, setPendingPick }) {
         clickable=${(pickingAttackTarget || pickingCardTarget) && predator.revealed && !predator.defeated}
         onSelect=${selectPredator}
       />`}
-      <${PlayerTokens} state=${state} location=${name} />
+      <${PlayerTokens} state=${state} location=${name} playerNames=${playerNames} />
     </div>
   `;
 }
@@ -129,7 +132,7 @@ function GrubCard({ side, deckSide, dispatch, pendingPick, setPendingPick }) {
   `;
 }
 
-export function Board({ state, dispatch, pendingPick, setPendingPick }) {
+export function Board({ state, dispatch, pendingPick, setPendingPick, playerNames }) {
   const weatherCard = activeWeatherCard(state);
   const pickingMove = pendingPick?.type === 'move';
 
@@ -137,7 +140,16 @@ export function Board({ state, dispatch, pendingPick, setPendingPick }) {
     <div class="board">
       <div class="locations">
         ${OUTSIDE_LOCATIONS.map(
-          (loc) => html`<${LocationCard} key=${loc} name=${loc} state=${state} dispatch=${dispatch} pendingPick=${pendingPick} setPendingPick=${setPendingPick} />`,
+          (loc) =>
+            html`<${LocationCard}
+              key=${loc}
+              name=${loc}
+              state=${state}
+              dispatch=${dispatch}
+              pendingPick=${pendingPick}
+              setPendingPick=${setPendingPick}
+              playerNames=${playerNames}
+            />`,
         )}
       </div>
 
@@ -154,7 +166,7 @@ export function Board({ state, dispatch, pendingPick, setPendingPick }) {
           }
         >
           <h3>Coop</h3>
-          <${PlayerTokens} state=${state} location="Coop" />
+          <${PlayerTokens} state=${state} location="Coop" playerNames=${playerNames} />
         </div>
 
         <div class="weather-card">

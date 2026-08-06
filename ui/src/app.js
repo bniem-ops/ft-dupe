@@ -1,9 +1,23 @@
 import { render } from 'preact';
-import { useState, useEffect } from 'preact/hooks';
+import { useState, useEffect, useRef } from 'preact/hooks';
 import { html } from 'htm/preact';
-import { createGame, applyAction, startTurn, endTurn, isLastPlayerOfDay, advanceDay, useExtraActionToken } from './engine.js';
-import { Setup } from './setup.js';
-import { RemoteHome, Lobby } from './components/lobby.js';
+import {
+  createGame,
+  applyAction,
+  startTurn,
+  endTurn,
+  isLastPlayerOfDay,
+  advanceDay,
+  useExtraActionToken,
+  randomizePredatorSelection,
+  dealChickenChoices,
+} from './engine.js';
+import { Landing } from './components/landing.js';
+import { CreateGame } from './components/createGame.js';
+import { JoinGame } from './components/joinGame.js';
+import { NameEntry } from './components/nameEntry.js';
+import { Lobby } from './components/lobby.js';
+import { ChickenDraft } from './components/chickenDraft.js';
 import { remoteSession, fromSyncedDoc } from './remoteSession.js';
 import { Board } from './components/board.js';
 import { PlayerPanel } from './components/playerPanel.js';
@@ -30,54 +44,95 @@ function advanceToNextActor(state) {
 }
 
 function App() {
-  const [screen, setScreen] = useState('setup');
+  const [screen, setScreen] = useState('landing');
   const [gameState, setGameState] = useState(null);
   const [error, setError] = useState(null);
   const [dayEndPending, setDayEndPending] = useState(false);
   const [pendingPick, setPendingPick] = useState(null);
 
-  // Remote-session state (docs/engine-plan.md phase 8). sessionCode is
-  // null in local hotseat play — every remote-only code path below is
-  // guarded on it, so local play is unaffected.
+  // Session state — every game is a session now, no local hotseat mode.
   const [sessionCode, setSessionCode] = useState(null);
   const [isHost, setIsHost] = useState(false);
   const [hostConfig, setHostConfig] = useState(null);
-  const [claimedSeats, setClaimedSeats] = useState({});
+  const [seats, setSeats] = useState({});
+  const [predators, setPredators] = useState(null);
+  const [dealtChickens, setDealtChickens] = useState(null);
+  const [chosenChicken, setChosenChicken] = useState({});
   const [myPlayerId, setMyPlayerId] = useState(null);
 
-  // Subscribes once a session exists, for both the lobby (hostConfig/
-  // claimedSeats) and the live game (state/dayEndPending) — the same doc
-  // carries both, so one listener drives every screen after `remoteHome`.
+  // Guards the host's "everyone's locked in, call createGame() and
+  // publish it" step against firing twice from two rapid snapshot events.
+  const finalizingRef = useRef(false);
+
+  // Single source of truth for screen routing once a session exists: every
+  // snapshot re-derives which screen to show from the doc plus whether
+  // *this device* has claimed a seat yet (myPlayerId is local/per-device,
+  // everything else comes from the shared doc) — so a mid-flow refresh
+  // recovers correctly the same way phase 8's game-screen sync did.
   useEffect(() => {
     if (!sessionCode) return undefined;
     const unsubscribe = remoteSession.subscribe(sessionCode, (doc) => {
       if (!doc) return;
       setHostConfig(doc.hostConfig ?? null);
-      setClaimedSeats(doc.claimedSeats ?? {});
+      setSeats(doc.seats ?? {});
+      setPredators(doc.predators ?? null);
+      setDealtChickens(doc.dealtChickens ?? null);
+      setChosenChicken(doc.chosenChicken ?? {});
+
       if (doc.state) {
         const synced = fromSyncedDoc(doc.state);
         setGameState(synced);
         setDayEndPending(!!doc.dayEndPending);
         setScreen(synced.gameOver ? 'gameOver' : 'game');
-      } else {
-        setScreen('lobby');
+        return;
       }
+      if (!myPlayerId) {
+        setScreen('nameEntry');
+        return;
+      }
+      setScreen(doc.predators ? 'chickenDraft' : 'lobby');
     });
     return unsubscribe;
-  }, [sessionCode]);
+  }, [sessionCode, myPlayerId]);
+
+  // Once every seat has chosen a chicken, the host (only) builds the real
+  // GameState and publishes it — every device (including this one) then
+  // moves on via the snapshot handler above, same pattern as every other
+  // state-producing step in this app.
+  useEffect(() => {
+    if (!isHost || !predators || !dealtChickens || !hostConfig || finalizingRef.current) return;
+    const seatIds = Object.keys(seats);
+    if (seatIds.length < hostConfig.playerCount) return;
+    if (!seatIds.every((id) => chosenChicken[id])) return;
+
+    finalizingRef.current = true;
+    try {
+      const config = {
+        players: seatIds.map((id) => ({ id, chickenName: chosenChicken[id] })),
+        difficulty: hostConfig.difficulty,
+        eggspansion: hostConfig.eggspansion,
+        rng: () => Math.random(),
+        predators,
+      };
+      const created = createGame(config);
+      const { state, dayEnd } = advanceToNextActor(created);
+      remoteSession.pushState(sessionCode, state, dayEnd).catch((e) => setError(e.message));
+    } catch (e) {
+      setError(e.message);
+      finalizingRef.current = false; // allow a retry if this was transient
+    }
+  }, [isHost, predators, dealtChickens, hostConfig, seats, chosenChicken, sessionCode]);
 
   // Every path that can produce a new GameState routes through this so a
   // gameOver result (win via a killing blow, loss via end-of-turn weather
-  // or a Fall day 8 rollover) always reaches the end screen, not just the
-  // day-end submit path that used to be the only place checking it. In a
-  // remote session it also pushes the result to Firestore — every device
-  // (including this one) then re-renders from whatever onSnapshot
-  // delivers back, so this local setGameState is just an optimistic
-  // preview, not the final word.
+  // or a Fall day 8 rollover) always reaches the end screen. Pushes to
+  // Firestore; every device (including this one) then re-renders from
+  // whatever onSnapshot delivers back, so this local setGameState is just
+  // an optimistic preview, not the final word.
   function applyStateUpdate(next, dayEnd = dayEndPending) {
     setGameState(next);
     if (next.gameOver) setScreen('gameOver');
-    if (sessionCode) remoteSession.pushState(sessionCode, next, dayEnd).catch((e) => setError(e.message));
+    remoteSession.pushState(sessionCode, next, dayEnd).catch((e) => setError(e.message));
     return next;
   }
 
@@ -85,19 +140,6 @@ function App() {
     try {
       applyStateUpdate(applyAction(gameState, action));
       setError(null);
-    } catch (e) {
-      setError(e.message);
-    }
-  }
-
-  function handleStartGame(config) {
-    try {
-      const created = createGame(config);
-      const { state, dayEnd } = advanceToNextActor(created);
-      setGameState(state);
-      setDayEndPending(dayEnd);
-      setError(null);
-      setScreen('game');
     } catch (e) {
       setError(e.message);
     }
@@ -111,7 +153,7 @@ function App() {
       setDayEndPending(dayEnd);
     } else {
       setDayEndPending(true);
-      if (sessionCode) remoteSession.pushState(sessionCode, gameState, true).catch((e) => setError(e.message));
+      remoteSession.pushState(sessionCode, gameState, true).catch((e) => setError(e.message));
     }
   }
 
@@ -142,22 +184,20 @@ function App() {
     }
   }
 
-  async function handleCreateSession(formHostConfig) {
+  async function handleCreateLobby(formHostConfig) {
     try {
       const code = await remoteSession.createSession(formHostConfig);
       setIsHost(true);
-      setHostConfig(formHostConfig);
       setSessionCode(code);
-      setScreen('lobby');
       setError(null);
     } catch (e) {
       setError(e.message);
     }
   }
 
-  async function handleJoinSession(code) {
+  async function handleJoinByCode(code) {
     try {
-      await remoteSession.joinSession(code); // validates the code exists before committing to it
+      await remoteSession.getSession(code); // validates the code exists before committing to it
       setIsHost(false);
       const savedSeat = remoteSession.getMySeat(code);
       if (savedSeat) setMyPlayerId(savedSeat);
@@ -168,9 +208,9 @@ function App() {
     }
   }
 
-  async function handleClaimSeat(seatId, chickenName) {
+  async function handleSubmitName(name) {
     try {
-      await remoteSession.claimSeat(sessionCode, seatId, chickenName);
+      const seatId = await remoteSession.joinAndClaimSeat(sessionCode, name);
       remoteSession.setMySeat(sessionCode, seatId);
       setMyPlayerId(seatId);
       setError(null);
@@ -179,42 +219,52 @@ function App() {
     }
   }
 
-  function handleStartRemoteGame() {
+  function handleStartDraft() {
     try {
       const seatIds = Array.from({ length: hostConfig.playerCount }, (_, i) => `p${i + 1}`);
-      const config = {
-        players: seatIds.map((id) => ({ id, chickenName: claimedSeats[id] })),
-        difficulty: hostConfig.difficulty,
-        eggspansion: hostConfig.eggspansion,
-        rng: () => Math.random(),
-        ...(hostConfig.predators ? { predators: hostConfig.predators } : {}),
-      };
-      const created = createGame(config);
-      remoteSession.startGame(sessionCode, created).catch((e) => setError(e.message));
+      const rng = () => Math.random();
+      const predatorSelection = randomizePredatorSelection(hostConfig.difficulty, hostConfig.eggspansion, rng);
+      const dealt = dealChickenChoices(seatIds, hostConfig.eggspansion, rng);
+      remoteSession.startDraft(sessionCode, predatorSelection, dealt).catch((e) => setError(e.message));
       setError(null);
     } catch (e) {
       setError(e.message);
     }
   }
 
-  if (screen === 'setup') {
-    return html`<${Setup} onStart=${handleStartGame} onPlayRemotely=${() => setScreen('remoteHome')} error=${error} />`;
+  function handleLockIn(chickenName) {
+    remoteSession.lockInChicken(sessionCode, myPlayerId, chickenName).catch((e) => setError(e.message));
   }
 
-  if (screen === 'remoteHome') {
-    return html`<${RemoteHome} onCreate=${handleCreateSession} onJoin=${handleJoinSession} error=${error} />`;
+  if (screen === 'landing') {
+    return html`<${Landing} onCreateGame=${() => setScreen('createGame')} onJoinGame=${() => setScreen('joinGame')} />`;
+  }
+
+  if (screen === 'createGame') {
+    return html`<${CreateGame} onCreateLobby=${handleCreateLobby} error=${error} />`;
+  }
+
+  if (screen === 'joinGame') {
+    return html`<${JoinGame} onJoinByCode=${handleJoinByCode} error=${error} />`;
+  }
+
+  if (screen === 'nameEntry') {
+    return html`<${NameEntry} code=${sessionCode} onSubmitName=${handleSubmitName} error=${error} />`;
   }
 
   if (screen === 'lobby') {
-    return html`<${Lobby}
-      code=${sessionCode}
-      hostConfig=${hostConfig}
-      claimedSeats=${claimedSeats}
-      mySeat=${myPlayerId}
-      isHost=${isHost}
-      onClaim=${handleClaimSeat}
-      onStart=${handleStartRemoteGame}
-      error=${error}
+    return html`<${Lobby} code=${sessionCode} hostConfig=${hostConfig} seats=${seats} isHost=${isHost} onStart=${handleStartDraft} error=${error} />`;
+  }
+
+  if (screen === 'chickenDraft') {
+    const seatIds = Object.keys(seats);
+    const waitingOn = seatIds.filter((id) => id !== myPlayerId && !chosenChicken[id]).map((id) => seats[id]?.name ?? id);
+    return html`<${ChickenDraft}
+      predators=${predators}
+      candidates=${dealtChickens[myPlayerId]}
+      lockedIn=${chosenChicken[myPlayerId] ?? null}
+      onLockIn=${handleLockIn}
+      waitingOn=${waitingOn}
     />`;
   }
 
@@ -236,6 +286,7 @@ function App() {
 
   const currentPlayerId = gameState.turnOrder[gameState.currentPlayerIndex];
   const currentPlayer = gameState.players.find((p) => p.id === currentPlayerId);
+  const playerNames = Object.fromEntries(Object.entries(seats).map(([id, s]) => [id, s.name]));
 
   return html`
     <div class="game">
@@ -245,6 +296,7 @@ function App() {
         dispatch=${dispatch}
         pendingPick=${pendingPick}
         setPendingPick=${setPendingPick}
+        playerNames=${playerNames}
       />
       <div class="players">
         ${gameState.players.map(
@@ -257,11 +309,13 @@ function App() {
             pendingPick=${pendingPick}
             setPendingPick=${setPendingPick}
             myPlayerId=${myPlayerId}
+            displayName=${playerNames[p.id] ?? p.id}
+            playerNames=${playerNames}
           />`,
         )}
       </div>
       ${dayEndPending
-        ? html`<${TurnControls} state=${gameState} onSubmitDayEnd=${handleDayEndSubmit} myPlayerId=${myPlayerId} />`
+        ? html`<${TurnControls} state=${gameState} onSubmitDayEnd=${handleDayEndSubmit} myPlayerId=${myPlayerId} playerNames=${playerNames} />`
         : html`<${ActionBar}
             state=${gameState}
             player=${currentPlayer}
@@ -271,6 +325,8 @@ function App() {
             pendingPick=${pendingPick}
             setPendingPick=${setPendingPick}
             myPlayerId=${myPlayerId}
+            displayName=${playerNames[currentPlayer.id] ?? currentPlayer.id}
+            playerNames=${playerNames}
           />`}
     </div>
   `;

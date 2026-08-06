@@ -151,10 +151,15 @@ Snapping Turtle = Layonardo (Eggspansion).
 | 8 | Fair/Sunny/Snow removed; all 4 Predators randomly selected from: Bear, Coyote, Hawk, Fox, Raccoon, Badger, Cougar, Snapping Turtle; Boss health multiplier increased to +4 |
 
 Note: Owl Coopone, Eggsmeralda, Sal Moe Nella, Professor Moltiarty, and
-Gravekeeper Fowl are never part of this randomization pool at any
-difficulty. Chew Bawka, Weasma and Clawnk, and Sheriff of Rottingham
-(3 of the 6 Eggspansion predators) are also excluded even with
-Eggspansion on — only Hendel's Mother, Coopella, and Layonardo get added.
+Gravekeeper Fowl are excluded from the levels 7-8 randomization pool
+specifically (the named 5/8-species list above). Chew Bawka, Weasma and
+Clawnk, and Sheriff of Rottingham (3 of the 6 Eggspansion predators) are
+also excluded from that same levels 7-8 pool even with Eggspansion on —
+only Hendel's Mother, Coopella, and Layonardo get added there. None of
+these 8 are excluded at other difficulties: levels 1-4 randomize all 4
+predators from the full roster, and levels 5-6 randomize the 3 regular
+predators from the full roster too (only the Boss is pool-constrained at
+5-6, per the table above).
 
 ## Components (for reference)
 

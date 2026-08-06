@@ -11,7 +11,7 @@ function eatCap(stage) {
   return stage === 1 ? 1 : stage === 2 ? 2 : 0;
 }
 
-export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction, pendingPick, setPendingPick, myPlayerId }) {
+export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction, pendingPick, setPendingPick, myPlayerId, displayName, playerNames }) {
   const [healAmount, setHealAmount] = useState(1);
   const [eatAmount, setEatAmount] = useState(0);
   const [attackStrength, setAttackStrength] = useState(1);
@@ -22,6 +22,7 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
   // assertCanAct is the real guard). myPlayerId is null in local hotseat
   // play, where anyone can act on any seat, same as before phase 8.
   const canAct = myPlayerId == null || myPlayerId === player.id;
+  const label = displayName ?? player.id;
   const noActions = state.actionsRemainingThisTurn <= 0 || !canAct;
   const deadPlayers = state.players.filter((p) => !p.alive);
   const pickingAttackStrength = pendingPick?.type === 'attack' && pendingPick.step === 'strength';
@@ -33,8 +34,8 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
   return html`
     <div class="action-bar">
       <div class="turn-status">
-        <strong>${player.id}'s turn</strong> — ${state.actionsRemainingThisTurn} action(s) left
-        ${!canAct && html`<span class="ref-text">(waiting for ${player.id}'s device)</span>`}
+        <strong>${label}'s turn</strong> — ${state.actionsRemainingThisTurn} action(s) left
+        ${!canAct && html`<span class="ref-text">(waiting for ${label}'s device)</span>`}
         ${player.extraActionTokenAvailable &&
         html`<button type="button" disabled=${!canAct} onClick=${onUseExtraAction}>Use Extra Action Token</button>`}
       </div>
@@ -96,7 +97,7 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
         <div class="action-with-amount">
           <select onChange=${(e) => setBroodTarget(e.target.value)}>
             <option value="">Dead player…</option>
-            ${deadPlayers.map((p) => html`<option key=${p.id} value=${p.id}>${p.id}</option>`)}
+            ${deadPlayers.map((p) => html`<option key=${p.id} value=${p.id}>${playerNames?.[p.id] ?? p.id}</option>`)}
           </select>
           <button
             type="button"

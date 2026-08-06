@@ -1,17 +1,21 @@
-// Firestore-backed session sync for remote play (docs/engine-plan.md phase
-// 8). Replaces the orphaned root session.js, which drove the old companion
-// app's pre-game-picker-only schema — this syncs the full GameState.
+// Firestore-backed session sync for remote play (docs/engine-plan.md). No
+// local hotseat mode — every game is a session, joined by a 4-char code.
 //
 // Design: no server-side reducer. Every device runs the same engine calls
-// it already runs locally (applyAction/endTurn/advanceDay/createGame);
+// it already runs locally (createGame/applyAction/endTurn/advanceDay);
 // this module only ships the resulting state to sessions/{code} and
 // delivers everyone's snapshots back via onSnapshot. Shared write access
 // (any device with the code can write) per the resolved trust-model
-// question — no security rules, no revision/transaction conflict
-// handling, last-write-wins.
+// question — no security rules beyond that.
+//
+// One exception to "no transactions, last-write-wins": claiming a lobby
+// seat. Two devices computing "the next open seat" independently and both
+// writing could silently drop one of them from the game entirely — a much
+// worse failure than the general last-write-wins tradeoff accepted
+// elsewhere, so that one write goes through a Firestore transaction.
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
 import {
-  getFirestore, doc, setDoc, updateDoc, getDoc, onSnapshot,
+  getFirestore, doc, setDoc, updateDoc, getDoc, onSnapshot, runTransaction,
 } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
 
 const cfg = window.FLOCK_FIREBASE_CONFIG;
@@ -50,12 +54,19 @@ async function createSession(hostConfig) {
   if (!database) throw new Error('Firebase not configured');
   const code = genCode();
   await setDoc(doc(database, 'sessions', code), {
-    createdAt: Date.now(), hostConfig, claimedSeats: {}, state: null,
+    createdAt: Date.now(),
+    hostConfig, // { playerCount, difficulty, eggspansion }
+    seats: {}, // { [playerId]: { name } }, filled in by joinAndClaimSeat
+    predators: null, // { regular: [n,n,n], boss } — set once, at Start Game
+    dealtChickens: null, // { [playerId]: [name, name] } — set alongside predators
+    chosenChicken: {}, // { [playerId]: name } — filled in as each player locks in
+    state: null, // synced GameState — set once every seat has chosenChicken
+    dayEndPending: false,
   });
   return code;
 }
 
-async function joinSession(code) {
+async function getSession(code) {
   const database = getDb();
   if (!database) throw new Error('Firebase not configured');
   const snap = await getDoc(doc(database, 'sessions', code));
@@ -63,16 +74,49 @@ async function joinSession(code) {
   return snap.data();
 }
 
-async function claimSeat(code, playerId, chickenName) {
+// Claims the first open p1..pN seat for `name`, atomically. Throws if the
+// session doesn't exist, is already full, or has already started (a game
+// in progress shouldn't gain a new seat mid-draft/mid-play).
+async function joinAndClaimSeat(code, name) {
   const database = getDb();
   if (!database) throw new Error('Firebase not configured');
-  await updateDoc(doc(database, 'sessions', code), { [`claimedSeats.${playerId}`]: chickenName });
+  const ref = doc(database, 'sessions', code);
+  return runTransaction(database, async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists()) throw new Error(`No session found for code ${code}`);
+    const data = snap.data();
+    if (data.predators) throw new Error('This game has already started');
+    const seats = data.seats ?? {};
+    let seatId = null;
+    for (let i = 1; i <= data.hostConfig.playerCount; i++) {
+      const candidate = `p${i}`;
+      if (!seats[candidate]) {
+        seatId = candidate;
+        break;
+      }
+    }
+    if (!seatId) throw new Error('This session is full');
+    transaction.update(ref, { [`seats.${seatId}`]: { name } });
+    return seatId;
+  });
 }
 
-async function startGame(code, gameState) {
+// Host-only, called once at Start Game: predators are already randomized
+// and chickens already dealt by the time this is called (see setup.ts's
+// randomizePredatorSelection/dealChickenChoices), this just publishes both
+// so every device's snapshot listener moves them into the chicken draft.
+async function startDraft(code, predators, dealtChickens) {
   const database = getDb();
   if (!database) throw new Error('Firebase not configured');
-  await setDoc(doc(database, 'sessions', code), { state: toSyncedState(gameState), dayEndPending: false }, { merge: true });
+  await setDoc(doc(database, 'sessions', code), { predators, dealtChickens }, { merge: true });
+}
+
+// Each player only ever writes their own key here, so no transaction is
+// needed — two different players never race on the same field.
+async function lockInChicken(code, playerId, chickenName) {
+  const database = getDb();
+  if (!database) throw new Error('Firebase not configured');
+  await updateDoc(doc(database, 'sessions', code), { [`chosenChicken.${playerId}`]: chickenName });
 }
 
 // dayEndPending rides alongside `state` rather than being derived from it —
@@ -105,9 +149,10 @@ function setMySeat(code, playerId) {
 export const remoteSession = {
   isConfigured: () => configured,
   createSession,
-  joinSession,
-  claimSeat,
-  startGame,
+  getSession,
+  joinAndClaimSeat,
+  startDraft,
+  lockInChicken,
   pushState,
   subscribe,
   getMySeat,

@@ -25,14 +25,19 @@ flow) done, taken out of order ahead of phase 8 since it was smaller and
 self-contained — real win/lose evaluation and the full Brood → choose a
 new Chicken Book → rejoin as a Chick flow both work now (see phase 9
 below). 155 tests passing. Phase 8 (remote multiplayer sync) done — the
-UI can now create/join a Firestore-backed session, claim seats, and play
-a fully synced game across devices, with the client-side engine as the
-only reducer (see phase 8 below for the design). `ft-dupe`'s Cloud
-Firestore is enabled and its rules are published for the shared-write
-trust model; a standalone REST round-trip (create session → claim seat →
-push/read a synced GameState) confirmed live against the real project.
-That was the last item on the original roadmap; revisit and refine this
-doc as new work comes up — it's a living plan, not a spec to freeze.
+UI can create/join a Firestore-backed session and play a fully synced
+game across devices, with the client-side engine as the only reducer
+(see phase 8 below for the design). `ft-dupe`'s Cloud Firestore is
+enabled and its rules are published for the shared-write trust model.
+That was the last item on the original roadmap. Phase 10 (session-based
+setup flow) done as a follow-up, replacing phase 8's original
+seat-claiming lobby (where claiming a seat and picking a chicken were
+the same action, and predators were picked manually) with a flow that
+matches the physical game: named joins, predators randomly selected for
+the whole table *before* anyone sees a chicken, then each player dealt
+2 chicken candidates to choose between (see phase 10 below). 164 tests
+passing. Revisit and refine this doc as new work comes up — it's a
+living plan, not a spec to freeze.
 
 ## What "engine" means here
 
@@ -367,6 +372,58 @@ own rather than only valuable once everything else is done.
    `brood`/Fall-day-7 tests (155 total, zero regressions). Same caveat as
    phase 7: verified the dev server serves the rebuilt files, couldn't
    click through the new screens myself.
+
+10. **Session-based setup flow — done.** Replaces phase 8's original lobby
+    (seat-claiming and chicken-picking were the same action, predators
+    picked manually by the host) with a flow matching the physical game
+    much more closely, driven by a correction mid-design: predators are
+    randomly selected for the whole table *before* anyone sees a chicken,
+    not after (the physical rules "randomly select 3 predators at the
+    start of the game" places this first).
+    Engine (`engine/src/setup.ts`): exported the previously-private
+    `bossPool`/`allFourPool` species-pool functions so the UI's difficulty
+    blurb can read them directly; new `randomizePredatorSelection` covers
+    every difficulty level, not just 5+ — levels 7-8 still draw from the
+    named closed species list, levels 5-6 still constrain only the Boss to
+    its pool, but levels 1-4 (and the free regular-3 slots at 5-6) now
+    auto-randomize from the full roster instead of requiring manual entry.
+    This also meant correcting `core_rules.md`'s "never part of this
+    randomization pool at any difficulty" note — that exclusion only ever
+    applied to the levels 7-8 pool; the 8 predators it named are eligible
+    everywhere else. New `dealChickenChoices` deals 2 distinct chicken
+    candidates per player from one shared shuffle (Eggspansion-filtered),
+    guaranteeing no name is ever dealt to two players.
+    Firestore schema (`ui/src/remoteSession.js`): `sessions/{code}` now
+    tracks named `seats` (not chicken picks), a `predators` selection and
+    `dealtChickens` map set once at Start Game, and a `chosenChicken` map
+    filled in as each player locks in. Seat-claiming (`joinAndClaimSeat`)
+    is the one write that goes through a Firestore transaction rather than
+    phase 8's default last-write-wins — two devices racing to claim "the
+    next open seat" without one could silently drop a player, a worse
+    failure than the general concurrent-write tradeoff accepted elsewhere.
+    UI: new `landing.js` (Create/Join Game), `createGame.js` (player
+    count/Eggspansion/difficulty as pill buttons, matching a reference
+    screenshot, with a difficulty blurb generated live from the engine's
+    own modifier functions so it can't drift out of sync), `joinGame.js` +
+    `nameEntry.js` (shared by both entry paths), a rewritten `lobby.js`
+    (named seats, Start Game gated on every seat filled), and
+    `chickenDraft.js` (a "This Game's Predators" panel — the 3 revealed
+    regulars plus a hidden-Boss placeholder — above each player's own 2
+    dealt candidates, shown with full stage 1-3 stats/abilities; clicking
+    highlights, a separate Lock In button commits). `app.js`'s screen is
+    now re-derived from the synced doc on every snapshot end-to-end
+    (`landing` → `createGame`/`joinGame` → `nameEntry` → `lobby` →
+    `chickenDraft` → `game`/`gameOver`), and the old local hotseat form
+    (`ui/src/setup.js`) is deleted — every game is a session now. Player
+    display names are threaded through `Board`/`PlayerPanel`/`ActionBar`/
+    `TurnControls` so the game screen shows names instead of `p1`/`p2`.
+    9 new engine tests (164 total, zero regressions). Verified against the
+    real `ft-dupe` project with an extended standalone Firestore REST
+    script exercising the full schema end-to-end (create → two seats join
+    → predators randomized + chickens dealt → both lock in → final state
+    published) — same caveat as phase 8: this confirms the schema and
+    engine logic, not an actual browser click-through, which I can't do
+    myself here.
 
 ## Open questions (not blocking yet, worth deciding before the phase that needs them)
 

@@ -354,3 +354,74 @@ details {
   gap: 0.4em;
   margin: 0.6em 0;
 }
+
+/* --- Landing / Create Game / Lobby pill buttons --- */
+
+.landing {
+  text-align: center;
+}
+
+.pill-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em;
+}
+
+.pill-group.vertical {
+  flex-direction: column;
+}
+
+.pill {
+  border-radius: 999px;
+  padding: 0.5em 1.1em;
+}
+
+.pill.selected {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.difficulty-blurb {
+  display: block;
+  margin-top: 0.4em;
+}
+
+/* --- Chicken draft --- */
+
+.predators-panel {
+  margin-bottom: 1.2em;
+}
+
+.predators-panel-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.6em;
+}
+
+.chicken-draft-candidates {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1em;
+  margin: 1em 0;
+}
+
+.chicken-card {
+  background: #fff;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  padding: 0.8em;
+  cursor: pointer;
+}
+
+.chicken-card.selected {
+  border-color: var(--accent);
+  border-width: 4px;
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.chicken-card-stage {
+  margin-top: 0.5em;
+  padding-top: 0.4em;
+  border-top: 1px solid #eee;
+}

@@ -1,7 +1,7 @@
 import { html } from 'htm/preact';
 import { useState } from 'preact/hooks';
 
-export function TurnControls({ state, onSubmitDayEnd, myPlayerId }) {
+export function TurnControls({ state, onSubmitDayEnd, myPlayerId, playerNames }) {
   const [discardSide, setDiscardSide] = useState('inside');
   const [exchanges, setExchanges] = useState({});
 
@@ -43,7 +43,7 @@ export function TurnControls({ state, onSubmitDayEnd, myPlayerId }) {
           .map(
             (p) => html`
               <label class="field" key=${p.id}>
-                ${p.id} (has ${p.eggs} eggs)
+                ${playerNames?.[p.id] ?? p.id} (has ${p.eggs} eggs)
                 <input
                   type="number"
                   min="0"

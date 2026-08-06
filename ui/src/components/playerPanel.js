@@ -30,7 +30,7 @@ function cardInputShape(effect) {
 // and board.js already use for Move/Attack. `onPickEnemy` hands off to a
 // board click (same pattern as Attack's target step) since a Predator/Grub
 // target can't be chosen from a dropdown here.
-function PlayCardControls({ effect, otherPlayers, remainingCards, onPlay, onPickEnemy }) {
+function PlayCardControls({ effect, otherPlayers, playerNames, remainingCards, onPlay, onPickEnemy }) {
   const shape = cardInputShape(effect);
   const [option, setOption] = useState(1);
   const [targetPlayerId, setTargetPlayerId] = useState('');
@@ -63,7 +63,7 @@ function PlayCardControls({ effect, otherPlayers, remainingCards, onPlay, onPick
       ${shape.needsTeammate &&
       html`<select onChange=${(e) => setTargetPlayerId(e.target.value)} value=${targetPlayerId}>
         <option value="">Teammate…</option>
-        ${otherPlayers.map((p) => html`<option key=${p.id} value=${p.id}>${p.id}</option>`)}
+        ${otherPlayers.map((p) => html`<option key=${p.id} value=${p.id}>${playerNames?.[p.id] ?? p.id}</option>`)}
       </select>`}
       ${shape.needsAmount &&
       html`<input type="number" min="1" max=${shape.maxAmount} value=${amount} onInput=${(e) => setAmount(Number(e.target.value))} />`}
@@ -80,7 +80,7 @@ function PlayCardControls({ effect, otherPlayers, remainingCards, onPlay, onPick
   `;
 }
 
-export function PlayerPanel({ player, isCurrent, state, dispatch, pendingPick, setPendingPick, myPlayerId }) {
+export function PlayerPanel({ player, isCurrent, state, dispatch, pendingPick, setPendingPick, myPlayerId, displayName, playerNames }) {
   const chicken = findChicken(player.chickenName);
   const stageData = chicken.stages.find((s) => s.stage === player.stage);
   const otherPlayers = state.players.filter((p) => p.id !== player.id && p.alive);
@@ -88,14 +88,15 @@ export function PlayerPanel({ player, isCurrent, state, dispatch, pendingPick, s
   // engine (not turn-gated), so in a remote session each device may only
   // act on its own panel — same canAct nicety as actionBar.js.
   const canAct = myPlayerId == null || myPlayerId === player.id;
+  const label = displayName ?? player.id;
 
   return html`
     <div class=${`player-panel ${isCurrent ? 'current' : ''} ${!player.alive ? 'dead' : ''}`}>
-      <h3>${player.id} — ${chicken.name}${!player.alive ? ' (dead)' : ''}</h3>
+      <h3>${label} — ${chicken.name}${!player.alive ? ' (dead)' : ''}</h3>
       ${player.pendingRevivalChoices &&
       html`<div class="revival-choice">
         <strong>Choose your chicken to rejoin (as a Chick):</strong>
-        ${!canAct && html`<span class="ref-text">(waiting for ${player.id}'s device)</span>`}
+        ${!canAct && html`<span class="ref-text">(waiting for ${label}'s device)</span>`}
         ${player.pendingRevivalChoices.map(
           (name) =>
             html`<button
@@ -146,6 +147,7 @@ export function PlayerPanel({ player, isCurrent, state, dispatch, pendingPick, s
                 ? html`<${PlayCardControls}
                     effect=${effect}
                     otherPlayers=${otherPlayers}
+                    playerNames=${playerNames}
                     remainingCards=${remainingCards}
                     onPlay=${(params) => dispatch({ type: 'playBonusCard', playerId: player.id, cardHandIndex: i, ...params })}
                     onPickEnemy=${(params) =>
@@ -159,7 +161,7 @@ export function PlayerPanel({ player, isCurrent, state, dispatch, pendingPick, s
                         extraParams: params,
                       })}
                   />`
-                : html`<span class="ref-text">(waiting for ${player.id}'s device)</span>`}
+                : html`<span class="ref-text">(waiting for ${label}'s device)</span>`}
             </div>
           `;
         })}
@@ -176,10 +178,11 @@ export function PlayerPanel({ player, isCurrent, state, dispatch, pendingPick, s
               ${held.rewardUsed
                 ? html`<span class="ref-text">(Reward used)</span>`
                 : !canAct
-                ? html`<span class="ref-text">(waiting for ${player.id}'s device)</span>`
+                ? html`<span class="ref-text">(waiting for ${label}'s device)</span>`
                 : html`<${PlayCardControls}
                     effect=${effect}
                     otherPlayers=${otherPlayers}
+                    playerNames=${playerNames}
                     remainingCards=${[]}
                     onPlay=${(params) => dispatch({ type: 'useGrubReward', playerId: player.id, grubHandIndex: i, ...params })}
                     onPickEnemy=${(params) =>
