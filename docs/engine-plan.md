@@ -45,9 +45,11 @@ initially deferred pending a design conversation since it breaks the
 engine's one-shared-weather-card assumption, landed last — see phase 11's
 closing note for all three. Also landed: a rules clarification on Sunny/
 Nighttime ("once during this phase," but the player picks which of their
-turns it lands on, not automatically the first). 231 engine tests passing.
-Revisit and refine this doc as new work comes up — it's a living plan, not
-a spec to freeze.
+turns it lands on, not automatically the first), and a base-game bug fix
+where gaining a Bonus Card at the hand limit was blocked outright instead
+of letting the gain happen and the player discard down to size afterward.
+232 engine tests passing. Revisit and refine this doc as new work comes
+up — it's a living plan, not a spec to freeze.
 
 ## What "engine" means here
 
@@ -656,6 +658,30 @@ own rather than only valuable once everything else is done.
     abilities-mudslide.test.ts` (231 total, zero regressions): the deal-out
     itself, per-player resolution, override clearing on replacement, Owl
     Coopone resolving per-attacker, and the phase-boundary fix.
+
+    **Bonus Card hand-limit discard — bug fix, base game (not a phase 11
+    item).** `core_rules.md` says "hand limit 2" with no discard rule at
+    all. The actual engine bug: every card-gaining path (`drawCard`,
+    `useCaveHoard`, `payEggForCard`, `drawTwoKeepOne`, "take a card from
+    discard," and multi-card grants like Cave Hoard's draw effect) hard-
+    blocked outright once a player was at the limit, with no way to ever
+    discard — reported in `docs/playtest-feedback.md`. Table ruling: you
+    can only discard once your hand is actually *over* the limit (never
+    proactively), it's free, and you choose which card, including one you
+    just gained. Fix: every one of those gain paths now always succeeds
+    (a hand can temporarily exceed its limit); a new `discardBonusCard`
+    action removes any held card once actually over, surfaced as a
+    "Discard" button per card in `playerPanel.js`'s Bonus Cards list, only
+    rendered while over the limit. `giveBonusCards` (the multi-card-grant
+    helper) no longer silently drops cards that don't fit — they enter the
+    hand and become subject to the same discard step; a card's own printed
+    "keep K, give M, discard the rest" split (e.g. Dragonfly) is untouched,
+    since that's a different concept from the hand limit. 3 tests in
+    `engine/test/actions.test.ts` updated/added for the new behavior
+    (drawing into a full hand, `discardBonusCard`'s own guard rails); 2
+    tests in `abilities-grubRewards.test.ts` (Dragonfly, Mosquitoes) had
+    stale expected counts baked in from the old silent-drop bug, corrected.
+    232 tests total, zero regressions.
 
 ## Open questions (not blocking yet, worth deciding before the phase that needs them)
 

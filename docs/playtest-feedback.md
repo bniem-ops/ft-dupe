@@ -58,5 +58,5 @@ Format per entry:
 - What happened: I have reached the hand limit for bonus cards
 - Expected: I should be able to discard bonus cards
 - Card/rule involved: Bonus Card rules
-- Triage: 
-- Status: Open
+- Triage: bug, confirmed — core_rules.md never spells out a discard rule at all (just "hand limit 2"); the engine's actual bug was blocking every card-gaining action outright once at the limit (Draw Card, Cave Hoard, Quick Claws, "take a card from discard," multi-draw effects), with no way to ever discard. Clarified with the table: discarding is only possible once your hand is actually over the limit (never proactively), it's free, and you choose which card. Gains are no longer blocked; a new discardBonusCard action (button in playerPanel.js, only shown once actually over) fixes it.
+- Status: fixed (2026-08-08 UI-wiring session, docs/engine-plan.md phase 11 closing note)

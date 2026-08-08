@@ -416,7 +416,10 @@ export type Action =
   | { type: 'collectBoardEgg'; playerId: string; location: Location } // Bacaw!/Dedication
   // Sunny/Nighttime: "once during this phase," on whichever of the
   // player's turns they choose — see turn.ts's useWeatherActionAdjustment.
-  | { type: 'useWeatherActionAdjustment'; playerId: string };
+  | { type: 'useWeatherActionAdjustment'; playerId: string }
+  // Free, only available once actually over the Bonus Card hand limit —
+  // see actions.ts's discardBonusCard for the rules-gap reasoning.
+  | { type: 'discardBonusCard'; playerId: string; cardHandIndex: number };
 
 export function rollDie(rng: RNG): number {
   return Math.floor(rng() * 6) + 1;

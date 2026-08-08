@@ -261,6 +261,11 @@ export function PlayerPanel({ player, isCurrent, state, dispatch, pendingPick, s
   const personalWeatherCard = player.personalWeatherOverride
     ? seasonCardList(player.personalWeatherOverride.season.toLowerCase(), state.config.eggspansion)[player.personalWeatherOverride.cardIndex]
     : null;
+  // core_rules.md never spells out a discard rule — the table's reading is
+  // you can only discard once your hand actually exceeds the limit (never
+  // proactively), and it's free. So the control only appears here, not a
+  // standing "discard" button next to every card.
+  const overBonusCardHandLimit = !player.permanentNoBonusCardHandLimit && player.bonusCardHand.length > player.bonusCardHandLimit;
 
   return html`
     <div class=${`player-panel ${isCurrent ? 'current' : ''} ${!player.alive ? 'dead' : ''}`}>
@@ -320,8 +325,8 @@ export function PlayerPanel({ player, isCurrent, state, dispatch, pendingPick, s
         )}
       </details>
 
-      <details>
-        <summary>Bonus Cards (${player.bonusCardHand.length})</summary>
+      <details open=${overBonusCardHandLimit}>
+        <summary>Bonus Cards (${player.bonusCardHand.length}${overBonusCardHandLimit ? ` / ${player.bonusCardHandLimit} — over limit, must discard` : ''})</summary>
         ${player.bonusCardHand.map((id, i) => {
           const card = loadBonusCards()[id];
           const effect = card?.shorthand ? BONUS_CARD_EFFECTS[card.shorthand] : undefined;
@@ -351,6 +356,11 @@ export function PlayerPanel({ player, isCurrent, state, dispatch, pendingPick, s
                       })}
                   />`
                 : html`<span class="ref-text">(waiting for ${label}'s device)</span>`}
+              ${canAct &&
+              overBonusCardHandLimit &&
+              html`<button type="button" onClick=${() => dispatch({ type: 'discardBonusCard', playerId: player.id, cardHandIndex: i })}>
+                Discard
+              </button>`}
             </div>
           `;
         })}

@@ -230,11 +230,14 @@ export function move(state: GameState, playerId: string, destination: Location):
   return afterMove;
 }
 
+// Gaining a card never blocks on the hand limit — core_rules.md just says
+// "hand limit 2" with no discard rule spelled out; the table's own reading
+// is that you draw first, then discardBonusCard (below) becomes available
+// to shed down to the limit, your choice of which card. Not enforced as a
+// hard block on other actions in the meantime — same light touch as every
+// other self-managed "must" in this engine (e.g. Nighttime's reduction).
 export function drawCard(state: GameState, playerId: string): GameState {
   const player = assertCanAct(state, playerId);
-  if (!player.permanentNoBonusCardHandLimit && player.bonusCardHand.length >= player.bonusCardHandLimit) {
-    throw new Error(`${playerId} is at their Bonus Card hand limit (${player.bonusCardHandLimit})`);
-  }
   let { drawPile, discard } = state.bonusDeck;
   if (drawPile.length === 0) {
     // Not explicitly stated for Bonus Cards in core_rules.md (only Grubs
@@ -518,9 +521,6 @@ export function useCaveHoard(state: GameState, playerId: string, targetPlayerId?
   const recipient = getPlayer(state.players, recipientId);
   if (recipientId !== playerId && recipient.location !== player.location) {
     throw new Error(`${recipientId} must be nearby ${playerId} to draw via Cave Hoard`);
-  }
-  if (!recipient.permanentNoBonusCardHandLimit && recipient.bonusCardHand.length >= recipient.bonusCardHandLimit) {
-    throw new Error(`${recipientId} is at their Bonus Card hand limit (${recipient.bonusCardHandLimit})`);
   }
   let { drawPile, discard } = state.bonusDeck;
   if (drawPile.length === 0) {
@@ -950,9 +950,6 @@ export function payEggForCard(state: GameState, playerId: string): GameState {
   const hasAbility = getOwnAndBorrowedAbilities(player).some((a) => a.freeEggForCard);
   if (!hasAbility) throw new Error(`${playerId}'s chicken has no such ability`);
   if (player.eggs < 1) throw new Error(`${playerId} has no egg to pay`);
-  if (!player.permanentNoBonusCardHandLimit && player.bonusCardHand.length >= player.bonusCardHandLimit) {
-    throw new Error(`${playerId} is at their Bonus Card hand limit (${player.bonusCardHandLimit})`);
-  }
   let { drawPile, discard } = state.bonusDeck;
   if (drawPile.length === 0) {
     drawPile = [...discard];
@@ -985,9 +982,6 @@ export function drawTwoKeepOne(state: GameState, playerId: string, keep: 0 | 1):
   const player = assertCanAct(state, playerId);
   const hasAbility = getOwnAndBorrowedAbilities(player).some((a) => a.drawTwoKeepOne);
   if (!hasAbility) throw new Error(`${playerId}'s chicken has no such ability`);
-  if (!player.permanentNoBonusCardHandLimit && player.bonusCardHand.length >= player.bonusCardHandLimit) {
-    throw new Error(`${playerId} is at their Bonus Card hand limit (${player.bonusCardHandLimit})`);
-  }
   let { drawPile, discard } = state.bonusDeck;
   const drawn: number[] = [];
   for (let i = 0; i < 2; i++) {
@@ -1060,11 +1054,12 @@ function drawBonusCardsInto(
   return { drawn, bonusDeck: { drawPile, discard } };
 }
 
-function giveBonusCards(player: PlayerState, cardIds: number[]): { player: PlayerState; leftover: number[] } {
-  const room = player.permanentNoBonusCardHandLimit ? cardIds.length : Math.max(0, player.bonusCardHandLimit - player.bonusCardHand.length);
-  const accepted = cardIds.slice(0, room);
-  const leftover = cardIds.slice(accepted.length);
-  return { player: { ...player, bonusCardHand: [...player.bonusCardHand, ...accepted] }, leftover };
+// Never caps at the hand limit — same "gain first, discardBonusCard
+// afterward" treatment as every other bonus-card grant (see drawCard's
+// comment). The card's own "keep K, discard the rest" choice (below) is a
+// separate, unrelated concept and still applies before this ever runs.
+function giveBonusCards(player: PlayerState, cardIds: number[]): PlayerState {
+  return { ...player, bonusCardHand: [...player.bonusCardHand, ...cardIds] };
 }
 
 function resolveCardEffect(state: GameState, playerId: string, effect: CardEffect, params: CardPlayParams): GameState {
@@ -1138,18 +1133,16 @@ function resolveCardEffect(state: GameState, playerId: string, effect: CardEffec
     bonusDeck = afterDraw;
     const kept = drawn.slice(0, keep);
     const given = drawn.slice(keep, keep + giveTeammate);
+    // The card's own "keep K, give M, discard the rest" split — unrelated
+    // to the hand limit, which kept/given cards are no longer capped by.
     const overflow = drawn.slice(keep + giveTeammate);
-    const { player: withKept, leftover: keptLeftover } = giveBonusCards(player, kept);
-    player = withKept;
-    let toDiscard = [...overflow, ...keptLeftover];
+    player = giveBonusCards(player, kept);
     if (given.length > 0) {
       if (!params.targetPlayerId) throw new Error('This card requires a teammate to give a card to');
       const target = getPlayer(players, params.targetPlayerId);
-      const { player: withGiven, leftover: givenLeftover } = giveBonusCards(target, given);
-      players = replacePlayer(players, withGiven);
-      toDiscard = [...toDiscard, ...givenLeftover];
+      players = replacePlayer(players, giveBonusCards(target, given));
     }
-    if (toDiscard.length > 0) bonusDeck = { ...bonusDeck, discard: [...bonusDeck.discard, ...toDiscard] };
+    if (overflow.length > 0) bonusDeck = { ...bonusDeck, discard: [...bonusDeck.discard, ...overflow] };
   }
 
   if (effect.dodgeNextAttack) player = { ...player, pendingDodgeNextAttack: true };
@@ -1218,9 +1211,6 @@ function resolveCardEffect(state: GameState, playerId: string, effect: CardEffec
   if (effect.takeSpecificBonusCardFromDiscard) {
     const idx = params.discardExtraCardIndex;
     if (idx == null || bonusDeck.discard[idx] == null) throw new Error('Choose a discarded Bonus Card to take');
-    if (!player.permanentNoBonusCardHandLimit && player.bonusCardHand.length >= player.bonusCardHandLimit) {
-      throw new Error(`${playerId} is at their Bonus Card hand limit (${player.bonusCardHandLimit})`);
-    }
     const cardId = bonusDeck.discard[idx];
     bonusDeck = { ...bonusDeck, discard: bonusDeck.discard.filter((_, i) => i !== idx) };
     player = { ...player, bonusCardHand: [...player.bonusCardHand, cardId] };
@@ -1246,6 +1236,26 @@ function resolveCardEffect(state: GameState, playerId: string, effect: CardEffec
     bonusDeck,
     weather,
     actionsRemainingThisTurn: state.actionsRemainingThisTurn + actionsDelta,
+  };
+}
+
+// core_rules.md just says "hand limit 2" — no discard rule is spelled
+// out. The table's reading (see drawCard's comment): you may only discard
+// once your hand actually exceeds the limit, never proactively; it's free
+// (no action cost); and you choose which card, including one you just
+// gained.
+export function discardBonusCard(state: GameState, playerId: string, cardHandIndex: number): GameState {
+  const player = requireAlive(state, playerId);
+  if (player.permanentNoBonusCardHandLimit || player.bonusCardHand.length <= player.bonusCardHandLimit) {
+    throw new Error(`${playerId} is not over their Bonus Card hand limit`);
+  }
+  const cardId = player.bonusCardHand[cardHandIndex];
+  if (cardId == null) throw new Error(`${playerId} has no Bonus Card at hand index ${cardHandIndex}`);
+  const updated = { ...player, bonusCardHand: player.bonusCardHand.filter((_, i) => i !== cardHandIndex) };
+  return {
+    ...state,
+    players: replacePlayer(state.players, updated),
+    bonusDeck: { ...state.bonusDeck, discard: [...state.bonusDeck.discard, cardId] },
   };
 }
 

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame } from '../src/setup.js';
-import { layEgg, heal, brood, completeRevival, move, drawCard, attack, eat, forage } from '../src/actions.js';
+import { layEgg, heal, brood, completeRevival, move, drawCard, discardBonusCard, attack, eat, forage } from '../src/actions.js';
 import { GameState } from '../src/types.js';
 import { baseConfig } from './testHelpers.js';
 
@@ -109,8 +109,32 @@ test('drawCard respects the hand limit and removes the card from the shared deck
   assert.equal(p1.bonusCardHand.length, startingHandSize + 1);
   assert.equal(drawn.bonusDeck.drawPile.length, state.bonusDeck.drawPile.length - 1);
 
+  // Drawing into an already-full hand succeeds instead of being blocked —
+  // core_rules.md never spells out a discard rule; the table's reading is
+  // you draw first, then discard down to size (discardBonusCard, below).
   const atLimit = withPlayer(state, 'p1', { bonusCardHand: [0, 1] }); // limit is 2
-  assert.throws(() => drawCard(atLimit, 'p1'));
+  const overLimit = drawCard(atLimit, 'p1');
+  const overP1 = overLimit.players.find((p) => p.id === 'p1')!;
+  assert.equal(overP1.bonusCardHand.length, 3);
+
+  // Only available once actually over the limit, and the player chooses
+  // which card goes.
+  const discarded = discardBonusCard(overLimit, 'p1', 1);
+  const discardedP1 = discarded.players.find((p) => p.id === 'p1')!;
+  assert.deepEqual(discardedP1.bonusCardHand, [overP1.bonusCardHand[0], overP1.bonusCardHand[2]]);
+  assert.throws(() => discardBonusCard(discarded, 'p1', 0)); // no longer over the limit
+});
+
+test('discardBonusCard: never proactive — only usable once your hand is actually over the limit', () => {
+  const state = createGame(baseConfig());
+  const atLimit = withPlayer(state, 'p1', { bonusCardHand: [0, 1] }); // exactly at the limit, not over it
+  assert.throws(() => discardBonusCard(atLimit, 'p1', 0));
+
+  const overLimit = withPlayer(state, 'p1', { bonusCardHand: [0, 1, 2] });
+  assert.throws(() => discardBonusCard(overLimit, 'p1', 5)); // no card at that index
+  const discarded = discardBonusCard(overLimit, 'p1', 2);
+  assert.deepEqual(discarded.players.find((p) => p.id === 'p1')!.bonusCardHand, [0, 1]);
+  assert.ok(discarded.bonusDeck.discard.includes(2));
 });
 
 test('attack on a Predator requires being nearby and revealed, and costs food per attack strength', () => {

@@ -56,8 +56,12 @@ test('Cocoon: +3 food to a teammate', () => {
 test('Dragonfly: draw 3, keep 2, give 1 to a teammate', () => {
   const state = withGrubReward(createGame(baseConfig()), 'p1', 'Dragonfly');
   const drawPileBefore = state.bonusDeck.drawPile.length;
+  const startingHandSize = state.players.find((p) => p.id === 'p1')!.bonusCardHand.length; // Shellock Holmes' Naturalist starts with 1
   const result = useGrubReward(state, 'p1', 0, { targetPlayerId: 'p2' });
-  assert.equal(result.players.find((p) => p.id === 'p1')!.bonusCardHand.length, 2);
+  // The 2 kept cards are never capped by the hand limit (a separate
+  // discardBonusCard step handles going over it) — only the card's own
+  // printed "keep 2, give 1, discard the rest" split applies here.
+  assert.equal(result.players.find((p) => p.id === 'p1')!.bonusCardHand.length, startingHandSize + 2);
   assert.equal(result.players.find((p) => p.id === 'p2')!.bonusCardHand.length, 1);
   assert.equal(result.bonusDeck.drawPile.length, drawPileBefore - 3);
 });
@@ -122,8 +126,9 @@ test('Ladybug: roll 3 times; assign to eggs, food, and health loss', () => {
 
 test('Mosquitoes: +2 Bonus Cards', () => {
   const state = withGrubReward(createGame(baseConfig()), 'p1', 'Mosquitoes');
+  const startingHandSize = state.players.find((p) => p.id === 'p1')!.bonusCardHand.length; // Shellock Holmes' Naturalist starts with 1
   const result = useGrubReward(state, 'p1', 0);
-  assert.equal(result.players.find((p) => p.id === 'p1')!.bonusCardHand.length, 2);
+  assert.equal(result.players.find((p) => p.id === 'p1')!.bonusCardHand.length, startingHandSize + 2);
 });
 
 test('Wild Grain: +2 food', () => {

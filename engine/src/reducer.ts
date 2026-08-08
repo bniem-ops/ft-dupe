@@ -143,6 +143,9 @@ export function applyAction(state: GameState, action: Action): GameState {
     case 'useWeatherActionAdjustment':
       next = useWeatherActionAdjustment(state, action.playerId);
       break;
+    case 'discardBonusCard':
+      next = actions.discardBonusCard(state, action.playerId, action.cardHandIndex);
+      break;
     default: {
       const exhaustive: never = action;
       throw new Error(`Unknown action type: ${JSON.stringify(exhaustive)}`);

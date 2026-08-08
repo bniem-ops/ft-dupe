@@ -62,7 +62,7 @@ test('Chamberstick: refreshes every alive player at the holder\'s location, not 
   assert.equal(notRefreshed.players.find((p) => p.id === 'p2')!.extraActionTokenAvailable, false);
 });
 
-test('Cave Hoard: draws a Bonus Card for self or a nearby teammate, respecting their hand limit', () => {
+test('Cave Hoard: draws a Bonus Card for self or a nearby teammate', () => {
   let state = createGame(baseConfig());
   state = withPlayer(state, 'p1', { lootDrops: ["Hendel's Mother"], location: 'Grit Stones' });
   const forSelf = useCaveHoard(state, 'p1');
@@ -73,10 +73,11 @@ test('Cave Hoard: draws a Bonus Card for self or a nearby teammate, respecting t
   assert.equal(forTeammate.players.find((p) => p.id === 'p2')!.bonusCardHand.length, 1);
 });
 
-test('Cave Hoard rejects drawing into an already-full hand and a non-nearby teammate', () => {
+test('Cave Hoard: draws into an already-full hand too (gain is never blocked by the hand limit), but still rejects a non-nearby teammate', () => {
   let state = createGame(baseConfig());
   state = withPlayer(state, 'p1', { lootDrops: ["Hendel's Mother"], bonusCardHand: [0, 1] }); // limit 2
-  assert.throws(() => useCaveHoard(state, 'p1'));
+  const result = useCaveHoard(state, 'p1');
+  assert.equal(result.players.find((p) => p.id === 'p1')!.bonusCardHand.length, 3); // over limit — discardBonusCard is how you fix that
 
   const farTeammate = withPlayer(state, 'p2', { location: 'Grit Stones' });
   assert.throws(() => useCaveHoard(farTeammate, 'p1', 'p2'));
