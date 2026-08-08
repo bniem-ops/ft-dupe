@@ -43,13 +43,20 @@ Format per entry:
 - What happened: I have the sunny weather but am unable to use an additional action in the phase.
 - Expected: I should be able to take 1 extra action across the 2 or 3 turns in that phase. 
 - Card/rule involved: Sunny Weather
-- Triage: 
-- Status: Open
+- Triage: bug, confirmed — clarified with the table that the adjustment applies to exactly 1 turn within the phase, at the player's discretion (not automatically the first turn, not every turn). The engine previously auto-applied it on the player's first turn of the phase only. Reworked as an explicit `useWeatherActionAdjustment` action (`engine/src/turn.ts`), surfaced as a button in `actionBar.js` that appears once per phase while Sunny is active and unused, so the player picks which turn to spend it on.
+- Status: fixed (2026-08-08 UI-wiring session, docs/engine-plan.md phase 11 closing note)
 
 
 ## 2026-08-07 — Nighttime/Sunny Action Economy
 - What happened: I have the Nighttime weather but am forced to lose the action in the first turn of the phase.
 - Expected: I should be able to take 1 less action across the 2 or 3 turns in that phase. 
 - Card/rule involved: Nighttime Weather card
+- Triage: bug, confirmed — same fix as the Sunny entry above (shared code path).
+- Status: fixed (2026-08-08 UI-wiring session, docs/engine-plan.md phase 11 closing note)
+
+## 2026-08-07 — Bonus Cards
+- What happened: I have reached the hand limit for bonus cards
+- Expected: I should be able to discard bonus cards
+- Card/rule involved: Bonus Card rules
 - Triage: 
 - Status: Open

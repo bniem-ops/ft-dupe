@@ -1,6 +1,16 @@
 import { html } from 'htm/preact';
 import { useState } from 'preact/hooks';
-import { findChicken, loadBonusCards, loadGrubCards, findPredator, BONUS_CARD_EFFECTS, GRUB_REWARDS, PREDATOR_LOOT, OUTSIDE_LOCATIONS } from '../engine.js';
+import {
+  findChicken,
+  loadBonusCards,
+  loadGrubCards,
+  findPredator,
+  BONUS_CARD_EFFECTS,
+  GRUB_REWARDS,
+  PREDATOR_LOOT,
+  OUTSIDE_LOCATIONS,
+  activeWeatherName,
+} from '../engine.js';
 
 const ALL_LOCATIONS = ['Coop', ...OUTSIDE_LOCATIONS];
 
@@ -17,13 +27,33 @@ function Hearts({ health, maxHealth }) {
 // resolveCardEffect switch, one flag per shape actually present.
 function cardInputShape(effect) {
   if (!effect) return null;
+  // "Reroll a teammate's die" / "Reroll any die" / Spotted Lanternfly can
+  // all legally target the caster too (actions.ts allows targetPlayerId
+  // === playerId for these), unlike teammateGain-style effects.
+  const targetsAnyRoll = !!(effect.rerollTargetPlayerNextRoll || effect.pickTargetPlayerNextRollOutcome);
   return {
     needsOption: !!(effect.choiceGain || effect.teammateChoiceGain || effect.eggOrWeatherImmune || effect.discardExtraForBonus),
-    needsTeammate: !!(effect.teammateGain || effect.teammateChoiceGain || (effect.drawBonusCards && effect.drawBonusCards.giveTeammate > 0)),
-    needsAmount: !!(effect.teammateGain && effect.teammateGain.maxAmount > 1),
-    maxAmount: effect.teammateGain?.maxAmount ?? 1,
+    needsTeammate: !!(
+      effect.teammateGain ||
+      effect.teammateChoiceGain ||
+      (effect.drawBonusCards && effect.drawBonusCards.giveTeammate > 0) ||
+      effect.borrowsTeammateAbility ||
+      effect.copiesTeammateBonusCardEffect ||
+      targetsAnyRoll
+    ),
+    allowSelfAsTarget: targetsAnyRoll,
+    needsAmount: !!(effect.teammateGain && effect.teammateGain.maxAmount > 1) || !!effect.pickTargetPlayerNextRollOutcome,
+    maxAmount: effect.pickTargetPlayerNextRollOutcome ? 6 : (effect.teammateGain?.maxAmount ?? 1),
     needsEnemy: !!effect.enemyDamage,
     needsExtraCardDiscard: !!effect.discardExtraForBonus,
+    // Borrow a teammate's ability: pick which of their unlocked stages'
+    // ability to use (capped at their actual stage — actions.ts clamps
+    // the same way if this is ever stale).
+    needsAbilityStage: !!effect.borrowsTeammateAbility,
+    // Lucky Cricket: pick which of the chosen teammate's held Bonus Cards
+    // to copy the effect of (their hand, not your own — unlike the
+    // discardExtraForBonus picker below, which is always your own hand).
+    needsCopiedCard: !!effect.copiesTeammateBonusCardEffect,
   };
 }
 
@@ -32,24 +62,32 @@ function cardInputShape(effect) {
 // and board.js already use for Move/Attack. `onPickEnemy` hands off to a
 // board click (same pattern as Attack's target step) since a Predator/Grub
 // target can't be chosen from a dropdown here.
-function PlayCardControls({ effect, otherPlayers, playerNames, remainingCards, onPlay, onPickEnemy }) {
+function PlayCardControls({ effect, selfId, otherPlayers, playerNames, remainingCards, onPlay, onPickEnemy }) {
   const shape = cardInputShape(effect);
   const [option, setOption] = useState(1);
   const [targetPlayerId, setTargetPlayerId] = useState('');
   const [amount, setAmount] = useState(1);
   const [discardExtraCardIndex, setDiscardExtraCardIndex] = useState('');
+  const [abilityStage, setAbilityStage] = useState(1);
+  const [copiedCardIndex, setCopiedCardIndex] = useState('');
 
   if (!effect) return html`<span class="ref-text">(not yet implemented)</span>`;
 
+  const targetPlayer = otherPlayers.find((p) => p.id === targetPlayerId);
   const blockedOnTeammate = shape.needsTeammate && !targetPlayerId;
   const blockedOnDiscard = shape.needsExtraCardDiscard && option === 2 && discardExtraCardIndex === '';
+  const blockedOnCopiedCard = shape.needsCopiedCard && copiedCardIndex === '';
 
   function play() {
     const params = {
       option: shape.needsOption ? option : undefined,
-      targetPlayerId: shape.needsTeammate ? targetPlayerId : undefined,
-      amount: shape.needsAmount ? amount : undefined,
-      discardExtraCardIndex: shape.needsExtraCardDiscard && option === 2 ? Number(discardExtraCardIndex) : undefined,
+      targetPlayerId: shape.needsTeammate ? targetPlayerId || undefined : undefined,
+      amount: shape.needsAmount ? amount : shape.needsAbilityStage ? abilityStage : undefined,
+      discardExtraCardIndex: shape.needsExtraCardDiscard && option === 2
+        ? Number(discardExtraCardIndex)
+        : shape.needsCopiedCard && copiedCardIndex !== ''
+          ? Number(copiedCardIndex)
+          : undefined,
     };
     if (shape.needsEnemy) onPickEnemy(params);
     else onPlay(params);
@@ -64,8 +102,22 @@ function PlayCardControls({ effect, otherPlayers, playerNames, remainingCards, o
       </select>`}
       ${shape.needsTeammate &&
       html`<select onChange=${(e) => setTargetPlayerId(e.target.value)} value=${targetPlayerId}>
-        <option value="">Teammate…</option>
+        <option value="">${shape.allowSelfAsTarget ? 'Target…' : 'Teammate…'}</option>
+        ${shape.allowSelfAsTarget && html`<option value=${selfId}>Myself</option>`}
         ${otherPlayers.map((p) => html`<option key=${p.id} value=${p.id}>${playerNames?.[p.id] ?? p.id}</option>`)}
+      </select>`}
+      ${shape.needsAbilityStage &&
+      html`<select onChange=${(e) => setAbilityStage(Number(e.target.value))} value=${abilityStage}>
+        ${Array.from({ length: targetPlayer?.stage ?? 1 }, (_, i) => i + 1).map(
+          (s) => html`<option key=${s} value=${s}>Stage ${s} ability</option>`,
+        )}
+      </select>`}
+      ${shape.needsCopiedCard &&
+      html`<select onChange=${(e) => setCopiedCardIndex(e.target.value)} value=${copiedCardIndex}>
+        <option value="">Copy which card…</option>
+        ${(targetPlayer?.bonusCardHand ?? []).map(
+          (cardId, i) => html`<option key=${i} value=${i}>${loadBonusCards()[cardId]?.shorthand ?? '?'}</option>`,
+        )}
       </select>`}
       ${shape.needsAmount &&
       html`<input type="number" min="1" max=${shape.maxAmount} value=${amount} onInput=${(e) => setAmount(Number(e.target.value))} />`}
@@ -75,7 +127,7 @@ function PlayCardControls({ effect, otherPlayers, playerNames, remainingCards, o
         <option value="">Discard which card…</option>
         ${remainingCards.map((c) => html`<option key=${c.index} value=${c.index}>${c.label}</option>`)}
       </select>`}
-      <button type="button" disabled=${blockedOnTeammate || blockedOnDiscard} onClick=${play}>
+      <button type="button" disabled=${blockedOnTeammate || blockedOnDiscard || blockedOnCopiedCard} onClick=${play}>
         ${shape.needsEnemy ? 'Play (pick target on board)' : 'Play'}
       </button>
     </span>
@@ -135,10 +187,67 @@ function SecretTunnelsControls({ otherPlayers, playerNames, onUse }) {
   `;
 }
 
+// Dungeon Keys: give the revived 1-health Grub to yourself or a nearby teammate.
+function DungeonKeysControls({ myId, nearbyOtherPlayers, playerNames, onUse }) {
+  const [targetPlayerId, setTargetPlayerId] = useState(myId);
+  return html`
+    <span class="card-controls">
+      <select onChange=${(e) => setTargetPlayerId(e.target.value)} value=${targetPlayerId}>
+        <option value=${myId}>Keep for myself</option>
+        ${nearbyOtherPlayers.map((p) => html`<option key=${p.id} value=${p.id}>Give to ${playerNames?.[p.id] ?? p.id}</option>`)}
+      </select>
+      <button type="button" onClick=${() => onUse(targetPlayerId)}>Use Dungeon Keys</button>
+    </span>
+  `;
+}
+
+// Portable House: grant weather immunity for a turn, to yourself or a nearby player.
+function PortableHouseControls({ myId, nearbyOtherPlayers, playerNames, onUse }) {
+  const [targetPlayerId, setTargetPlayerId] = useState(myId);
+  return html`
+    <span class="card-controls">
+      <select onChange=${(e) => setTargetPlayerId(e.target.value)} value=${targetPlayerId}>
+        <option value=${myId}>For myself</option>
+        ${nearbyOtherPlayers.map((p) => html`<option key=${p.id} value=${p.id}>For ${playerNames?.[p.id] ?? p.id}</option>`)}
+      </select>
+      <button type="button" onClick=${() => onUse(targetPlayerId)}>Use Portable House</button>
+    </span>
+  `;
+}
+
+// "Move everyone for free" Bonus Card: each granted player picks their own destination.
+function FreeMoveGrantControls({ onUse }) {
+  const [destination, setDestination] = useState(ALL_LOCATIONS[0]);
+  return html`
+    <span class="card-controls">
+      <span class="ref-text">Free Move available:</span>
+      <select onChange=${(e) => setDestination(e.target.value)} value=${destination}>
+        ${ALL_LOCATIONS.map((loc) => html`<option key=${loc} value=${loc}>${loc}</option>`)}
+      </select>
+      <button type="button" onClick=${() => onUse(destination)}>Move (free)</button>
+    </span>
+  `;
+}
+
+// Snow's last-phase clause: an ad-hoc Egg Exchange outside the normal
+// phase-boundary cadence, available only while Snow is active in phase 3.
+function AdHocExchangeControls({ maxEggs, onUse }) {
+  const [amount, setAmount] = useState(1);
+  if (maxEggs < 1) return html`<span class="ref-text">Snow's ad-hoc Egg Exchange available (no eggs to exchange)</span>`;
+  return html`
+    <span class="card-controls">
+      <span class="ref-text">Snow's ad-hoc Egg Exchange:</span>
+      <input type="number" min="1" max=${maxEggs} value=${amount} onInput=${(e) => setAmount(Number(e.target.value))} />
+      <button type="button" onClick=${() => onUse(amount)}>Exchange for food</button>
+    </span>
+  `;
+}
+
 export function PlayerPanel({ player, isCurrent, state, dispatch, pendingPick, setPendingPick, myPlayerId, displayName, playerNames }) {
   const chicken = findChicken(player.chickenName);
   const stageData = chicken.stages.find((s) => s.stage === player.stage);
   const otherPlayers = state.players.filter((p) => p.id !== player.id && p.alive);
+  const nearbyOtherPlayers = otherPlayers.filter((p) => p.location === player.location);
   // Bonus/Grub cards and revival choices are playable "any time" in the
   // engine (not turn-gated), so in a remote session each device may only
   // act on its own panel — same canAct nicety as actionBar.js.
@@ -164,6 +273,18 @@ export function PlayerPanel({ player, isCurrent, state, dispatch, pendingPick, s
             </button>`,
         )}
       </div>`}
+      ${canAct &&
+      player.pendingFreeMove &&
+      html`<${FreeMoveGrantControls} onUse=${(destination) => dispatch({ type: 'useFreeMoveGrant', playerId: player.id, destination })} />`}
+      ${canAct &&
+      activeWeatherName(state) === 'Snow' &&
+      state.phase === 3 &&
+      html`<${AdHocExchangeControls} maxEggs=${player.eggs} onUse=${(amount) => dispatch({ type: 'adHocEggExchange', playerId: player.id, amount })} />`}
+      ${canAct &&
+      (state.boardEggs?.[player.location] ?? 0) > 0 &&
+      html`<button type="button" onClick=${() => dispatch({ type: 'collectBoardEgg', playerId: player.id, location: player.location })}>
+        Collect egg here (${state.boardEggs[player.location]} available)
+      </button>`}
       <div class="breed">${chicken.breed} · Stage ${player.stage}</div>
       <${Hearts} health=${player.health} maxHealth=${player.maxHealth} />
       <div class="stats-row">
@@ -201,6 +322,7 @@ export function PlayerPanel({ player, isCurrent, state, dispatch, pendingPick, s
               ${canAct
                 ? html`<${PlayCardControls}
                     effect=${effect}
+                    selfId=${player.id}
                     otherPlayers=${otherPlayers}
                     playerNames=${playerNames}
                     remainingCards=${remainingCards}
@@ -236,6 +358,7 @@ export function PlayerPanel({ player, isCurrent, state, dispatch, pendingPick, s
                 ? html`<span class="ref-text">(waiting for ${label}'s device)</span>`
                 : html`<${PlayCardControls}
                     effect=${effect}
+                    selfId=${player.id}
                     otherPlayers=${otherPlayers}
                     playerNames=${playerNames}
                     remainingCards=${[]}
@@ -323,6 +446,24 @@ export function PlayerPanel({ player, isCurrent, state, dispatch, pendingPick, s
                 otherPlayers=${otherPlayers}
                 playerNames=${playerNames}
                 onUse=${(destination, targetPlayerId) => dispatch({ type: 'useSecretTunnels', playerId: player.id, destination, targetPlayerId })}
+              />`}
+              ${canAct &&
+              loot?.dungeonKeys &&
+              (remaining > 0
+                ? html`<${DungeonKeysControls}
+                    myId=${player.id}
+                    nearbyOtherPlayers=${nearbyOtherPlayers}
+                    playerNames=${playerNames}
+                    onUse=${(targetPlayerId) => dispatch({ type: 'useDungeonKeys', playerId: player.id, targetPlayerId })}
+                  />`
+                : html`<span class="ref-text">(used)</span>`)}
+              ${canAct &&
+              loot?.grantsWeatherImmunityForTurn &&
+              html`<${PortableHouseControls}
+                myId=${player.id}
+                nearbyOtherPlayers=${nearbyOtherPlayers}
+                playerNames=${playerNames}
+                onUse=${(targetPlayerId) => dispatch({ type: 'usePortableHouse', playerId: player.id, targetPlayerId })}
               />`}
             </div>
           `;

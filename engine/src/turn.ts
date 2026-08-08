@@ -131,21 +131,22 @@ export function startTurn(state: GameState): GameState {
   };
   let actionsDelta = 0;
 
+  // turnStartOncePerPhase effects (Sunny, Nighttime) are NOT applied here
+  // automatically — per clarified rules, the player chooses which one of
+  // their turns in the phase to take the bonus/reduced action on, via the
+  // explicit useWeatherActionAdjustment action below. Only ordinary
+  // per-turn onTurnStart effects (Tornado's random -1, Earthquake's
+  // redraw) still fire automatically on every turn.
   const weather = activeWeatherEffect(next);
-  if (weather?.onTurnStart) {
+  if (weather?.onTurnStart && !weather.turnStartOncePerPhase) {
     const current = getPlayer(next.players, playerId);
     const immune =
       isImmuneToWeather(current.chickenName, current.stage, activeWeatherName(next) ?? '', weather.positive ?? false) ||
       current.pendingWeatherImmuneUntilNextTurn ||
       current.permanentWeatherImmuneUntilNextCard;
-    const canApply = !immune && (!weather.turnStartOncePerPhase || !current.weatherAdjustmentUsedThisPhase);
-    if (canApply) {
+    if (!immune) {
       const result = weather.onTurnStart({ state: next, playerId }, next.config.rng);
       actionsDelta += result.actionsDelta ?? 0;
-      const updatedPlayer = weather.turnStartOncePerPhase
-        ? { ...current, weatherAdjustmentUsedThisPhase: true }
-        : current;
-      next = { ...next, players: replacePlayer(next.players, updatedPlayer) };
       if (result.discardAndRedrawBonusCard) {
         next = discardAndRedrawOneBonusCard(next, playerId);
       }
@@ -169,6 +170,38 @@ export function useExtraActionToken(state: GameState, playerId: string): GameSta
     ...state,
     players: replacePlayer(state.players, updated),
     actionsRemainingThisTurn: state.actionsRemainingThisTurn + 1,
+  };
+}
+
+// Sunny/Nighttime: "once during this phase" — but the player picks which
+// of their turns in the phase it lands on, rather than it being forced on
+// their first turn. Same once-per-phase gate (weatherAdjustmentUsedThisPhase)
+// as before, just triggered explicitly instead of automatically in startTurn.
+export function useWeatherActionAdjustment(state: GameState, playerId: string): GameState {
+  if (state.turnOrder[state.currentPlayerIndex] !== playerId) {
+    throw new Error(`It is not ${playerId}'s turn`);
+  }
+  const player = getPlayer(state.players, playerId);
+  if (!player.alive) throw new Error(`${playerId} is not alive`);
+  const weather = activeWeatherEffect(state);
+  if (!weather?.turnStartOncePerPhase || !weather.onTurnStart) {
+    throw new Error('No discretionary weather action-adjustment is available right now');
+  }
+  if (player.weatherAdjustmentUsedThisPhase) {
+    throw new Error(`${playerId} has already used this phase's weather action adjustment`);
+  }
+  const immune =
+    isImmuneToWeather(player.chickenName, player.stage, activeWeatherName(state) ?? '', weather.positive ?? false) ||
+    player.pendingWeatherImmuneUntilNextTurn ||
+    player.permanentWeatherImmuneUntilNextCard;
+  if (immune) throw new Error(`${playerId} is immune to the active weather`);
+
+  const result = weather.onTurnStart({ state, playerId }, state.config.rng);
+  const updatedPlayer = { ...player, weatherAdjustmentUsedThisPhase: true };
+  return {
+    ...state,
+    players: replacePlayer(state.players, updatedPlayer),
+    actionsRemainingThisTurn: Math.max(0, state.actionsRemainingThisTurn + (result.actionsDelta ?? 0)),
   };
 }
 

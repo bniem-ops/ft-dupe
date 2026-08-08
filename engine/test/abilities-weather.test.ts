@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame } from '../src/setup.js';
-import { startTurn, endTurn, resolveProduction, advanceDay } from '../src/turn.js';
+import { startTurn, endTurn, resolveProduction, advanceDay, useWeatherActionAdjustment } from '../src/turn.js';
 import { forage, move, attack } from '../src/actions.js';
 import { resolveCombat } from '../src/combat.js';
 import { seasonCardList } from '../src/data.js';
@@ -27,11 +27,21 @@ test('Fair: bonus food on the first Forage of the turn only', () => {
   assert.equal(afterSecond.players.find((p) => p.id === 'p1')!.food, 3); // no repeat bonus
 });
 
-test('Nighttime: -1 action at turn start, once per phase', () => {
+test('Nighttime: -1 action, applied on whichever turn the player chooses (not automatic), once per phase', () => {
   const state = withWeather(createGame(baseConfig()), 'Spring', 'Nighttime');
   const started = startTurn(state);
-  assert.equal(started.actionsRemainingThisTurn, 1);
-  assert.equal(started.players.find((p) => p.id === 'p1')!.weatherAdjustmentUsedThisPhase, true);
+  assert.equal(started.actionsRemainingThisTurn, 2); // not auto-applied at turn start
+  const applied = useWeatherActionAdjustment(started, 'p1');
+  assert.equal(applied.actionsRemainingThisTurn, 1);
+  assert.equal(applied.players.find((p) => p.id === 'p1')!.weatherAdjustmentUsedThisPhase, true);
+  assert.throws(() => useWeatherActionAdjustment(applied, 'p1')); // already used this phase
+});
+
+test('Nighttime: a chicken immune to it (Stargazer) cannot use the weather action adjustment', () => {
+  const config = baseConfig({ players: [{ id: 'p1', chickenName: 'Beowing' }, { id: 'p2', chickenName: 'Wingston Coophill' }] });
+  const state = withWeather(createGame(config), 'Spring', 'Nighttime');
+  const started = startTurn(state);
+  assert.throws(() => useWeatherActionAdjustment(started, 'p1'));
 });
 
 test('Drought: Forage costs 2 actions', () => {
@@ -56,13 +66,13 @@ test('Pollen: Naturalist grants immunity, so Fighting Grubs is still allowed', (
   assert.equal(result.players.find((p) => p.id === 'p1')!.food, 4);
 });
 
-test('Sunny: +1 action at turn start, once per phase', () => {
+test('Sunny: +1 action, applied on whichever turn the player chooses (not automatic), once per phase', () => {
   const state = withWeather(createGame(baseConfig()), 'Summer', 'Sunny');
   const started = startTurn(state);
-  assert.equal(started.actionsRemainingThisTurn, 3);
-  // Simulate the token being available again next turn within the same phase — should not re-apply.
-  const again = startTurn({ ...started, players: started.players.map((p) => ({ ...p, skipNextTurn: false })) });
-  assert.equal(again.actionsRemainingThisTurn, 2);
+  assert.equal(started.actionsRemainingThisTurn, 2); // not auto-applied at turn start
+  const applied = useWeatherActionAdjustment(started, 'p1');
+  assert.equal(applied.actionsRemainingThisTurn, 3);
+  assert.throws(() => useWeatherActionAdjustment(applied, 'p1')); // already used this phase
 });
 
 test('Lightning Storm: ending your turn Outside can cost 1 health on a 1-2 roll', () => {

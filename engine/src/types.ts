@@ -406,7 +406,10 @@ export type Action =
   | { type: 'usePortableHouse'; playerId: string; targetPlayerId: string } // Layonardo's Loot
   | { type: 'adHocEggExchange'; playerId: string; amount: number } // Snow's last-phase clause
   | { type: 'useWildernessGuide'; playerId: string; targetPlayerId: string; destination: Location } // Aracorn S3
-  | { type: 'collectBoardEgg'; playerId: string; location: Location }; // Bacaw!/Dedication
+  | { type: 'collectBoardEgg'; playerId: string; location: Location } // Bacaw!/Dedication
+  // Sunny/Nighttime: "once during this phase," on whichever of the
+  // player's turns they choose — see turn.ts's useWeatherActionAdjustment.
+  | { type: 'useWeatherActionAdjustment'; playerId: string };
 
 export function rollDie(rng: RNG): number {
   return Math.floor(rng() * 6) + 1;

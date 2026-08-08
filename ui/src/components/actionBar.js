@@ -1,5 +1,8 @@
 import { html } from 'htm/preact';
 import { useState } from 'preact/hooks';
+import { activeWeatherEffect, activeWeatherName, isImmuneToWeather, getOwnAndBorrowedAbilities, OUTSIDE_LOCATIONS, loadGrubCards } from '../engine.js';
+
+const ALL_LOCATIONS = ['Coop', ...OUTSIDE_LOCATIONS];
 
 // Mirrors actions.ts's healCap/eatCap — just for greying out obviously
 // invalid amounts; the engine remains the source of truth and any miss
@@ -17,6 +20,16 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
   const [attackStrength, setAttackStrength] = useState(1);
   const [broodTarget, setBroodTarget] = useState('');
   const [tagAlongTarget, setTagAlongTarget] = useState('');
+  const [strategemTarget, setStrategemTarget] = useState('');
+  const [strategemEggs, setStrategemEggs] = useState(1);
+  const [strategemDirection, setStrategemDirection] = useState('1');
+  const [deusTarget, setDeusTarget] = useState('');
+  const [guideTarget, setGuideTarget] = useState('');
+  const [guideDestination, setGuideDestination] = useState('');
+  const [companionId, setCompanionId] = useState('');
+  const [companionStrength, setCompanionStrength] = useState(1);
+  const [discardIndex, setDiscardIndex] = useState('');
+  const [discardStrength, setDiscardStrength] = useState(1);
 
   // In a remote session, only the device that claimed this seat may act
   // for them — a UX nicety, not a security boundary (the engine's own
@@ -26,7 +39,20 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
   const label = displayName ?? player.id;
   const noActions = state.actionsRemainingThisTurn <= 0 || !canAct;
   const deadPlayers = state.players.filter((p) => !p.alive);
-  const pickingAttackStrength = pendingPick?.type === 'attack' && pendingPick.step === 'strength';
+  // Sunny/Nighttime: "once during this phase," on whichever of the
+  // player's turns they choose — engine remains the source of truth
+  // (useWeatherActionAdjustment throws if any of this is stale/wrong).
+  const weather = activeWeatherEffect(state);
+  const weatherName = activeWeatherName(state);
+  const weatherAdjustmentAvailable =
+    weather?.turnStartOncePerPhase &&
+    !player.weatherAdjustmentUsedThisPhase &&
+    !isImmuneToWeather(player.chickenName, player.stage, weatherName ?? '', weather.positive ?? false) &&
+    !player.pendingWeatherImmuneUntilNextTurn &&
+    !player.permanentWeatherImmuneUntilNextCard;
+
+  const pickingAttackStrength =
+    (pendingPick?.type === 'attack' || pendingPick?.type === 'attackWithCompanion') && pendingPick.step === 'strength';
   // A target already at 0 health (some Grubs — Slug, Wild Grain, Four Leaf
   // Clover — start there) needs no attack strength to claim; the food-cost
   // floor of 1 only makes sense against a target that has health left.
@@ -36,6 +62,15 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
       : (state.grubDecks[pendingPick.targetId]?.faceUp?.currentHealth ?? 1)
     : 1;
   const minAttackStrength = targetHealth <= 0 ? 0 : 1;
+  const pickingCompanion = pendingPick?.type === 'attackWithCompanion' && pendingPick.step === 'companion';
+
+  const abilities = getOwnAndBorrowedAbilities(player);
+  const nearbyAlivePlayers = state.players.filter((p) => p.id !== player.id && p.alive && p.location === player.location);
+  const otherAlivePlayers = state.players.filter((p) => p.id !== player.id && p.alive);
+  // Tomb Raider only reaches the discard pile on your own side (same
+  // inside/outside rule as a normal Attack — see actions.ts's own check).
+  const discardSide = player.location === 'Coop' ? 'inside' : 'outside';
+  const discardPile = state.grubDecks[discardSide].discard;
 
   function cancelPick() {
     setPendingPick(null);
@@ -48,6 +83,14 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
         ${!canAct && html`<span class="ref-text">(waiting for ${label}'s device)</span>`}
         ${player.extraActionTokenAvailable &&
         html`<button type="button" disabled=${!canAct} onClick=${onUseExtraAction}>Use Extra Action Token</button>`}
+        ${weatherAdjustmentAvailable &&
+        html`<button
+          type="button"
+          disabled=${!canAct}
+          onClick=${() => dispatch({ type: 'useWeatherActionAdjustment', playerId: player.id })}
+        >
+          ${weather.positive ? `Take Bonus Action (${weatherName})` : `Take Reduced Action (${weatherName})`}
+        </button>`}
         ${player.chickenName === 'Princess Layer' &&
         !player.extraActionTokenAvailable &&
         player.eggs >= 1 &&
@@ -64,7 +107,25 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
 
       ${pendingPick?.type === 'move' &&
       html`<div class="pending-hint">Click a location on the board to Move. <button type="button" onClick=${cancelPick}>Cancel</button></div>`}
-      ${pendingPick?.type === 'attack' &&
+      ${pickingCompanion &&
+      html`
+        <div class="pending-hint">
+          Bring along (must be nearby):
+          <select onChange=${(e) => setCompanionId(e.target.value)} value=${companionId}>
+            <option value="">Companion…</option>
+            ${nearbyAlivePlayers.map((p) => html`<option key=${p.id} value=${p.id}>${playerNames?.[p.id] ?? p.id}</option>`)}
+          </select>
+          <button
+            type="button"
+            disabled=${!canAct || !companionId}
+            onClick=${() => setPendingPick({ ...pendingPick, step: 'target', companionId })}
+          >
+            Next: pick target
+          </button>
+          <button type="button" onClick=${cancelPick}>Cancel</button>
+        </div>
+      `}
+      ${(pendingPick?.type === 'attack' || pendingPick?.type === 'attackWithCompanion') &&
       pendingPick.step === 'target' &&
       html`<div class="pending-hint">Click a Predator or Grub on the board to target. <button type="button" onClick=${cancelPick}>Cancel</button></div>`}
       ${pendingPick?.type === 'cardTarget' &&
@@ -72,7 +133,7 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
       ${pickingAttackStrength &&
       html`
         <div class="pending-hint">
-          Attack strength (costs that much food):
+          ${pendingPick.type === 'attackWithCompanion' ? "Your attack strength (costs that much food):" : 'Attack strength (costs that much food):'}
           <input
             type="number"
             min=${minAttackStrength}
@@ -80,17 +141,40 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
             value=${attackStrength}
             onInput=${(e) => setAttackStrength(Number(e.target.value))}
           />
+          ${pendingPick.type === 'attackWithCompanion' &&
+          html`
+            ${playerNames?.[pendingPick.companionId] ?? pendingPick.companionId}'s attack strength:
+            <input
+              type="number"
+              min="1"
+              max=${state.players.find((p) => p.id === pendingPick.companionId)?.food ?? 1}
+              value=${companionStrength}
+              onInput=${(e) => setCompanionStrength(Number(e.target.value))}
+            />
+          `}
           <button
             type="button"
             disabled=${!canAct}
             onClick=${() => {
-              dispatch({
-                type: 'attack',
-                playerId: pendingPick.playerId,
-                targetType: pendingPick.targetType,
-                targetId: pendingPick.targetId,
-                attackStrength,
-              });
+              if (pendingPick.type === 'attackWithCompanion') {
+                dispatch({
+                  type: 'attackWithCompanion',
+                  playerId: pendingPick.playerId,
+                  companionId: pendingPick.companionId,
+                  targetType: pendingPick.targetType,
+                  targetId: pendingPick.targetId,
+                  primaryStrength: attackStrength,
+                  companionStrength,
+                });
+              } else {
+                dispatch({
+                  type: 'attack',
+                  playerId: pendingPick.playerId,
+                  targetType: pendingPick.targetType,
+                  targetId: pendingPick.targetId,
+                  attackStrength,
+                });
+              }
               setPendingPick(null);
             }}
           >
@@ -138,6 +222,15 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
           Attack
         </button>
 
+        ${abilities.some((a) => a.joinsAttackAsSecond) &&
+        html`<button
+          type="button"
+          disabled=${noActions || nearbyAlivePlayers.length === 0}
+          onClick=${() => setPendingPick({ type: 'attackWithCompanion', step: 'companion', playerId: player.id })}
+        >
+          Attack with Companion (Quite Friendly)
+        </button>`}
+
         <div class="action-with-amount">
           <input
             type="number"
@@ -153,6 +246,112 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
 
         <button type="button" disabled=${noActions} onClick=${() => dispatch({ type: 'forage', playerId: player.id })}>Forage</button>
       </div>
+
+      ${abilities.some((a) => a.canAdjustAnyRollForEggs) &&
+      html`<div class="action-with-amount">
+        <select onChange=${(e) => setStrategemTarget(e.target.value)} value=${strategemTarget}>
+          <option value=${player.id}>Myself</option>
+          ${otherAlivePlayers.map((p) => html`<option key=${p.id} value=${p.id}>${playerNames?.[p.id] ?? p.id}</option>`)}
+        </select>
+        <input type="number" min="1" max=${Math.max(1, player.eggs)} value=${strategemEggs} onInput=${(e) => setStrategemEggs(Number(e.target.value))} />
+        <select onChange=${(e) => setStrategemDirection(e.target.value)} value=${strategemDirection}>
+          <option value="1">+1 per egg</option>
+          <option value="-1">-1 per egg</option>
+        </select>
+        <button
+          type="button"
+          disabled=${!canAct || player.eggs < 1}
+          onClick=${() =>
+            dispatch({
+              type: 'useStrategem',
+              playerId: player.id,
+              targetPlayerId: strategemTarget || player.id,
+              eggsToSpend: strategemEggs,
+              direction: Number(strategemDirection),
+            })}
+        >
+          Use Strategem
+        </button>
+      </div>`}
+
+      ${abilities.some((a) => a.canRerollAnyRollForEgg) &&
+      html`<div class="action-with-amount">
+        <select onChange=${(e) => setDeusTarget(e.target.value)} value=${deusTarget}>
+          <option value=${player.id}>Myself</option>
+          ${otherAlivePlayers.map((p) => html`<option key=${p.id} value=${p.id}>${playerNames?.[p.id] ?? p.id}</option>`)}
+        </select>
+        <button
+          type="button"
+          disabled=${!canAct || player.eggs < 1}
+          onClick=${() => dispatch({ type: 'useDeusEggsMachina', playerId: player.id, targetPlayerId: deusTarget || player.id })}
+        >
+          Use Deus Eggs Machina (1 egg, reroll)
+        </button>
+      </div>`}
+
+      ${abilities.some((a) => a.freeWeatherRedrawRoll) &&
+      !player.freeAbilityUsedThisTurn &&
+      html`<button type="button" disabled=${!canAct} onClick=${() => dispatch({ type: 'useWhereverAnyWeather', playerId: player.id })}>
+        Roll for New Weather (free, once/turn)
+      </button>`}
+
+      ${abilities.some((a) => a.freeMoveAnotherPlayerForEgg) &&
+      !player.freeAbilityUsedThisTurn &&
+      html`<div class="action-with-amount">
+        <select onChange=${(e) => setGuideTarget(e.target.value)} value=${guideTarget}>
+          <option value="">Move who…</option>
+          ${otherAlivePlayers.map((p) => html`<option key=${p.id} value=${p.id}>${playerNames?.[p.id] ?? p.id}</option>`)}
+        </select>
+        <select onChange=${(e) => setGuideDestination(e.target.value)} value=${guideDestination}>
+          <option value="">Destination…</option>
+          ${ALL_LOCATIONS.map((loc) => html`<option key=${loc} value=${loc}>${loc}</option>`)}
+        </select>
+        <button
+          type="button"
+          disabled=${!canAct || player.eggs < 1 || !guideTarget || !guideDestination}
+          onClick=${() => {
+            dispatch({ type: 'useWildernessGuide', playerId: player.id, targetPlayerId: guideTarget, destination: guideDestination });
+            setGuideTarget('');
+            setGuideDestination('');
+          }}
+        >
+          Use Wilderness Guide (1 egg)
+        </button>
+      </div>`}
+
+      ${abilities.some((a) => a.canAttackDiscardedGrubs) &&
+      discardPile.length > 0 &&
+      html`<div class="action-with-amount">
+        <select onChange=${(e) => setDiscardIndex(e.target.value)} value=${discardIndex}>
+          <option value="">Raid ${discardSide} discard…</option>
+          ${discardPile.map(
+            (cardId, i) => html`<option key=${i} value=${i}>${loadGrubCards()[cardId]?.name ?? 'Unnamed Grub'}</option>`,
+          )}
+        </select>
+        <input
+          type="number"
+          min="1"
+          max=${Math.max(1, player.food)}
+          value=${discardStrength}
+          onInput=${(e) => setDiscardStrength(Number(e.target.value))}
+        />
+        <button
+          type="button"
+          disabled=${noActions || discardIndex === ''}
+          onClick=${() => {
+            dispatch({
+              type: 'attackDiscardedGrub',
+              playerId: player.id,
+              side: discardSide,
+              discardIndex: Number(discardIndex),
+              attackStrength: discardStrength,
+            });
+            setDiscardIndex('');
+          }}
+        >
+          Raid Discard Pile (Tomb Raider)
+        </button>
+      </div>`}
 
       ${(player.permanentTagAlongUnlocked || (player.chickenName === 'Wingston Coophill' && player.stage >= 2)) &&
       html`<div class="action-with-amount">

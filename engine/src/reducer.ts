@@ -6,6 +6,7 @@ import { GameState, Action } from './types.js';
 import * as actions from './actions.js';
 import { evaluateGameStatus } from './gameStatus.js';
 import { getActiveChickenAbilities } from './abilities/chickens.js';
+import { useWeatherActionAdjustment } from './turn.js';
 
 export function applyAction(state: GameState, action: Action): GameState {
   if (state.gameOver) throw new Error('The game has already ended');
@@ -138,6 +139,9 @@ export function applyAction(state: GameState, action: Action): GameState {
       break;
     case 'collectBoardEgg':
       next = actions.collectBoardEgg(state, action.playerId, action.location);
+      break;
+    case 'useWeatherActionAdjustment':
+      next = useWeatherActionAdjustment(state, action.playerId);
       break;
     default: {
       const exhaustive: never = action;

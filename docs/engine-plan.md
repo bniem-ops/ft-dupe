@@ -36,16 +36,17 @@ the same action, and predators were picked manually) with a flow that
 matches the physical game: named joins, predators randomly selected for
 the whole table *before* anyone sees a chicken, then each player dealt
 2 chicken candidates to choose between (see phase 10 below). 164 tests
-passing. Phase 11 (the 75 "needs hook" items) is **done for engine
-correctness — 11a through 11j all landed**, closing every H item except
-Mudslide (11k, explicitly flagged and deferred — see below). 225 engine
-tests passing. **UI wiring is partial**: 11a (Loot Drop stash/Gas Mask/
-Arrow Pack controls) and 11c (Nobility/Landlord/Chamberstick/Cave Hoard/
-Healing Poultice/Secret Tunnels buttons) got real buttons; 11d's tagAlong
-and 11b/11d/11e/11f/11g/11h/11i/11j's ~25 new actions are engine-correct
-and reachable via `dispatch`/the reducer, but have **no board/panel button
-yet** — see phase 11's closing note for the punch list. Revisit and refine
-this doc as new work comes up — it's a living plan, not a spec to freeze.
+passing. Phase 11 (the 75 "needs hook" items) is **done, engine and UI**:
+11a through 11j all landed (closing every H item except Mudslide, 11k,
+explicitly flagged and deferred — see below), and the remaining UI-wiring
+backlog from 11b/11d/11e/11f/11g/11h/11i/11j (~25 actions that were
+engine-correct and dispatchable but had no board/panel control) has since
+been closed — see phase 11's closing note for the full list of what got
+wired and where. Also landed since: a rules clarification on Sunny/
+Nighttime ("once during this phase," but the player picks which of their
+turns it lands on, not automatically the first) — see phase 11's closing
+note. 226 engine tests passing. Revisit and refine this doc as new work
+comes up — it's a living plan, not a spec to freeze.
 
 ## What "engine" means here
 
@@ -551,20 +552,59 @@ own rather than only valuable once everything else is done.
       deliberately out of scope, see the code comment for why), Four Leaf
       Clover, Snow's last-phase ad-hoc Egg Exchange, "Move everyone for
       free."
-    - **UI gap, disclosed**: 11a and 11c got real buttons. 11b/11d(partial)/
-      11e/11f/11g/11h/11i/11j's ~25 new actions are fully implemented and
-      individually tested at the engine layer, dispatchable through the
-      existing reducer, but **have no board/panel control yet** — a player
-      can't trigger Strategem, Deus Eggs Machina, Dungeon Keys, Portable
-      House, Wilderness Guide, `useFreeMoveGrant`, `attackWithCompanion`,
-      `attackDiscardedGrub`, borrowing an ability, or Lucky Cricket from the
-      browser today, even though dispatching those actions directly (or a
-      future UI pass) works correctly. Automatic/passive effects (Owl
-      Coopone's weather bonus, Eggsmeralda's egg loss, Coopella's roll,
-      Battle Cry's aura, Gravekeeper Fowl's revival, Bacaw!/Dedication's
-      board eggs, etc.) don't need a button and already work end-to-end
-      through normal Attack/Move/turn flow. Worth a dedicated UI pass
-      before calling phase 11 fully done end-to-end.
+    - **UI gap — closed.** The ~25 actions from 11b/11d(partial)/11e/11f/
+      11g/11h/11i/11j that were engine-correct but had no board/panel
+      control now do:
+      - `actionBar.js` (turn-scoped, consumes an action or the once-per-
+        turn free-ability slot): Strategem (General Tso, target + eggs +
+        direction picker), Deus Eggs Machina (J.R.R. Yolkien, target
+        picker), Wherever Any Weather (Chickira, plain button), Wilderness
+        Guide (Aracorn, target + destination picker), Attack with
+        Companion (Cluckleberry Finn's Quite Friendly — new `pendingPick`
+        flow: pick a nearby companion, then a target on the board via the
+        same reachability-checked click as a normal Attack, then both
+        players' strengths), and Tomb Raider (Eggatha Christie — a
+        discard-pile picker scoped to the player's own inside/outside
+        side, since raiding the wrong side isn't legal).
+      - `playerPanel.js` (any-time actions, per the engine's own
+        `requireAlive`-only gating): Portable House and Dungeon Keys join
+        the existing Loot Drop controls list (both nearby-teammate-or-self
+        pickers, matching their actual nearby rule — unlike the Stash
+        Loot Drops, which the engine really does let you gift to anyone
+        regardless of location); `useFreeMoveGrant` ("Move everyone for
+        free") and Snow's ad-hoc Egg Exchange appear as their own prompts
+        near the top of a player's panel when pending/available; a
+        board-egg "Collect egg here" button appears whenever `boardEggs`
+        has one at the player's current location (Bacaw!/Dedication).
+      - `PlayCardControls`/`cardInputShape` (shared by both the Bonus Card
+        and Grub Card lists) gained 4 more effect shapes: borrowing a
+        teammate's ability (teammate picker + a stage picker capped at
+        their actual stage), Lucky Cricket (teammate picker + a picker
+        over *their* held Bonus Cards, not your own), and "reroll a
+        teammate's/any die" + Spotted Lanternfly (both allow targeting
+        yourself, unlike every other teammate-picker card — a `PlayCard
+        Controls` first). The latter two were an incidental find: they'd
+        been silently broken (no target picker at all, so playing them
+        always hit the engine's "this card requires a target" error)
+        since 11f landed, despite reaching engine-tested/dispatchable
+        status — caught while extending the same generic mechanism for
+        the two items above.
+      Automatic/passive effects (Owl Coopone's weather bonus, Eggsmeralda's
+      egg loss, Coopella's roll, Battle Cry's aura, Gravekeeper Fowl's
+      revival, etc.) never needed a button and already worked end-to-end.
+      Standing caveat unchanged: syntax-checked and dev-server-served, not
+      click-through tested (no browser automation tool in this
+      environment) — worth a manual pass.
+    - **Rules clarification, applied**: Sunny/Nighttime's "once during
+      this phase" adjustment was previously auto-applied on the player's
+      *first* turn of the phase (`turn.ts`'s `startTurn`). Confirmed with
+      the table: it's the player's choice which of their turns in the
+      phase it lands on. Reworked as an explicit action
+      (`useWeatherActionAdjustment`, `turn.ts`) triggered from a button in
+      `actionBar.js` that appears once per phase while Sunny/Nighttime is
+      active and unused; `startTurn` no longer touches it at all (ordinary
+      per-turn weather effects — Tornado's random roll, Earthquake's
+      redraw — are unaffected, still automatic).
 
     **11k. Mudslide (Eggspansion weather) — deliberately deferred.** "Deal
     each player a personal Weather Card in effect until replaced" breaks

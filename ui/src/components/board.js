@@ -1,5 +1,5 @@
 import { html } from 'htm/preact';
-import { findPredator, loadGrubCards, seasonCardList, OUTSIDE_LOCATIONS } from '../engine.js';
+import { findPredator, loadGrubCards, seasonCardList, OUTSIDE_LOCATIONS, getOwnAndBorrowedAbilities } from '../engine.js';
 
 const PLAYER_COLORS = ['#c0392b', '#2980b9', '#27ae60', '#8e44ad', '#e67e22', '#16a085'];
 
@@ -50,8 +50,16 @@ function PredatorCard({ predator, clickable, onSelect }) {
 function LocationCard({ name, state, dispatch, pendingPick, setPendingPick, playerNames }) {
   const predator = state.predators.find((p) => p.location === name);
   const pickingMove = pendingPick?.type === 'move';
-  const pickingAttackTarget = pendingPick?.type === 'attack' && pendingPick.step === 'target';
+  const pickingAttackTarget =
+    (pendingPick?.type === 'attack' || pendingPick?.type === 'attackWithCompanion') && pendingPick.step === 'target';
   const pickingCardTarget = pendingPick?.type === 'cardTarget' && pendingPick.step === 'target';
+  const actingPlayer = pickingAttackTarget ? state.players.find((p) => p.id === pendingPick.playerId) : null;
+  // The base Attack action (unlike ranged loot such as Arrow Pack, which
+  // uses the separate cardTarget flow) requires being at the Predator's
+  // location — mirrors actions.ts's own check, so the board never
+  // highlights a target the engine would then reject.
+  const attackTargetReachable =
+    !pickingAttackTarget || (predator != null && predator.location === actingPlayer?.location && !predator.cannotBeAttackedToday);
 
   function selectPredator() {
     if (pickingCardTarget) {
@@ -85,7 +93,7 @@ function LocationCard({ name, state, dispatch, pendingPick, setPendingPick, play
       ${predator &&
       html`<${PredatorCard}
         predator=${predator}
-        clickable=${(pickingAttackTarget || pickingCardTarget) && predator.revealed && !predator.defeated}
+        clickable=${((pickingAttackTarget && attackTargetReachable) || pickingCardTarget) && predator.revealed && !predator.defeated}
         onSelect=${selectPredator}
       />`}
       <${PlayerTokens} state=${state} location=${name} playerNames=${playerNames} />
@@ -93,10 +101,20 @@ function LocationCard({ name, state, dispatch, pendingPick, setPendingPick, play
   `;
 }
 
-function GrubCard({ side, deckSide, dispatch, pendingPick, setPendingPick }) {
-  const pickingAttackTarget = pendingPick?.type === 'attack' && pendingPick.step === 'target';
+function GrubCard({ side, deckSide, state, dispatch, pendingPick, setPendingPick }) {
+  const pickingAttackTarget =
+    (pendingPick?.type === 'attack' || pendingPick?.type === 'attackWithCompanion') && pendingPick.step === 'target';
   const pickingCardTarget = pendingPick?.type === 'cardTarget' && pendingPick.step === 'target';
   const card = deckSide.faceUp ? loadGrubCards()[deckSide.faceUp.cardId] : null;
+
+  // The base Attack action requires being on the matching side (Coop ->
+  // inside, everywhere else -> outside) — mirrors actions.ts's own check —
+  // unless the player holds Informant Network (Shellock Holmes S2), which
+  // lifts that requirement entirely.
+  const actingPlayer = pickingAttackTarget ? state.players.find((p) => p.id === pendingPick.playerId) : null;
+  const playerSide = actingPlayer ? (actingPlayer.location === 'Coop' ? 'inside' : 'outside') : null;
+  const mayAttackAnyLocation = actingPlayer ? getOwnAndBorrowedAbilities(actingPlayer).some((a) => a.mayAttackGrubsFromAnyLocation) : false;
+  const attackTargetReachable = !pickingAttackTarget || mayAttackAnyLocation || side === playerSide;
 
   function select() {
     if (pickingCardTarget) {
@@ -119,7 +137,10 @@ function GrubCard({ side, deckSide, dispatch, pendingPick, setPendingPick }) {
       <h4>${side === 'inside' ? 'Inside Grub' : 'Outside Grub'}</h4>
       ${card
         ? html`
-            <div class=${`grub-face ${pickingAttackTarget || pickingCardTarget ? 'clickable' : ''}`} onClick=${pickingAttackTarget || pickingCardTarget ? select : undefined}>
+            <div
+              class=${`grub-face ${(pickingAttackTarget && attackTargetReachable) || pickingCardTarget ? 'clickable' : ''}`}
+              onClick=${(pickingAttackTarget && attackTargetReachable) || pickingCardTarget ? select : undefined}
+            >
               <div class="grub-name">${card.name ?? 'Unnamed Grub'}</div>
               <div class="health-text">${deckSide.faceUp.currentHealth} / ${card.health}</div>
               ${card.effect && html`<div class="ref-text">Defend: ${card.effect}</div>`}
@@ -183,8 +204,8 @@ export function Board({ state, dispatch, pendingPick, setPendingPick, playerName
       </div>
 
       <div class="grubs">
-        <${GrubCard} side="inside" deckSide=${state.grubDecks.inside} dispatch=${dispatch} pendingPick=${pendingPick} setPendingPick=${setPendingPick} />
-        <${GrubCard} side="outside" deckSide=${state.grubDecks.outside} dispatch=${dispatch} pendingPick=${pendingPick} setPendingPick=${setPendingPick} />
+        <${GrubCard} side="inside" deckSide=${state.grubDecks.inside} state=${state} dispatch=${dispatch} pendingPick=${pendingPick} setPendingPick=${setPendingPick} />
+        <${GrubCard} side="outside" deckSide=${state.grubDecks.outside} state=${state} dispatch=${dispatch} pendingPick=${pendingPick} setPendingPick=${setPendingPick} />
       </div>
     </div>
   `;

@@ -12,4 +12,6 @@ export * from './random.js';
 export * from './abilities/bonusCards.js';
 export * from './abilities/grubCards.js';
 export * from './abilities/predators.js';
+export * from './abilities/chickens.js';
+export * from './abilities/weather.js';
 export * from './gameStatus.js';
