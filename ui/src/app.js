@@ -86,14 +86,30 @@ function App() {
         setScreen(synced.gameOver ? 'gameOver' : 'game');
         return;
       }
-      if (!myPlayerId) {
+      // myPlayerId (React state) can lag one tick behind a join that just
+      // succeeded — the doc's snapshot can arrive before this device's own
+      // setMyPlayerId call runs. Falling back to the synchronous localStorage
+      // read (already written by handleSubmitName before setMyPlayerId)
+      // avoids a spurious flash back to nameEntry — and the "already full"
+      // error that flash could otherwise trigger via a re-submit.
+      const savedSeat = myPlayerId ?? remoteSession.getMySeat(sessionCode);
+      if (!savedSeat) {
         setScreen('nameEntry');
         return;
       }
+      if (!myPlayerId) setMyPlayerId(savedSeat);
       setScreen(doc.predators ? 'chickenDraft' : 'lobby');
     });
     return unsubscribe;
   }, [sessionCode, myPlayerId]);
+
+  // A screen change always means something already handled whatever error
+  // (if any) led to it — an error banner should never survive into a
+  // different screen (e.g. an old "session is full" message bleeding onto
+  // the live game board).
+  useEffect(() => {
+    setError(null);
+  }, [screen]);
 
   // Once every seat has chosen a chicken, the host (only) builds the real
   // GameState and publishes it — every device (including this one) then
@@ -210,6 +226,15 @@ function App() {
 
   async function handleSubmitName(name) {
     try {
+      // Already seated (e.g. a stray re-submit) — reuse it instead of
+      // attempting a fresh claim, which would fail with "session is full"
+      // once every seat (including this device's own) is taken.
+      const existingSeat = remoteSession.getMySeat(sessionCode);
+      if (existingSeat) {
+        setMyPlayerId(existingSeat);
+        setError(null);
+        return;
+      }
       const seatId = await remoteSession.joinAndClaimSeat(sessionCode, name);
       remoteSession.setMySeat(sessionCode, seatId);
       setMyPlayerId(seatId);

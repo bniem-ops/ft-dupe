@@ -32,14 +32,43 @@ export interface PredatorEffect {
   returnAttackIfAttackerHasNoBonusCard?: number; // Hendel's Mother S1
   immuneToBonusCardEffects?: boolean; // Chicksune S1 — inert until phase 7 plays Bonus Cards
   custom?: (ctx: CombatContext, rng: RNG) => CombatStageResult;
+  // Phase 11h: structural death/revival exceptions.
+  preventsAttackOnMoveIn?: boolean; // Gravekeeper Fowl S1/S2 — checked by actions.ts's move()/attack()
+  onDefeatRevive?: { threshold: number; health: number }; // Gravekeeper Fowl — checked by combat.ts's grantPredatorDefeatConsequences
 }
 
 export interface PredatorLoot {
   permanentAttackBonus?: number; // Brass Knuckles
   permanentMaxHealthBonus?: number; // Signature Cloak
   returnAttackReduction?: number; // Bandit Mask — passive, dynamic (not a one-time patch)
-  // Gas Mask (single-use, player-activated) is deferred to phase 7's
-  // held-effect-playing mechanism — its grant already works (phase 4).
+  // Phase 11a: a counter granted onto the killer's PlayerState.lootCharges
+  // at defeat time, keyed by predator name. Same "N charges on a held
+  // card" shape for 3 different consuming actions:
+  stash?: { resource: 'egg' | 'food'; startingAmount: number }; // Egg Stash / Food Stash — collectFromStash
+  chargedRangedAttack?: { charges: number; damagePerCharge: number }; // Arrow Pack — useArrowPack
+  activatableAttackReduction?: { amount: number }; // Gas Mask (1 charge) — useGasMask
+  // Phase 11b: global roll-outcome overrides, applied regardless of hook
+  // customization (checked centrally in combat.ts, not per-hook).
+  neverMissesAttacks?: boolean; // Monocle — the holder's own attacks are never dodged/whiffed by the target
+  rerollPredatorEffectKeepBest?: boolean; // Fox's Staff — roll the Predator-effect roll twice, keep the lower (milder) result
+
+  // Phase 11c: action-economy exceptions, all "free action, multi-use" per
+  // their card text — no charge counter needed, just gated on holding the
+  // Loot Drop (checked directly against PlayerState.lootDrops).
+  everyoneAtLocationRefreshExtraAction?: boolean; // Chamberstick
+  freeDrawBonusCardForSelfOrTeammate?: boolean; // Cave Hoard
+  healEveryoneAtLocation?: number; // Healing Poultice — amount per player
+  freeMoveForSelfOrNearby?: boolean; // Secret Tunnels
+  // Phase 11g: search-the-discard-pile Loot Drop (1 charge, single-use).
+  dungeonKeys?: boolean; // Sheriff of Rottingham's Loot — see useDungeonKeys
+  // Phase 11h: "If you die, come back to life with 1 health (single-use)"
+  // — bypasses the normal Brood-required revival flow, checked centrally
+  // in combat.ts's applyDamageAndMaybeDeath (every death in the game
+  // routes through it).
+  selfRevive?: boolean; // Gravekeeper's Light (Gravekeeper Fowl's Loot)
+  // Phase 11j: grants pendingWeatherImmuneUntilNextTurn (already-existing
+  // field) to self or a nearby player.
+  grantsWeatherImmunityForTurn?: boolean; // Portable House (Layonardo's Loot)
 }
 
 export interface ChickenAbility {
@@ -48,6 +77,7 @@ export interface ChickenAbility {
   startingEggs?: number;
   startingBonusCards?: number;
   mayChooseStartingLocation?: boolean; // Traveler
+  mayPerformInsideActionsOutside?: boolean; // Fur Coat — Lay Egg/Heal/Brood usable outside the Coop
 
   // Immunity — same shape/consumer as weather's Dandy check
   weatherImmunity?: string[] | 'all-negative';
@@ -93,6 +123,43 @@ export interface ChickenAbility {
   freeDamageForEggs?: { damage: number; eggsGained: number }; // Always on Purpose
   freeEggForCard?: boolean; // Quick Claws
   freeOutsideMove?: boolean; // Long Shanks
+
+  // Phase 11c: action-economy exceptions that aren't "once per turn" like
+  // the free actions above — Landlord is unlimited (gated only by it
+  // being your turn), Nobility is gated only by egg supply.
+  freeMoveIntoCoop?: boolean; // Landlord — unlimited free Move into the Coop
+  refreshExtraActionTokenCost?: number; // Nobility — pay this many eggs to refresh it early
+
+  // Phase 11d: cross-actor auras & reactive listeners — checked against
+  // every OTHER player nearby (or the target's location), not the acting
+  // player's own abilities, via the aura helpers in abilities/chickens.ts.
+  auraTeammateRollBonus?: number; // Battle Cry: +1 to a nearby teammate's own action roll
+  auraPredatorRollPenalty?: number; // Battle Cry: -1 to a Predator/Grub roll made nearby
+  auraMaxAttackBonusIfDamaged?: number; // Bolsterer: +1 max attack strength to a nearby damaged player
+  grantsNearbyImmunity?: string[]; // Free Range: everyone at your location is immune to these named weather cards
+  missDrawsBonusCard?: boolean; // "Not really a miss" — self clause: your own missed attack draws a card
+  nearbyTeammateMissGrantsFood?: number; // "Not really a miss" — teammate clause: a nearby miss grants you food
+  tagAlongUnlocked?: boolean; // Smallest Chicken — see the tagAlong action
+
+  // Phase 11e: multi-attacker / redirected combat.
+  joinsAttackAsSecond?: boolean; // Quite Friendly — see the attackWithCompanion action
+  canRedirectDamage?: boolean; // Tank — see attack()'s damageRedirect param
+
+  // Phase 11f: player-initiated roll interception (see PlayerState.
+  // pendingRollIntercept's doc comment for the deliberate scope limit).
+  canAdjustAnyRollForEggs?: boolean; // Strategem — see the useStrategem action
+  canRerollAnyRollForEgg?: boolean; // Deus Eggs Machina — see the useDeusEggsMachina action
+
+  // Phase 11g: on-demand shared-deck manipulation.
+  freeWeatherRedrawRoll?: boolean; // Wherever, any Weather — see useWhereverAnyWeather
+  canAttackDiscardedGrubs?: boolean; // Tomb Raider — see the attackDiscardedGrub action
+
+  // Phase 11j: remaining one-offs.
+  mayAttackGrubsFromAnyLocation?: boolean; // Informant Network — no nearby-Grub requirement
+  canShieldWithGrubHealth?: boolean; // Plots & Ploys — see attack()'s grubShieldIndex param
+  layEggOnDamageTaken?: boolean; // Bacaw! — see resolvePredatorAttack's boardEggs handling
+  layEggOnRepeatedAction?: boolean; // Dedication — see reducer.ts's actionCountsThisTurn tracking
+  freeMoveAnotherPlayerForEgg?: boolean; // Wilderness Guide — see the useWildernessGuide action
 }
 
 // Bonus Cards (played from bonusCardHand) and Grub Rewards (played from
@@ -133,6 +200,7 @@ export interface CardEffect {
   reducesIncomingDamage?: number; // pending — pendingIncomingDamageReduction
   rerollNextOwnRoll?: boolean; // pending — pendingRerollNextRoll
   ignoresPredatorRollEffectsNextAttack?: boolean; // Scorpion — pending, pendingIgnorePredatorRoll
+  reflectsReturnAttackNextAttack?: boolean; // Wasp Swarm — pending, pendingReflectReturnAttack
   // Permanent, one-time-patch Grub Rewards (same treatment as phase 6's
   // permanent Loot Drop stat boosts).
   permanentEggProductionBonus?: number; // Caterpillar
@@ -141,6 +209,39 @@ export interface CardEffect {
   permanentForageBonusUntilNextWeather?: number; // Lizard
   immuneToWeatherUntilNextCard?: boolean; // Lunar Moth
   ladybugRoll?: boolean; // roll 3 dice: eggs += roll1, food += roll2, health -= roll3
+  permanentTagAlongUnlocked?: boolean; // Garden Snail — same shape as chicken Smallest Chicken, see the tagAlong action
+  // Phase 11f: sets targetPlayerId's pendingRollIntercept — requires
+  // targetPlayerId; "Pick the outcome" additionally requires `amount` (1-6).
+  rerollTargetPlayerNextRoll?: boolean; // "Reroll a teammate's die" / "Reroll any die" Bonus Cards
+  pickTargetPlayerNextRollOutcome?: boolean; // Spotted Lanternfly
+
+  // Phase 11g: on-demand shared-deck manipulation.
+  drawsNewWeatherCard?: boolean; // "Draw new weather" Bonus Card
+  // Dung Beetle: takes a specific card from the Bonus discard pile —
+  // `discardExtraCardIndex` (an index into bonusDeck.discard) is reused
+  // here as "which discarded card to take," same field, different pile.
+  takeSpecificBonusCardFromDiscard?: boolean;
+  // Firefly: option 1 redraws weather, option 2 calls an ad-hoc Egg
+  // Exchange for the caster only (outside the normal phase-boundary cadence).
+  redrawWeatherOrCallEggExchange?: boolean;
+  // Phase 11i: "For 1 Turn, borrow an unlocked ability from a teammate" —
+  // requires targetPlayerId; `amount` (1-3) picks which of their unlocked
+  // stages' abilities, defaulting to their current (highest) stage.
+  borrowsTeammateAbility?: boolean;
+  // "Move everyone for free" Bonus Card — grants every alive player a
+  // pendingFreeMove, consumed by useFreeMoveGrant.
+  grantsFreeMoveToEveryone?: boolean;
+  // Lucky Cricket: copies whatever effect a chosen held Bonus Card of a
+  // chosen teammate's has — requires targetPlayerId + discardExtraCardIndex
+  // (reused here as "which of their held cards," same reuse pattern Dung
+  // Beetle uses for the discard pile). Handled specially in useGrubReward,
+  // not the generic resolveCardEffect dispatch, since the effect to apply
+  // isn't known until the target card is looked up.
+  copiesTeammateBonusCardEffect?: boolean;
+  // Four Leaf Clover: "For 1 turn, perform all actions Outside" — sets
+  // PlayerState.pendingMayActAsInsideThisTurn, cleared at this player's
+  // own endTurn.
+  grantsInsideActionsOutsideForTurn?: boolean;
 }
 
 export interface WeatherEffect {
@@ -167,4 +268,8 @@ export interface WeatherEffect {
   blocksMoveToLocation?: Location; // Heat Wave: cannot move (back) into Coop
   blocksGrubAttacks?: boolean; // Pollen
   maxAttackStrengthDelta?: number; // Dust Storm
+  onDayEndProximityDamage?: number; // Bird Flu — anyone who ends the day near another player loses this much health
+  forcesCoopLockdown?: boolean; // Freezing — everyone not immune snaps to Coop and can't leave while active
+  allowsEatInside?: boolean; // Freezing — overrides Eat's normal Outside-only requirement while in the Coop
+  discardBothGrubsDaily?: boolean; // Ice Melts — both locations' face-up Grubs discard at day's end, not just the chosen one
 }

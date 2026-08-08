@@ -38,3 +38,18 @@ Format per entry:
 - Triage: working as intended — core_rules.md's Attack row says "Costs 1 food per point of attack strength," with no health-based exception, and the Predators section confirms the pattern explicitly ("Attacking costs food equal to chosen attack strength... regardless of whether you land the killing blow"). A 0-health Grub still requires an Attack action (min food cost) to resolve/defeat; the food isn't refunded because the kill was guaranteed. The bigger real gap here is that Grub combat is still very bare — no defend-effect roll, no Reward granted/playable yet (grub's `reward` is just held on your hand, unusable). That's exactly Phase 7 scope.
 - Status: closed (working as intended) — underlying missing Grub Reward/defend-roll mechanics tracked as Phase 7 work, not a bug
 - Update 2026-08-04: Phase 7 shipped Grub defend rolls (Four Leaf Clover: "6: +1 health") and its Reward (Reward is a needs-hook item — deferred, no ETA). Attacking a Grub now carries real retaliation risk in general, closing the underlying gap this entry flagged.
+
+## 2026-08-07 — Nighttime/Sunny Action Economy
+- What happened: I have the sunny weather but am unable to use an additional action in the phase.
+- Expected: I should be able to take 1 extra action across the 2 or 3 turns in that phase. 
+- Card/rule involved: Sunny Weather
+- Triage: 
+- Status: Open
+
+
+## 2026-08-07 — Nighttime/Sunny Action Economy
+- What happened: I have the Nighttime weather but am forced to lose the action in the first turn of the phase.
+- Expected: I should be able to take 1 less action across the 2 or 3 turns in that phase. 
+- Card/rule involved: Nighttime Weather card
+- Triage: 
+- Status: Open

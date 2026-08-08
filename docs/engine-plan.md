@@ -36,8 +36,16 @@ the same action, and predators were picked manually) with a flow that
 matches the physical game: named joins, predators randomly selected for
 the whole table *before* anyone sees a chicken, then each player dealt
 2 chicken candidates to choose between (see phase 10 below). 164 tests
-passing. Revisit and refine this doc as new work comes up — it's a
-living plan, not a spec to freeze.
+passing. Phase 11 (the 75 "needs hook" items) is **done for engine
+correctness — 11a through 11j all landed**, closing every H item except
+Mudslide (11k, explicitly flagged and deferred — see below). 225 engine
+tests passing. **UI wiring is partial**: 11a (Loot Drop stash/Gas Mask/
+Arrow Pack controls) and 11c (Nobility/Landlord/Chamberstick/Cave Hoard/
+Healing Poultice/Secret Tunnels buttons) got real buttons; 11d's tagAlong
+and 11b/11d/11e/11f/11g/11h/11i/11j's ~25 new actions are engine-correct
+and reachable via `dispatch`/the reducer, but have **no board/panel button
+yet** — see phase 11's closing note for the punch list. Revisit and refine
+this doc as new work comes up — it's a living plan, not a spec to freeze.
 
 ## What "engine" means here
 
@@ -424,6 +432,148 @@ own rather than only valuable once everything else is done.
     published) — same caveat as phase 8: this confirms the schema and
     engine logic, not an actual browser click-through, which I can't do
     myself here.
+
+11. **The 75 "needs hook" (H) items — in progress.** Prompted by a real bug
+    report (Sal Moe Nella's Food Stash Loot Drop did nothing after she was
+    defeated). Phases 6-7 explicitly built only the 175 "executable now"
+    items from `docs/rules-audit.md` and left every H item a no-op; no
+    later phase came back for them until now. Grouped into batches by hook
+    *shape* (matching `rules-audit.md`'s own "recurring shapes" grouping)
+    rather than tackled item-by-item — each batch adds one reusable
+    primitive and wires every item needing that shape through it, and each
+    lands independently tested/buildable. `docs/rules-audit.md`'s H/E
+    classification table is left as-is (a historical phase-2 snapshot,
+    same as phases 6-7 treated it) — this doc is the implementation-status
+    tracker.
+
+    **11a. Board-state "stash"/charge Loot Drops — done.** Eggsmeralda's
+    Egg Stash, Sal Moe Nella's Food Stash, Cleopoultra's Arrow Pack, plus
+    closing a related gap for Professor Moltiarty's Gas Mask (classified
+    "executable" but never wired to an activation action). New
+    `PlayerState.lootCharges: Record<string, number>` (predator name ->
+    remaining count, granted alongside `lootDrops` at defeat time, kept
+    through death like Loot Drops themselves) and `PredatorState.
+    returnAttackReductionToday` (Gas Mask's "-1 for an entire day," reset
+    every day in `turn.ts`'s `advanceDay`). New `PredatorLoot` fields in
+    `abilities/types.ts` (`stash`, `chargedRangedAttack`,
+    `activatableAttackReduction`) populated in `abilities/predators.ts`'s
+    `PREDATOR_LOOT`. Three new free (no-action-cost, "playable any time")
+    actions in `actions.ts`: `collectFromStash` (self or a nearby player,
+    same nearby-check shape as `giftFood`), `useGasMask`; `useArrowPack` is
+    the one exception — it's a real ranged Attack, costs 1 action + 1 food
+    per arrow, no return attack.
+    Along the way, refactored `combat.ts`'s predator-defeat consequences
+    (Loot Drop grant, permanent stat patches, Revenge, Boss reveal) out of
+    `resolvePredatorAttack` into a shared `grantPredatorDefeatConsequences`,
+    and added `applyDirectPredatorDamage`/`applyDirectGrubDamage` on top of
+    it for damage sources that bypass the normal Attack pipeline entirely
+    (Arrow Pack's ranged shot, a Bonus/Grub card's `enemyDamage` effect).
+    This also **fixed a real, pre-existing bug**: `actions.ts`'s
+    `resolveCardEffect` previously handled a card's `enemyDamage` by
+    directly clamping the target's health with no defeat handling at all —
+    a Bonus/Grub card landing the killing blow on a Predator left it at
+    0 health but `defeated: false` forever (no Loot Drop, no Boss reveal,
+    and it silently blocked the win check since `evaluateGameStatus` checks
+    `defeated`, not health). Now routes through the same helper Arrow Pack
+    uses. UI: `playerPanel.js`'s Loot Drops list gained inline controls per
+    activatable Loot Drop (`StashControls` for the amount/recipient picker,
+    reusing `board.js`'s existing `pendingPick`/`cardTarget` board-click
+    flow for Gas Mask/Arrow Pack's Predator-or-Grub target, the same
+    mechanism phase 7's card Play buttons already use).
+    10 new tests in `engine/test/abilities-predatorLoot.test.ts` (174
+    total, zero regressions) covering both Stash Loot Drops, Gas Mask's
+    daily reset, Arrow Pack (including that it still grants loot/reveals
+    the Boss on a kill), and the `enemyDamage` regression fix. Same
+    standing caveat as every UI-touching phase: syntax-checked and
+    confirmed served by the dev server, not click-through tested.
+
+    **11b-11j — done (engine).** Closed every remaining "needs hook" item
+    except Mudslide (11k, see below), 51 new tests across 8 new
+    `engine/test/abilities-*.test.ts` files (225 total, zero regressions),
+    `tsc` clean throughout. One batch per commit-sized slice of work, same
+    grouping-by-hook-shape approach as 11a:
+    - **11b** (global roll-outcome overrides): Monocle (never dodged/
+      whiffed, checked centrally in `combat.ts`'s `resolveCombat`) and Fox's
+      Staff (roll the Predator-effect roll twice, keep the milder result).
+    - **11c** (action-economy exceptions): Nobility, Landlord, Chamberstick,
+      Cave Hoard, Healing Poultice, Secret Tunnels — all new free (no
+      action-cost) `Action` variants in `actions.ts`, matching the existing
+      `giftFood`-style pattern. UI: real buttons in `actionBar.js` (Nobility/
+      Landlord) and `playerPanel.js`'s Loot Drops list (the other 4).
+    - **11d** (cross-actor auras & reactive listeners): Battle Cry,
+      Bolsterer, Free Range/Bird Flu, "Not really a miss," Smallest
+      Chicken/Garden Snail (`tagAlong` — UI button in `actionBar.js`), Chew
+      Bawka's dynamic return attack. New `abilities/chickens.ts` aura
+      helpers (`sumNearbyAura` and friends) consulted at every roll/
+      max-attack-strength site touched so far. Also folded in Freezing
+      (forced Coop lockdown + Eat-inside override) since it shares Fur
+      Coat's location-override shape.
+    - **11e** (multi-target/redirected combat): Shere Corn's splash,
+      Weasma and Clawnk's forced relocation (a player's own choice of
+      destination is modeled as engine-random, same simplification
+      precedent as phase 7's "reroll your own die"), Wasp Swarm's
+      reflected damage, Quite Friendly (`attackWithCompanion`, a documented
+      simplified interpretation — see the function's own comment), Tank
+      (`attack()`'s new `damageRedirect` param, finally making Just Reward
+      live).
+    - **11f** (roll interception): Strategem, Deus Eggs Machina, "Reroll a
+      teammate's/any die," Spotted Lanternfly. New `PlayerState.
+      pendingRollIntercept`, deliberately scoped to a player's own next
+      production/forage/lay-egg/Predator-effect roll — not a literal
+      global interceptor on every `rollDie()` call in the engine (see the
+      field's doc comment for the full reasoning).
+    - **11g** (on-demand shared-deck/schedule manipulation): Wherever Any
+      Weather, Coopella, Firefly, "Draw new weather," Ice Melts, Sheriff of
+      Rottingham (return attack driven by live Grub-deck health), Dungeon
+      Keys, Dung Beetle, Tomb Raider. `drawNextWeatherCard`/new
+      `redrawWeatherCard` moved from `turn.ts` to `abilities/weather.ts` to
+      break a circular-import problem (both `turn.ts` and `combat.ts` need
+      it now).
+    - **11h** (structural death/revival/defeat exceptions): Gravekeeper
+      Fowl (`cannotBeAttackedToday`, on-defeat revival roll that undoes the
+      Boss reveal too) and Gravekeeper's Light (self-revive at 1 health —
+      wired directly into `combat.ts`'s `applyDamageAndMaybeDeath`, the one
+      choke point every death in the game already routes through).
+    - **11i** (ability/effect copying): "Borrow a teammate's ability" (new
+      `PlayerState.pendingBorrowedAbility` — a chicken/stage *reference*,
+      not the ability object itself, since that can hold functions and
+      wouldn't survive Firestore sync; wired into the "free action" gate
+      checks across `actions.ts` — a deliberate scope limit, not every
+      aura/roll-modifier/combat-hook call site) and Lucky Cricket (copies a
+      teammate's held Bonus Card effect without spending their card).
+    - **11j** (remaining one-offs): Informant Network, Plots & Ploys (a
+      held Grub's health shields return-attack damage), Bacaw!/Dedication
+      (new `GameState.boardEggs` — a shared board resource anyone at that
+      location can collect), Wilderness Guide, Portable House, Eggsmeralda
+      S2/S3 ("take eggs from every player"), Owl Coopone (modeled as a
+      per-combat self-heal while its matching weather is active, not a
+      permanent maxHealth change — its "can't use cards to dodge" clause is
+      deliberately out of scope, see the code comment for why), Four Leaf
+      Clover, Snow's last-phase ad-hoc Egg Exchange, "Move everyone for
+      free."
+    - **UI gap, disclosed**: 11a and 11c got real buttons. 11b/11d(partial)/
+      11e/11f/11g/11h/11i/11j's ~25 new actions are fully implemented and
+      individually tested at the engine layer, dispatchable through the
+      existing reducer, but **have no board/panel control yet** — a player
+      can't trigger Strategem, Deus Eggs Machina, Dungeon Keys, Portable
+      House, Wilderness Guide, `useFreeMoveGrant`, `attackWithCompanion`,
+      `attackDiscardedGrub`, borrowing an ability, or Lucky Cricket from the
+      browser today, even though dispatching those actions directly (or a
+      future UI pass) works correctly. Automatic/passive effects (Owl
+      Coopone's weather bonus, Eggsmeralda's egg loss, Coopella's roll,
+      Battle Cry's aura, Gravekeeper Fowl's revival, Bacaw!/Dedication's
+      board eggs, etc.) don't need a button and already work end-to-end
+      through normal Attack/Move/turn flow. Worth a dedicated UI pass
+      before calling phase 11 fully done end-to-end.
+
+    **11k. Mudslide (Eggspansion weather) — deliberately deferred.** "Deal
+    each player a personal Weather Card in effect until replaced" breaks
+    the base model's core assumption that `GameState.weather.active` is
+    one shared card everyone reads — doing this properly means threading a
+    per-player weather override through every `activeWeatherEffect`/
+    `activeWeatherName` call site (~10 of them across `turn.ts`/
+    `actions.ts`/`combat.ts`). Flagged rather than guessed at; needs a
+    scoping conversation before starting.
 
 ## Open questions (not blocking yet, worth deciding before the phase that needs them)
 

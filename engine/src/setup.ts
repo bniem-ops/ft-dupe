@@ -198,20 +198,23 @@ function resolvePredatorSelection(config: GameConfig): { regular: [string, strin
 
 function createPredator(name: string, isBoss: boolean, playerCount: number, difficulty: DifficultyLevel): PredatorState {
   const data = findPredator(name);
-  const stage3 = data.stages.find((s) => s.stage === 3);
-  if (!stage3) throw new Error(`${name} has no stage 3 data`);
+  const startStage = isBoss ? 3 : 1;
+  const stageData = data.stages.find((s) => s.stage === startStage);
+  if (!stageData) throw new Error(`${name} has no stage ${startStage} data`);
   const bonus = isBoss ? bossHealthBonus(difficulty) : 0;
-  const multiplier = parseHealthMultiplier(stage3.healthMultiplier) + bonus;
+  const multiplier = parseHealthMultiplier(stageData.healthMultiplier) + bonus;
   const health = multiplier * playerCount;
   return {
     name,
     location: 'Coop', // placeholder until assigned to a board location below
-    stage: isBoss ? 3 : 1,
+    stage: startStage,
     health,
     maxHealth: health,
     revealed: !isBoss,
     defeated: false,
     isBoss,
+    returnAttackReductionToday: 0,
+    cannotBeAttackedToday: false,
   };
 }
 
@@ -335,6 +338,8 @@ function createPlayer(id: string, chickenName: string, startingLocation: Locatio
     pendingWeatherImmuneUntilNextTurn: false,
     pendingRerollNextRoll: false,
     pendingIgnorePredatorRoll: false,
+    pendingReflectReturnAttack: false,
+    pendingRollIntercept: null,
     permanentEggProductionBonus: 0,
     permanentReturnAttackReductionRoll: null,
     permanentNoBonusCardHandLimit: false,
@@ -342,6 +347,12 @@ function createPlayer(id: string, chickenName: string, startingLocation: Locatio
     permanentWeatherImmuneUntilNextCard: false,
     pendingRevivalChoices: null,
     justRevivedPendingFirstTurn: false,
+    lootCharges: {},
+    permanentTagAlongUnlocked: false,
+    pendingBorrowedAbility: null,
+    pendingMayActAsInsideThisTurn: false,
+    pendingFreeMove: false,
+    actionCountsThisTurn: {},
   };
 }
 
@@ -404,5 +415,6 @@ export function createGame(config: GameConfig): GameState {
     gameOver: false,
     won: false,
     actionLog: [],
+    boardEggs: {},
   };
 }

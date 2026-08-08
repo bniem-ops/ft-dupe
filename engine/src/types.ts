@@ -75,6 +75,19 @@ export interface CombatStageResult {
   attackerFoodDelta?: number; // Hens Gruber losses (negative)
   attackerStatusEffects?: StatusEffectType[];
   discardAfterCombat?: ('bonus' | 'grub')[]; // Hendel's Mother
+  // Phase 11e: multi-target / redirected combat.
+  splashDamage?: number; // Shere Corn — dealt to every alive player at the Predator's location, attacker included
+  forcedRelocation?: { playerId: string }; // Weasma and Clawnk — combat is voided; this player is moved to a random other location
+  reflectReturnAttackToPredator?: boolean; // Wasp Swarm — the Predator's own base return attack is dealt back to it
+  // Phase 11g: Coopella — consumed by actions.ts's attack() after
+  // resolveCombat returns (combat.ts can't import turn.ts's weather-redraw
+  // helper without a circular dependency).
+  forcesExtraActionTokenUnavailable?: boolean;
+  forcesWeatherRedraw?: boolean;
+  // Phase 11j: Eggsmeralda S2/S3 — "take N eggs from [the attacker /
+  // every player]," the roll-gated fork of the same effect.
+  attackerEggDelta?: number; // negative = taken from the attacker only
+  takesEggsFromEveryone?: number;
 }
 
 export interface CombatHooks {
@@ -160,6 +173,37 @@ export interface PlayerState {
   pendingWeatherImmuneUntilNextTurn: boolean; // cleared at this player's next startTurn
   pendingRerollNextRoll: boolean; // consumed by the next production/forage/layEgg/Grub-defend roll
   pendingIgnorePredatorRoll: boolean; // Scorpion Grub Reward — consumed by the next Predator attack
+  pendingReflectReturnAttack: boolean; // Wasp Swarm Grub Reward — consumed by the next Predator attack
+  // Phase 11f: roll interception. Scope note — this is deliberately limited
+  // to the roll made for *this player's own next* production/forage/lay-egg
+  // action or Predator-effect combat roll (the meaningfully-impactful "any
+  // die" scenarios in actual play), not a literal hook into every single
+  // die rolled anywhere in the engine (weather rolls, Grub defend rolls,
+  // Berserker's roll, etc.) — building a truly universal interceptor would
+  // mean threading a consumed/cleared flag through every one of those call
+  // sites for comparatively rare use. Settable on any player (self or a
+  // chosen target), consumed and cleared by the first of those 4 rolls
+  // that fires for them.
+  pendingRollIntercept: { mode: 'adjustBy' | 'reroll' | 'forceValue'; value?: number } | null;
+  // Phase 11i: "For 1 Turn, borrow an unlocked ability from a teammate" —
+  // a reference (chicken name + stage), not the ability object itself
+  // (which can hold functions and wouldn't survive Firestore sync), looked
+  // up fresh via abilities/chickens.ts's borrowedAbility() whenever
+  // needed. Scope note: wired into the "free action" gate checks (Ladies'
+  // Aid-style abilities, Nobility, Landlord, etc.) — the common,
+  // observable case — not into passive auras/roll-modifiers/combat hooks,
+  // which would need every consuming call site in the engine rewired.
+  pendingBorrowedAbility: { chickenName: string; stage: Stage } | null;
+  // Phase 11j: Four Leaf Clover ("For 1 turn, perform all actions
+  // Outside") — same mechanism as Fur Coat's mayPerformInsideActionsOutside
+  // but temporary; cleared at this player's own endTurn.
+  pendingMayActAsInsideThisTurn: boolean;
+  // "Move everyone for free" Bonus Card — consumed by the next move().
+  pendingFreeMove: boolean;
+  // Dedication (J.R.R. Yolkien S2): "Whenever you take the same action
+  // twice on your turn, lay an egg" — counts per action type, reset in
+  // startTurn.
+  actionCountsThisTurn: Record<string, number>;
   // Permanent Grub Reward upgrades (docs/rules-audit.md's "Permanent
   // Upgrade" rewards) — applied once at play time, checked every time
   // afterward, same treatment as phase 6's permanent Loot Drop patches.
@@ -168,6 +212,7 @@ export interface PlayerState {
   permanentNoBonusCardHandLimit: boolean; // Large Spider
   permanentForageBonusUntilNextWeather: number; // Lizard — cleared when a new weather card is drawn
   permanentWeatherImmuneUntilNextCard: boolean; // Lunar Moth — cleared when a new weather card is drawn
+  permanentTagAlongUnlocked: boolean; // Garden Snail — see the tagAlong action
   // Phase 9: revival flow. A dead player with choices pending stays
   // alive: false until completeRevival resolves — avoids a transient
   // "revived but no stats yet" state that startTurn could otherwise hit.
@@ -176,6 +221,13 @@ export interface PlayerState {
   // core_rules.md's "must take their first turn back as a Chick" clause,
   // checked by gameStatus.ts's evaluateGameStatus alongside `alive`.
   justRevivedPendingFirstTurn: boolean;
+  // Phase 11a: a counter held on a Loot Drop card itself (predator name ->
+  // remaining count), granted at defeat time alongside lootDrops. Stash
+  // Loot Drops (Egg/Food) start it as a shared resource pool drawn down by
+  // collectFromStash; Arrow Pack starts it as ranged-attack ammo drawn down
+  // by useArrowPack; Gas Mask starts it at 1 (single use). Kept through
+  // death like lootDrops itself (core_rules.md: "Loot Drops are kept").
+  lootCharges: Record<string, number>;
 }
 
 export interface PredatorState {
@@ -187,6 +239,14 @@ export interface PredatorState {
   revealed: boolean;
   defeated: boolean;
   isBoss: boolean;
+  // Phase 11a: Gas Mask's "-1 return attack for an entire day" — reset to 0
+  // every day in turn.ts's advanceDay (a calendar event, not tied to who
+  // used it or on whom).
+  returnAttackReductionToday: number;
+  // Phase 11h: Gravekeeper Fowl S1/S2 — "Cannot be attacked on the day a
+  // player moves into his area." Set by actions.ts's move(), reset daily
+  // in turn.ts's advanceDay, same lifecycle as returnAttackReductionToday.
+  cannotBeAttackedToday: boolean;
 }
 
 export interface GrubDeckSide {
@@ -229,6 +289,9 @@ export interface GameState {
   gameOver: boolean; // see engine/src/gameStatus.ts for real evaluation (phase 9)
   won: boolean; // only meaningful once gameOver is true
   actionLog: Action[];
+  // Phase 11j: board-placed eggs anyone at that location can collect
+  // (Bacaw!, Dedication) — a shared resource on the map, not a per-player one.
+  boardEggs: Partial<Record<Location, number>>;
 }
 
 // The 8 base actions from core_rules.md. Attack's actual damage
@@ -250,6 +313,12 @@ export type Action =
       // Back) — see actions.ts's attack() for why this is a commitment,
       // not a mid-resolution prompt.
       mitigation?: { resource: 'bonusCards' | 'eggs'; amount: number };
+      // Tank: pre-committed redirect of some/all of the incoming return
+      // attack onto a nearby ability-holder — same reasoning as mitigation.
+      damageRedirect?: { toPlayerId: string; amount: number };
+      // Plots & Ploys: a held Grub card's health shields this attack's
+      // return-attack damage — index into grubHand.
+      grubShieldIndex?: number;
     }
   | { type: 'eat'; playerId: string; amount: number }
   | { type: 'forage'; playerId: string }
@@ -295,7 +364,49 @@ export type Action =
   // turn-gated, no action cost — same "playable any time" reasoning as
   // Bonus Cards, since a revived player's stats need to be locked in
   // before their own turn starts, not necessarily on someone else's turn.
-  | { type: 'completeRevival'; playerId: string; chickenName: string };
+  | { type: 'completeRevival'; playerId: string; chickenName: string }
+  // Phase 11a: activatable stash/charge Loot Drops. Free (no action cost,
+  // no turn-order check — "playable any time" like a held card) except
+  // useArrowPack, which is an actual ranged Attack and costs 1 action.
+  | { type: 'collectFromStash'; playerId: string; predatorName: string; amount: number; targetPlayerId?: string } // Egg/Food Stash
+  | { type: 'useGasMask'; playerId: string; targetType: 'predator'; targetId: string } // Professor Moltiarty's Loot
+  | { type: 'useArrowPack'; playerId: string; targetType: 'predator' | 'grub'; targetId: string } // Cleopoultra's Loot
+  // Phase 11c: action-economy exceptions.
+  | { type: 'refreshExtraActionToken'; playerId: string } // Nobility (Princess Layer)
+  | { type: 'freeMoveToCoop'; playerId: string } // Landlord (Cumberbill Rockefeather)
+  | { type: 'useChamberstick'; playerId: string } // Coopella's Loot
+  | { type: 'useCaveHoard'; playerId: string; targetPlayerId?: string } // Hendel's Mother's Loot
+  | { type: 'useHealingPoultice'; playerId: string } // Chew Bawka's Loot
+  | { type: 'useSecretTunnels'; playerId: string; destination: Location; targetPlayerId?: string } // Weasma and Clawnk's Loot
+  // Smallest Chicken (chicken) / Garden Snail (Grub Reward, permanent
+  // upgrade) — same shape: move to match another player's current
+  // location for free, any time.
+  | { type: 'tagAlong'; playerId: string; targetPlayerId: string }
+  // Quite Friendly (Cluckleberry Finn S2): bundles a second player's
+  // Attack into the primary's single action — see actions.ts's
+  // attackWithCompanion for the exact cost/ordering semantics.
+  | {
+      type: 'attackWithCompanion';
+      playerId: string;
+      companionId: string;
+      targetType: 'predator' | 'grub';
+      targetId: string;
+      primaryStrength: number;
+      companionStrength: number;
+    }
+  // Phase 11f: player-initiated roll interception.
+  | { type: 'useStrategem'; playerId: string; targetPlayerId: string; eggsToSpend: number; direction: 1 | -1 } // General Tso
+  | { type: 'useDeusEggsMachina'; playerId: string; targetPlayerId: string } // J.R.R. Yolkien
+  // Phase 11g: on-demand shared-deck/schedule manipulation.
+  | { type: 'useWhereverAnyWeather'; playerId: string } // Chickira
+  | { type: 'useDungeonKeys'; playerId: string; targetPlayerId: string } // Sheriff of Rottingham's Loot
+  | { type: 'attackDiscardedGrub'; playerId: string; side: 'inside' | 'outside'; discardIndex: number; attackStrength: number } // Tomb Raider
+  // Phase 11j: remaining one-offs.
+  | { type: 'useFreeMoveGrant'; playerId: string; destination: Location } // "Move everyone for free" Bonus Card
+  | { type: 'usePortableHouse'; playerId: string; targetPlayerId: string } // Layonardo's Loot
+  | { type: 'adHocEggExchange'; playerId: string; amount: number } // Snow's last-phase clause
+  | { type: 'useWildernessGuide'; playerId: string; targetPlayerId: string; destination: Location } // Aracorn S3
+  | { type: 'collectBoardEgg'; playerId: string; location: Location }; // Bacaw!/Dedication
 
 export function rollDie(rng: RNG): number {
   return Math.floor(rng() * 6) + 1;

@@ -11,4 +11,5 @@ export * from './helpers.js';
 export * from './random.js';
 export * from './abilities/bonusCards.js';
 export * from './abilities/grubCards.js';
+export * from './abilities/predators.js';
 export * from './gameStatus.js';

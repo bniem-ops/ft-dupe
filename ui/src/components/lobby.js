@@ -12,6 +12,7 @@ export function Lobby({ code, hostConfig, seats, isHost, onStart, error }) {
       <h1>Lobby</h1>
       <p>Session code: <strong>${code}</strong> — share this with the rest of your flock.</p>
       ${error && html`<div class="error-banner">${error}</div>`}
+      ${isHost && allFilled && html`<div class="success-banner">Party is full — ready to start!</div>`}
 
       <div class="lobby-seats">
         ${seatIds.map(

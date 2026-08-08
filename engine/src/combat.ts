@@ -19,6 +19,9 @@ import {
   HeldGrubCard,
   CombatContext,
   CombatStageResult,
+  Location,
+  OUTSIDE_LOCATIONS,
+  Season,
   RNG,
   rollDie,
 } from './types.js';
@@ -26,10 +29,15 @@ import { findPredator, loadGrubCards, parseIntField, parseHealthMultiplier } fro
 import { getPlayer, replacePlayer } from './helpers.js';
 import { dealFaceUp } from './grubs.js';
 import { bossHealthBonus } from './setup.js';
-import { activeWeatherEffect } from './abilities/weather.js';
-import { getActiveChickenAbilities } from './abilities/chickens.js';
+import { activeWeatherEffect, redrawWeatherCard } from './abilities/weather.js';
+import { getActiveChickenAbilities, nearbyAuraPredatorRollPenalty, applyRollIntercept } from './abilities/chickens.js';
 import { PREDATOR_EFFECTS, PREDATOR_LOOT } from './abilities/predators.js';
 import { GRUB_DEFEND_EFFECTS } from './abilities/grubCards.js';
+
+const ALL_LOCATIONS: Location[] = ['Coop', ...OUTSIDE_LOCATIONS];
+// Coopella's "redraw on Fair/Sunny/Snow" clause — the guaranteed-positive
+// card per season, same mapping setup.ts's setupWeather uses.
+const SEASON_POSITIVE_CARD: Record<Season, string> = { Spring: 'Fair', Summer: 'Sunny', Fall: 'Snow' };
 
 function mergeCombatResults(a: CombatStageResult, b: CombatStageResult): CombatStageResult {
   return {
@@ -41,6 +49,13 @@ function mergeCombatResults(a: CombatStageResult, b: CombatStageResult): CombatS
     attackerFoodDelta: (a.attackerFoodDelta ?? 0) + (b.attackerFoodDelta ?? 0),
     attackerStatusEffects: [...(a.attackerStatusEffects ?? []), ...(b.attackerStatusEffects ?? [])],
     discardAfterCombat: [...(a.discardAfterCombat ?? []), ...(b.discardAfterCombat ?? [])],
+    splashDamage: (a.splashDamage ?? 0) + (b.splashDamage ?? 0),
+    forcedRelocation: b.forcedRelocation ?? a.forcedRelocation,
+    reflectReturnAttackToPredator: a.reflectReturnAttackToPredator || b.reflectReturnAttackToPredator,
+    forcesExtraActionTokenUnavailable: a.forcesExtraActionTokenUnavailable || b.forcesExtraActionTokenUnavailable,
+    forcesWeatherRedraw: a.forcesWeatherRedraw || b.forcesWeatherRedraw,
+    takesEggsFromEveryone: (a.takesEggsFromEveryone ?? 0) + (b.takesEggsFromEveryone ?? 0),
+    attackerEggDelta: (a.attackerEggDelta ?? 0) + (b.attackerEggDelta ?? 0),
   };
 }
 
@@ -60,7 +75,8 @@ function defaultTargetEffect(ctx: CombatContext, rng: RNG): CombatStageResult {
     const grubName = faceUp ? loadGrubCards()[faceUp.cardId]?.name : null;
     const effect = grubName ? GRUB_DEFEND_EFFECTS[grubName] : undefined;
     if (!effect?.rollOutcomes) return {};
-    const roll = rollDie(rng);
+    const attackerLocation = getPlayer(ctx.state.players, ctx.attackerId).location;
+    const roll = Math.max(1, rollDie(rng) - nearbyAuraPredatorRollPenalty(ctx.state, attackerLocation)); // Battle Cry
     const outcome = effect.rollOutcomes.find((o) => roll >= o.min && roll <= o.max);
     if (!outcome) return {};
     const result: CombatStageResult = {};
@@ -87,7 +103,24 @@ function defaultTargetEffect(ctx: CombatContext, rng: RNG): CombatStageResult {
     // effects" — skips only the roll-table branch below, not the
     // unconditional alwaysStatus/returnAttackIfAttackerHasNoBonusCard ones.
     if (effect.rollOutcomes && !attacker.pendingIgnorePredatorRoll) {
-      const roll = Math.max(1, rollDie(rng) - attacker.pendingPredatorRollReduction);
+      const battleCryPenalty = nearbyAuraPredatorRollPenalty(ctx.state, predator.location); // Battle Cry
+      const rollOnce = () => Math.max(1, rollDie(rng) - attacker.pendingPredatorRollReduction - battleCryPenalty);
+      let roll = rollOnce();
+      // Fox's Staff (Chicksune's Loot): "Roll for Predator effect twice,
+      // pick the best one for you" — every roll table here escalates
+      // toward worse outcomes at higher numbers, so the lower of the two
+      // rolls is the milder (best-for-you) one.
+      if (attacker.lootDrops.some((name) => PREDATOR_LOOT[name]?.rerollPredatorEffectKeepBest)) {
+        roll = Math.min(roll, rollOnce());
+      }
+      // Strategem / Deus Eggs Machina / "Reroll a teammate's/any die" /
+      // Spotted Lanternfly — actual clearing of the flag happens uniformly
+      // in attack()'s post-combat cleanup, same as the other pending-*
+      // combat flags; this hook can only influence the roll value, not
+      // return player-state changes.
+      if (attacker.pendingRollIntercept) {
+        roll = applyRollIntercept(attacker, roll, rng).roll;
+      }
       const outcome = effect.rollOutcomes.find((o) => roll >= o.min && roll <= o.max);
       if (outcome) {
         if (outcome.selfHeal && !predator.defeated) result.predatorHealthDelta = outcome.selfHeal;
@@ -126,6 +159,10 @@ function defaultChickenAbilities(ctx: CombatContext, rng: RNG): CombatStageResul
 
   // Phase 7 Bonus Card / Grub Reward attack-time effects.
   if (attacker.pendingDodgeNextAttack) result.dodged = true;
+  if (attacker.pendingReflectReturnAttack) {
+    result.dodged = true;
+    result.reflectReturnAttackToPredator = true;
+  }
   if (ctx.targetType === 'predator' && attacker.permanentReturnAttackReductionRoll) {
     const { threshold, amount } = attacker.permanentReturnAttackReductionRoll;
     if (rollDie(rng) >= threshold) result.returnAttackDelta = (result.returnAttackDelta ?? 0) - amount;
@@ -159,7 +196,16 @@ export function applyDeath(player: PlayerState): PlayerState {
 
 export function applyDamageAndMaybeDeath(player: PlayerState, damage: number): PlayerState {
   const damaged = { ...player, health: Math.max(0, player.health - damage) };
-  return damaged.health <= 0 ? applyDeath(damaged) : damaged;
+  if (damaged.health > 0) return damaged;
+  // Gravekeeper's Light (Loot Drop): "If you die, come back to life with 1
+  // health (single-use)" — bypasses the normal Brood-required revival flow
+  // entirely. Checked here since every death in the game routes through
+  // this one function (combat return attacks, weather/Bird Flu damage,
+  // splash damage, card/reward health costs).
+  if (damaged.lootDrops.includes('Gravekeeper Fowl') && (damaged.lootCharges['Gravekeeper Fowl'] ?? 0) > 0) {
+    return { ...damaged, health: 1, lootCharges: { ...damaged.lootCharges, 'Gravekeeper Fowl': 0 } };
+  }
+  return applyDeath(damaged);
 }
 
 function resolvePredatorAttack(
@@ -169,6 +215,7 @@ function resolvePredatorAttack(
   attackStrength: number,
   effects: CombatStageResult,
   mitigation?: { resource: 'bonusCards' | 'eggs'; amount: number },
+  damageRedirect?: { toPlayerId: string; amount: number },
 ): GameState {
   const predator = state.predators.find((p) => p.name === predatorName);
   if (!predator) throw new Error(`Unknown predator: ${predatorName}`);
@@ -179,9 +226,15 @@ function resolvePredatorAttack(
   let returnAttack = effects.dodged
     ? 0
     : (effects.returnAttackOverride ?? Math.max(0, baseReturnAttack + (effects.returnAttackDelta ?? 0)));
-  returnAttack = Math.max(0, returnAttack - attackerBeforeCombat.pendingIncomingDamageReduction);
+  // Gas Mask (Loot Drop): -1 to this predator's return attack for the rest
+  // of the day it was used on — reset daily in turn.ts's advanceDay.
+  returnAttack = Math.max(0, returnAttack - attackerBeforeCombat.pendingIncomingDamageReduction - predator.returnAttackReductionToday);
 
-  const damageToPredator = effects.predatorDodges ? 0 : attackStrength;
+  // Wasp Swarm (Grub Reward): "Dodge Predator attack, then base Predator
+  // return attack is dealt to the Predator" — reflected damage stacks on
+  // top of (or in place of, if also dodged) the normal attack damage.
+  const reflectedDamage = effects.reflectReturnAttackToPredator ? baseReturnAttack : 0;
+  const damageToPredator = (effects.predatorDodges ? 0 : attackStrength) + reflectedDamage;
   const newHealth = Math.max(0, predator.health - damageToPredator + (effects.predatorHealthDelta ?? 0));
   const cappedHealth = Math.min(predator.maxHealth, newHealth);
   const justDefeated = cappedHealth <= 0 && !predator.defeated;
@@ -212,8 +265,33 @@ function resolvePredatorAttack(
     }
   }
 
+  // Tank: pre-committed redirect of some/all of the primary attacker's
+  // incoming return attack onto a nearby ability-holder — same "commit up
+  // front" reasoning as Misdirection/Eggpire Strikes Back's mitigation
+  // param, since a synchronous reducer can't prompt mid-resolution.
+  // Triggers Just Reward (Atilla the Hen S3) on the redirect target.
+  let tankHolder: PlayerState | null = null;
+  if (damageRedirect && returnAttack > 0 && damageRedirect.toPlayerId !== playerId) {
+    const candidate = getPlayer(state.players, damageRedirect.toPlayerId);
+    const hasTank = getActiveChickenAbilities(candidate.chickenName, candidate.stage).some((a) => a.canRedirectDamage);
+    if (hasTank && candidate.alive && candidate.location === player.location) {
+      const redirected = Math.max(0, Math.min(damageRedirect.amount, returnAttack));
+      returnAttack -= redirected;
+      let updatedTank = applyDamageAndMaybeDeath(candidate, redirected);
+      if (redirected > 0) {
+        for (const ability of getActiveChickenAbilities(updatedTank.chickenName, updatedTank.stage)) {
+          if (!ability.onProtectedTeammate) continue;
+          const reward = ability.onProtectedTeammate({ state, playerId: updatedTank.id });
+          if (reward.eggs) updatedTank = { ...updatedTank, eggs: updatedTank.eggs + reward.eggs };
+        }
+      }
+      tankHolder = updatedTank;
+    }
+  }
+
   const tookDamage = returnAttack > 0;
   updatedPlayer = applyDamageAndMaybeDeath(updatedPlayer, returnAttack);
+  let boardEggs = state.boardEggs;
   if (tookDamage && updatedPlayer.alive) {
     // Berserker: heal on taking damage (only meaningful if it survived).
     for (const ability of getActiveChickenAbilities(updatedPlayer.chickenName, updatedPlayer.stage)) {
@@ -221,9 +299,16 @@ function resolvePredatorAttack(
       const heal = ability.onDamageTaken({ state, playerId }, state.config.rng);
       if (heal) updatedPlayer = { ...updatedPlayer, health: Math.min(updatedPlayer.maxHealth, updatedPlayer.health + heal) };
     }
+    // Bacaw!: "Lay an egg on the game board wherever you take damage."
+    if (getActiveChickenAbilities(updatedPlayer.chickenName, updatedPlayer.stage).some((a) => a.layEggOnDamageTaken)) {
+      boardEggs = { ...boardEggs, [updatedPlayer.location]: (boardEggs[updatedPlayer.location] ?? 0) + 1 };
+    }
   }
   if (effects.attackerFoodDelta) {
     updatedPlayer = { ...updatedPlayer, food: Math.max(0, updatedPlayer.food + effects.attackerFoodDelta) };
+  }
+  if (effects.attackerEggDelta) {
+    updatedPlayer = { ...updatedPlayer, eggs: Math.max(0, updatedPlayer.eggs + effects.attackerEggDelta) };
   }
   if (effects.attackerStatusEffects?.length) {
     updatedPlayer = {
@@ -241,56 +326,164 @@ function resolvePredatorAttack(
     }
   }
 
-  let bonusDeck = state.bonusDeck;
   let players = replacePlayer(state.players, updatedPlayer);
+  if (tankHolder) players = replacePlayer(players, tankHolder);
 
-  if (justDefeated) {
-    updatedPlayer = { ...updatedPlayer, lootDrops: [...updatedPlayer.lootDrops, predatorName] };
-    // Permanent passive stat-boost Loot Drops (Signature Cloak, Brass
-    // Knuckles) apply once, at the moment of grant — same treatment as a
-    // level-up, not a dynamic per-attack check.
-    const loot = PREDATOR_LOOT[predatorName];
-    if (loot?.permanentAttackBonus) {
-      updatedPlayer = { ...updatedPlayer, attackStrength: updatedPlayer.attackStrength + loot.permanentAttackBonus };
-    }
-    if (loot?.permanentMaxHealthBonus) {
-      updatedPlayer = {
-        ...updatedPlayer,
-        maxHealth: updatedPlayer.maxHealth + loot.permanentMaxHealthBonus,
-        health: updatedPlayer.health + loot.permanentMaxHealthBonus,
-      };
-    }
-    // Revenge: "present" means at the Predator's location when it falls —
-    // not just the attacker, so this checks every player there (each
-    // resolves their own trigger independently, which is why phase 2
-    // classified it as executable-now rather than a true cross-actor aura).
-    players = replacePlayer(state.players, updatedPlayer);
-    for (const present of players) {
-      if (present.location !== predator.location || !present.alive) continue;
-      const wantsBonusCard = getActiveChickenAbilities(present.chickenName, present.stage).some(
-        (a) => a.onPredatorDefeated?.({ state, playerId: present.id }).drawBonusCard,
-      );
-      if (!wantsBonusCard || present.bonusCardHand.length >= present.bonusCardHandLimit) continue;
-      let { drawPile, discard } = bonusDeck;
-      if (drawPile.length === 0) {
-        drawPile = [...discard];
-        discard = [];
-      }
-      const [cardId, ...rest] = drawPile;
-      if (cardId == null) continue;
-      bonusDeck = { drawPile: rest, discard };
-      const grantedPlayer = { ...present, bonusCardHand: [...present.bonusCardHand, cardId] };
-      players = players.map((p) => (p.id === present.id ? grantedPlayer : p));
-      if (present.id === playerId) updatedPlayer = grantedPlayer;
-    }
-    // Boss stays face-down until the last regular predator dies (core_rules.md).
-    const anyRegularSurviving = predators.some((p) => !p.isBoss && !p.defeated);
-    if (!anyRegularSurviving) {
-      predators = predators.map((p) => (p.isBoss ? { ...p, revealed: true } : p));
-    }
+  // Shere Corn: "All nearby players take N splash damage" — everyone alive
+  // at the Predator's location, the attacker included (already reflected
+  // in `players` above, so this just layers more damage on).
+  if (effects.splashDamage) {
+    players = players.map((p) => (p.alive && p.location === predator.location ? applyDamageAndMaybeDeath(p, effects.splashDamage!) : p));
   }
 
+  // Eggsmeralda S2/S3: "Take N eggs from every player" — no location
+  // qualifier, unlike Shere Corn's splash, so this hits everyone alive.
+  if (effects.takesEggsFromEveryone) {
+    players = players.map((p) => (p.alive ? { ...p, eggs: Math.max(0, p.eggs - effects.takesEggsFromEveryone!) } : p));
+  }
+
+  // Weasma and Clawnk: combat was voided (dodged/predatorDodges already
+  // suppress all damage above) — relocate whoever was forced out.
+  if (effects.forcedRelocation) {
+    const mover = getPlayer(players, effects.forcedRelocation.playerId);
+    const otherLocations = ALL_LOCATIONS.filter((l) => l !== mover.location);
+    const destination = otherLocations[Math.floor(state.config.rng() * otherLocations.length)];
+    players = replacePlayer(players, { ...mover, location: destination });
+  }
+
+  // Coopella: "4: Exhaust Extra Action Token."
+  if (effects.forcesExtraActionTokenUnavailable) {
+    const attackerNow = getPlayer(players, playerId);
+    if (attackerNow.extraActionTokenAvailable) players = replacePlayer(players, { ...attackerNow, extraActionTokenAvailable: false });
+  }
+
+  let weather = state.weather;
+  // Coopella: "5-6: Draw new Weather Card (redraw on Fair/Sunny/Snow)" —
+  // takes the full redraw result (not just `.weather`) since a newly-drawn
+  // Freezing card also snaps players to the Coop.
+  if (effects.forcesWeatherRedraw) {
+    const avoidCardName = SEASON_POSITIVE_CARD[state.season];
+    const redrawn = redrawWeatherCard({ ...state, players }, avoidCardName);
+    players = redrawn.players;
+    weather = redrawn.weather;
+  }
+
+  if (!justDefeated) {
+    return { ...state, predators, bonusDeck: state.bonusDeck, players, weather, boardEggs };
+  }
+  return grantPredatorDefeatConsequences({ ...state, predators, players, weather, boardEggs }, predator.location, predatorName, playerId);
+}
+
+// The "a Predator just hit 0 health" consequences — Loot Drop grant (+ its
+// charge count for stash/charge-based Loot Drops, phase 11a), permanent
+// passive stat-boost Loot Drops (Signature Cloak, Brass Knuckles), Revenge
+// (every present player independently rolls, not just the killer), and
+// revealing the Boss once the last regular Predator is down. Split out from
+// resolvePredatorAttack so a killing blow landed *without* the normal
+// return-attack combat pipeline (Arrow Pack's ranged shot, a Bonus/Grub
+// card's direct enemy damage) still gets the same consequences — those
+// sources previously left a 0-health, still-`defeated: false` Predator
+// behind, which silently blocked the win check and withheld its Loot Drop.
+function grantPredatorDefeatConsequences(
+  state: GameState,
+  predatorLocation: Location,
+  predatorName: string,
+  killerId: string,
+): GameState {
+  let killer = getPlayer(state.players, killerId);
+  killer = { ...killer, lootDrops: [...killer.lootDrops, predatorName] };
+  const loot = PREDATOR_LOOT[predatorName];
+  if (loot?.permanentAttackBonus) {
+    killer = { ...killer, attackStrength: killer.attackStrength + loot.permanentAttackBonus };
+  }
+  if (loot?.permanentMaxHealthBonus) {
+    killer = { ...killer, maxHealth: killer.maxHealth + loot.permanentMaxHealthBonus, health: killer.health + loot.permanentMaxHealthBonus };
+  }
+  if (loot?.stash) killer = { ...killer, lootCharges: { ...killer.lootCharges, [predatorName]: loot.stash.startingAmount } };
+  if (loot?.chargedRangedAttack) killer = { ...killer, lootCharges: { ...killer.lootCharges, [predatorName]: loot.chargedRangedAttack.charges } };
+  if (loot?.activatableAttackReduction) killer = { ...killer, lootCharges: { ...killer.lootCharges, [predatorName]: 1 } };
+  if (loot?.dungeonKeys) killer = { ...killer, lootCharges: { ...killer.lootCharges, [predatorName]: 1 } };
+  if (loot?.selfRevive) killer = { ...killer, lootCharges: { ...killer.lootCharges, [predatorName]: 1 } };
+
+  let bonusDeck = state.bonusDeck;
+  // Revenge: "present" means at the Predator's location when it falls —
+  // not just the attacker, so this checks every player there (each
+  // resolves their own trigger independently, which is why phase 2
+  // classified it as executable-now rather than a true cross-actor aura).
+  let players = replacePlayer(state.players, killer);
+  for (const present of players) {
+    if (present.location !== predatorLocation || !present.alive) continue;
+    const wantsBonusCard = getActiveChickenAbilities(present.chickenName, present.stage).some(
+      (a) => a.onPredatorDefeated?.({ state, playerId: present.id }).drawBonusCard,
+    );
+    if (!wantsBonusCard || present.bonusCardHand.length >= present.bonusCardHandLimit) continue;
+    let { drawPile, discard } = bonusDeck;
+    if (drawPile.length === 0) {
+      drawPile = [...discard];
+      discard = [];
+    }
+    const [cardId, ...rest] = drawPile;
+    if (cardId == null) continue;
+    bonusDeck = { drawPile: rest, discard };
+    players = players.map((p) => (p.id === present.id ? { ...present, bonusCardHand: [...present.bonusCardHand, cardId] } : p));
+  }
+
+  // Gravekeeper Fowl: "When defeated, roll. If 5-6: revives with N health"
+  // — undoes the defeat for every purpose below (Boss reveal, win check),
+  // so it's resolved before the "any regular surviving" computation.
+  const defeatedPredator = state.predators.find((p) => p.name === predatorName)!;
+  const reviveRule = PREDATOR_EFFECTS[predatorName]?.[defeatedPredator.stage]?.onDefeatRevive;
+  const revives = !!reviveRule && rollDie(state.config.rng) >= reviveRule.threshold;
+  const afterRevive = revives
+    ? state.predators.map((p) => (p.name === predatorName ? { ...p, defeated: false, health: reviveRule!.health } : p))
+    : state.predators;
+
+  // Boss stays face-down until the last regular predator dies (core_rules.md).
+  const anyRegularSurviving = afterRevive.some((p) => !p.isBoss && !p.defeated);
+  const predators = anyRegularSurviving ? afterRevive : afterRevive.map((p) => (p.isBoss ? { ...p, revealed: true } : p));
+
   return { ...state, predators, bonusDeck, players };
+}
+
+// Direct damage to a Predator with no return attack and no Predator-roll
+// effect triggered — used by sources that bypass the normal Attack action's
+// combat resolution entirely (Arrow Pack's ranged shot, a Bonus/Grub card's
+// enemy-damage effect). Still routes through grantPredatorDefeatConsequences
+// on a killing blow so `defeated`/Loot Drops/Boss-reveal stay correct.
+export function applyDirectPredatorDamage(state: GameState, predatorName: string, damage: number, killerId: string): GameState {
+  const predator = state.predators.find((p) => p.name === predatorName);
+  if (!predator) throw new Error(`Unknown predator: ${predatorName}`);
+  const cappedHealth = Math.max(0, predator.health - damage);
+  const justDefeated = cappedHealth <= 0 && !predator.defeated;
+  const predators = state.predators.map((p) =>
+    p.name === predatorName ? { ...p, health: cappedHealth, defeated: p.defeated || cappedHealth <= 0 } : p,
+  );
+  if (!justDefeated) return { ...state, predators };
+  return grantPredatorDefeatConsequences({ ...state, predators }, predator.location, predatorName, killerId);
+}
+
+// Direct damage to a face-up Grub, same "bypasses the normal combat
+// pipeline" reasoning as applyDirectPredatorDamage above — no defend-roll
+// retaliation. Still transfers the card to the killer's hand (and redeals a
+// new face-up card) on a killing blow, same as a normal Grub Attack would.
+export function applyDirectGrubDamage(state: GameState, side: 'inside' | 'outside', damage: number, killerId: string): GameState {
+  const deckSide = state.grubDecks[side];
+  const faceUp = deckSide.faceUp;
+  if (!faceUp) throw new Error(`No face-up Grub ${side} to damage`);
+  const newHealth = Math.max(0, faceUp.currentHealth - damage);
+  if (newHealth > 0) {
+    return { ...state, grubDecks: { ...state.grubDecks, [side]: { ...deckSide, faceUp: { ...faceUp, currentHealth: newHealth } } } };
+  }
+  const fullHealth = parseIntField(loadGrubCards()[faceUp.cardId]?.health ?? null, 0);
+  const heldCard: HeldGrubCard = { cardId: faceUp.cardId, currentHealth: fullHealth, rewardUsed: false };
+  const killer = getPlayer(state.players, killerId);
+  const updatedPlayer = { ...killer, grubHand: [...killer.grubHand, heldCard] };
+  const redealt = dealFaceUp({ ...deckSide, faceUp: null });
+  return {
+    ...state,
+    players: replacePlayer(state.players, updatedPlayer),
+    grubDecks: { ...state.grubDecks, [side]: redealt },
+  };
 }
 
 function resolveGrubAttack(
@@ -348,11 +541,61 @@ export function resolveCombat(
   targetId: string,
   attackStrength: number,
   mitigation?: { resource: 'bonusCards' | 'eggs'; amount: number },
+  damageRedirect?: { toPlayerId: string; amount: number },
 ): GameState {
   const effects = runCombatEffects(state, playerId, targetType, targetId, state.config.rng);
-  return targetType === 'predator'
-    ? resolvePredatorAttack(state, playerId, targetId, attackStrength, effects, mitigation)
-    : resolveGrubAttack(state, playerId, targetId as 'inside' | 'outside', attackStrength, effects);
+  // Monocle (Owl Coopone's Loot Drop): "Never miss any attacks" — the
+  // holder's own attacks are never dodged/whiffed by the target's roll
+  // (a Predator's own dodge outcome, or a Grub's "Miss your attack" defend
+  // roll), applied centrally so it holds regardless of hook customization.
+  const attacker = getPlayer(state.players, playerId);
+  const finalEffects = attacker.lootDrops.some((name) => PREDATOR_LOOT[name]?.neverMissesAttacks)
+    ? { ...effects, predatorDodges: false }
+    : effects;
+  const resolved =
+    targetType === 'predator'
+      ? resolvePredatorAttack(state, playerId, targetId, attackStrength, finalEffects, mitigation, damageRedirect)
+      : resolveGrubAttack(state, playerId, targetId as 'inside' | 'outside', attackStrength, finalEffects);
+  // "Not really a miss" (Cluck Norris): only meaningful once the attack
+  // actually missed — `predatorDodges` on the *final* (post-Monocle) effects
+  // is exactly that signal, for either target type.
+  return finalEffects.predatorDodges ? applyNotReallyAMiss(resolved, playerId) : resolved;
+}
+
+// Cluck Norris' "Not really a miss": self clause draws a Bonus Card, the
+// nearby-teammate clause grants food to anyone else at the misser's
+// location who also carries the ability (each resolves their own trigger
+// independently, same reasoning as Revenge above).
+function applyNotReallyAMiss(state: GameState, attackerId: string): GameState {
+  const attacker = getPlayer(state.players, attackerId);
+  let players = state.players;
+  let bonusDeck = state.bonusDeck;
+
+  if (getActiveChickenAbilities(attacker.chickenName, attacker.stage).some((a) => a.missDrawsBonusCard)) {
+    const current = getPlayer(players, attackerId);
+    if (current.permanentNoBonusCardHandLimit || current.bonusCardHand.length < current.bonusCardHandLimit) {
+      let { drawPile, discard } = bonusDeck;
+      if (drawPile.length === 0) {
+        drawPile = [...discard];
+        discard = [];
+      }
+      const [cardId, ...rest] = drawPile;
+      if (cardId != null) {
+        players = replacePlayer(players, { ...current, bonusCardHand: [...current.bonusCardHand, cardId] });
+        bonusDeck = { drawPile: rest, discard };
+      }
+    }
+  }
+
+  for (const p of state.players) {
+    if (p.id === attackerId || !p.alive || p.location !== attacker.location) continue;
+    const bonus = getActiveChickenAbilities(p.chickenName, p.stage).reduce((sum, a) => sum + (a.nearbyTeammateMissGrantsFood ?? 0), 0);
+    if (!bonus) continue;
+    const current = getPlayer(players, p.id);
+    players = replacePlayer(players, { ...current, food: current.food + bonus });
+  }
+
+  return { ...state, players, bonusDeck };
 }
 
 // End-of-Spring/Summer recalculation (core_rules.md): surviving predators

@@ -16,6 +16,7 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
   const [eatAmount, setEatAmount] = useState(0);
   const [attackStrength, setAttackStrength] = useState(1);
   const [broodTarget, setBroodTarget] = useState('');
+  const [tagAlongTarget, setTagAlongTarget] = useState('');
 
   // In a remote session, only the device that claimed this seat may act
   // for them — a UX nicety, not a security boundary (the engine's own
@@ -26,6 +27,15 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
   const noActions = state.actionsRemainingThisTurn <= 0 || !canAct;
   const deadPlayers = state.players.filter((p) => !p.alive);
   const pickingAttackStrength = pendingPick?.type === 'attack' && pendingPick.step === 'strength';
+  // A target already at 0 health (some Grubs — Slug, Wild Grain, Four Leaf
+  // Clover — start there) needs no attack strength to claim; the food-cost
+  // floor of 1 only makes sense against a target that has health left.
+  const targetHealth = pickingAttackStrength
+    ? pendingPick.targetType === 'predator'
+      ? (state.predators.find((p) => p.name === pendingPick.targetId)?.health ?? 1)
+      : (state.grubDecks[pendingPick.targetId]?.faceUp?.currentHealth ?? 1)
+    : 1;
+  const minAttackStrength = targetHealth <= 0 ? 0 : 1;
 
   function cancelPick() {
     setPendingPick(null);
@@ -38,6 +48,18 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
         ${!canAct && html`<span class="ref-text">(waiting for ${label}'s device)</span>`}
         ${player.extraActionTokenAvailable &&
         html`<button type="button" disabled=${!canAct} onClick=${onUseExtraAction}>Use Extra Action Token</button>`}
+        ${player.chickenName === 'Princess Layer' &&
+        !player.extraActionTokenAvailable &&
+        player.eggs >= 1 &&
+        html`<button type="button" disabled=${!canAct} onClick=${() => dispatch({ type: 'refreshExtraActionToken', playerId: player.id })}>
+          Refresh Token (1 egg — Nobility)
+        </button>`}
+        ${player.chickenName === 'Cumberbill Rockefeather' &&
+        player.stage >= 2 &&
+        player.location !== 'Coop' &&
+        html`<button type="button" disabled=${!canAct} onClick=${() => dispatch({ type: 'freeMoveToCoop', playerId: player.id })}>
+          Move to Coop (free — Landlord)
+        </button>`}
       </div>
 
       ${pendingPick?.type === 'move' &&
@@ -53,8 +75,8 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
           Attack strength (costs that much food):
           <input
             type="number"
-            min="1"
-            max=${Math.max(1, Math.min(player.food, player.attackStrength))}
+            min=${minAttackStrength}
+            max=${Math.max(minAttackStrength, Math.min(player.food, player.attackStrength))}
             value=${attackStrength}
             onInput=${(e) => setAttackStrength(Number(e.target.value))}
           />
@@ -131,6 +153,23 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
 
         <button type="button" disabled=${noActions} onClick=${() => dispatch({ type: 'forage', playerId: player.id })}>Forage</button>
       </div>
+
+      ${(player.permanentTagAlongUnlocked || (player.chickenName === 'Wingston Coophill' && player.stage >= 2)) &&
+      html`<div class="action-with-amount">
+        <select onChange=${(e) => setTagAlongTarget(e.target.value)} value=${tagAlongTarget}>
+          <option value="">Tag along with…</option>
+          ${state.players
+            .filter((p) => p.id !== player.id && p.alive)
+            .map((p) => html`<option key=${p.id} value=${p.id}>${playerNames?.[p.id] ?? p.id}</option>`)}
+        </select>
+        <button
+          type="button"
+          disabled=${!canAct || !tagAlongTarget}
+          onClick=${() => dispatch({ type: 'tagAlong', playerId: player.id, targetPlayerId: tagAlongTarget })}
+        >
+          Tag Along
+        </button>
+      </div>`}
 
       <button type="button" class="end-turn" disabled=${!canAct} onClick=${onEndTurn}>End Turn</button>
     </div>

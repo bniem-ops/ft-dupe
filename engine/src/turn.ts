@@ -8,8 +8,8 @@ import { chickenStage } from './data.js';
 import { getPlayer, replacePlayer } from './helpers.js';
 import { dealFaceUp, discardFaceUp, maybeReshuffleGrubDecks } from './grubs.js';
 import { levelUpPredators, applyDamageAndMaybeDeath } from './combat.js';
-import { activeWeatherEffect, activeWeatherName } from './abilities/weather.js';
-import { getActiveChickenAbilities, isImmuneToWeather } from './abilities/chickens.js';
+import { activeWeatherEffect, activeWeatherName, drawNextWeatherCard } from './abilities/weather.js';
+import { getActiveChickenAbilities, isImmuneToWeather, nearbyAuraTeammateRollBonus, applyRollIntercept } from './abilities/chickens.js';
 import { addMeals } from './leveling.js';
 import { evaluateGameStatus } from './gameStatus.js';
 
@@ -53,17 +53,26 @@ export function resolveProduction(state: GameState, player: PlayerState, rng: RN
 
   const abilities = getActiveChickenAbilities(player.chickenName, player.stage);
   const totalRolls = 1 + abilities.reduce((sum, a) => sum + (a.extraProductionRolls ?? 0), 0);
+  const battleCryBonus = nearbyAuraTeammateRollBonus(state, player.id); // Battle Cry
 
   let updated = player;
   let anyHit = false;
   let rerollAvailable = player.pendingRerollNextRoll;
+  let interceptAvailable = !!player.pendingRollIntercept;
   for (let i = 0; i < totalRolls; i++) {
-    let roll = rollDie(rng) + player.permanentEggProductionBonus;
+    let baseRoll = rollDie(rng);
     if (rerollAvailable) {
-      roll = Math.max(roll, rollDie(rng) + player.permanentEggProductionBonus);
+      baseRoll = Math.max(baseRoll, rollDie(rng));
       rerollAvailable = false;
       updated = { ...updated, pendingRerollNextRoll: false };
     }
+    if (interceptAvailable) {
+      const applied = applyRollIntercept(updated, baseRoll, rng);
+      baseRoll = applied.roll;
+      updated = applied.player;
+      interceptAvailable = false;
+    }
+    const roll = baseRoll + player.permanentEggProductionBonus + battleCryBonus;
     if (roll >= threshold) {
       updated = { ...updated, eggs: updated.eggs + eggAmount };
       anyHit = true;
@@ -113,7 +122,12 @@ export function startTurn(state: GameState): GameState {
 
   let next: GameState = {
     ...state,
-    players: replacePlayer(state.players, { ...player, foragedThisTurn: false, pendingWeatherImmuneUntilNextTurn: false }),
+    players: replacePlayer(state.players, {
+      ...player,
+      foragedThisTurn: false,
+      pendingWeatherImmuneUntilNextTurn: false,
+      actionCountsThisTurn: {}, // Dedication — counted per turn, not cumulative
+    }),
   };
   let actionsDelta = 0;
 
@@ -199,9 +213,19 @@ export function endTurn(state: GameState, options?: EndTurnOptions): GameState {
   // core_rules.md's revival clause: a just-revived player must complete
   // their first turn back before they count as "truly" alive for the win
   // check — this is that turn's completion.
+  // "For 1 Turn, borrow an unlocked ability" and Four Leaf Clover's "for 1
+  // turn, perform all actions Outside" also expire here.
   const ending = getPlayer(next.players, playerId);
-  if (ending.justRevivedPendingFirstTurn) {
-    next = { ...next, players: replacePlayer(next.players, { ...ending, justRevivedPendingFirstTurn: false }) };
+  if (ending.justRevivedPendingFirstTurn || ending.pendingBorrowedAbility || ending.pendingMayActAsInsideThisTurn) {
+    next = {
+      ...next,
+      players: replacePlayer(next.players, {
+        ...ending,
+        justRevivedPendingFirstTurn: false,
+        pendingBorrowedAbility: null,
+        pendingMayActAsInsideThisTurn: false,
+      }),
+    };
   }
 
   const nextIndex = (next.currentPlayerIndex + 1) % next.turnOrder.length;
@@ -223,27 +247,21 @@ export function applyEggExchange(player: PlayerState, amount: number, rate = 1):
   return { ...player, eggs: player.eggs - amount, food: player.food + amount * rate };
 }
 
-// --- Weather --------------------------------------------------------------
-
-function drawNextWeatherCard(state: GameState, season: Season): GameState {
-  const deck = [...state.weather.seasonDecks[season]];
-  const cardIndex = deck.shift();
-  if (cardIndex == null) return state; // deck exhausted — shouldn't happen within 3 seasons' draw counts
-  return {
-    ...state,
-    weather: {
-      seasonDecks: { ...state.weather.seasonDecks, [season]: deck },
-      active: { season, cardIndex },
-    },
-  };
-}
-
 // --- Grub daily discard ---------------------------------------------------
 
-function performDailyGrubDiscard(decks: GrubDecksState, side: 'inside' | 'outside', rng: RNG): GrubDecksState {
-  let updated: GrubDecksState = { ...decks, [side]: discardFaceUp(decks[side]) };
+// Ice Melts (Eggspansion): "At end of each day, discard the Grubs in both
+// locations" — overrides the normal single-side daily discard for its
+// duration.
+function performDailyGrubDiscard(decks: GrubDecksState, side: 'inside' | 'outside', rng: RNG, discardBoth: boolean): GrubDecksState {
+  const sides: ('inside' | 'outside')[] = discardBoth ? ['inside', 'outside'] : [side];
+  let updated = decks;
+  for (const s of sides) {
+    updated = { ...updated, [s]: discardFaceUp(updated[s]) };
+  }
   updated = maybeReshuffleGrubDecks(updated, rng);
-  updated = { ...updated, [side]: dealFaceUp(updated[side]) };
+  for (const s of sides) {
+    updated = { ...updated, [s]: dealFaceUp(updated[s]) };
+  }
   return updated;
 }
 
@@ -263,10 +281,48 @@ export interface AdvanceDayOptions {
 // Weathervane/day/season rollover, phase-boundary Egg Exchange + weather
 // draw, and predator level-up at end of Spring/Summer.
 export function advanceDay(state: GameState, options: AdvanceDayOptions): GameState {
+  const discardBothGrubs = !!activeWeatherEffect(state)?.discardBothGrubsDaily; // Ice Melts
   let next: GameState = {
     ...state,
-    grubDecks: performDailyGrubDiscard(state.grubDecks, options.discardSide, state.config.rng),
+    grubDecks: performDailyGrubDiscard(state.grubDecks, options.discardSide, state.config.rng, discardBothGrubs),
+    // Gas Mask's "-1 return attack for an entire day" ends here, every day,
+    // regardless of who used it or which Predator it targeted.
+    predators: state.predators.map((p) =>
+      p.returnAttackReductionToday || p.cannotBeAttackedToday
+        ? { ...p, returnAttackReductionToday: 0, cannotBeAttackedToday: false }
+        : p,
+    ),
   };
+
+  // Bird Flu: "Anyone who ends the day near another player loses 1 heart" —
+  // a proximity check between different players at every day's end (not
+  // just phase boundaries), gated by the usual weather-immunity checks plus
+  // Free Range's location-wide immunity grant.
+  const dayEndWeather = activeWeatherEffect(next);
+  if (dayEndWeather?.onDayEndProximityDamage) {
+    const weatherName = activeWeatherName(next) ?? '';
+    const damage = dayEndWeather.onDayEndProximityDamage;
+    let players = next.players;
+    for (const player of next.players) {
+      if (!player.alive) continue;
+      const hasNeighbor = next.players.some((other) => other.id !== player.id && other.alive && other.location === player.location);
+      if (!hasNeighbor) continue;
+      const grantedImmunity = next.players.some(
+        (p2) =>
+          p2.alive &&
+          p2.location === player.location &&
+          getActiveChickenAbilities(p2.chickenName, p2.stage).some((a) => a.grantsNearbyImmunity?.includes(weatherName)),
+      );
+      const immune =
+        grantedImmunity ||
+        isImmuneToWeather(player.chickenName, player.stage, weatherName, dayEndWeather.positive ?? false) ||
+        player.pendingWeatherImmuneUntilNextTurn ||
+        player.permanentWeatherImmuneUntilNextCard;
+      if (immune) continue;
+      players = players.map((p) => (p.id === player.id ? applyDamageAndMaybeDeath(p, damage) : p));
+    }
+    next = { ...next, players };
+  }
 
   let { day, season } = next;
   day += 1;

@@ -47,11 +47,16 @@ export const GRUB_DEFEND_EFFECTS: Record<string, PredatorEffect> = {
 
 // The 17 "executable now" Grub Rewards (docs/rules-audit.md), keyed by
 // Grub name — granted on defeat (held in grubHand), played on demand via
-// useGrubReward. The 7 needs-hook rewards (Dung Beetle, Four Leaf Clover,
-// Garden Snail, Lucky Cricket, Spotted Lanternfly, Wasp Swarm, Firefly)
-// are deliberately absent, same convention as everywhere else in phase 6/7.
+// useGrubReward. Every Reward is now implemented: Garden Snail (phase
+// 11d, tagAlong), Wasp Swarm (phase 11e, reflected damage), Spotted
+// Lanternfly (phase 11f, roll interception), Dung Beetle/Firefly (phase
+// 11g, deck manipulation), Lucky Cricket (phase 11i, effect copying), and
+// Four Leaf Clover (phase 11j, location override).
 export const GRUB_REWARDS: Record<string, CardEffect> = {
   Scorpion: { ignoresPredatorRollEffectsNextAttack: true },
+  'Dung Beetle': { takeSpecificBonusCardFromDiscard: true },
+  'Four Leaf Clover': { grantsInsideActionsOutsideForTurn: true },
+  'Lucky Cricket': { copiesTeammateBonusCardEffect: true },
   'Lunar Moth': { immuneToWeatherUntilNextCard: true },
   Slug: { selfDelta: { health: 1 } },
   Cocoon: { teammateGain: { resource: 'food', maxAmount: 3 } },
@@ -68,4 +73,8 @@ export const GRUB_REWARDS: Record<string, CardEffect> = {
   'Ant Pile': { enemyDamage: 2 },
   Lizard: { permanentForageBonusUntilNextWeather: 1 },
   'Large Spider': { permanentNoBonusCardHandLimit: true },
+  'Garden Snail': { permanentTagAlongUnlocked: true },
+  'Wasp Swarm': { reflectsReturnAttackNextAttack: true },
+  'Spotted Lanternfly': { pickTargetPlayerNextRollOutcome: true },
+  Firefly: { redrawWeatherOrCallEggExchange: true },
 };

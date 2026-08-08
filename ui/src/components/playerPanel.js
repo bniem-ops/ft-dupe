@@ -1,6 +1,8 @@
 import { html } from 'htm/preact';
 import { useState } from 'preact/hooks';
-import { findChicken, loadBonusCards, loadGrubCards, findPredator, BONUS_CARD_EFFECTS, GRUB_REWARDS } from '../engine.js';
+import { findChicken, loadBonusCards, loadGrubCards, findPredator, BONUS_CARD_EFFECTS, GRUB_REWARDS, PREDATOR_LOOT, OUTSIDE_LOCATIONS } from '../engine.js';
+
+const ALL_LOCATIONS = ['Coop', ...OUTSIDE_LOCATIONS];
 
 function Hearts({ health, maxHealth }) {
   return html`
@@ -76,6 +78,59 @@ function PlayCardControls({ effect, otherPlayers, playerNames, remainingCards, o
       <button type="button" disabled=${blockedOnTeammate || blockedOnDiscard} onClick=${play}>
         ${shape.needsEnemy ? 'Play (pick target on board)' : 'Play'}
       </button>
+    </span>
+  `;
+}
+
+// Egg Stash / Food Stash: draw down the shared pool held on the card,
+// either into your own hand or a nearby player's (giftFood-style nearby
+// check, enforced by the engine — this is just the picker).
+function StashControls({ name, resource, remaining, otherPlayers, playerNames, onCollect }) {
+  const [amount, setAmount] = useState(1);
+  const [targetPlayerId, setTargetPlayerId] = useState('');
+
+  if (remaining < 1) return html`<span class="ref-text">(stash empty)</span>`;
+  return html`
+    <span class="card-controls">
+      <span class="ref-text">${remaining} ${resource} left</span>
+      <input type="number" min="1" max=${remaining} value=${amount} onInput=${(e) => setAmount(Number(e.target.value))} />
+      <select onChange=${(e) => setTargetPlayerId(e.target.value)} value=${targetPlayerId}>
+        <option value="">Take for myself</option>
+        ${otherPlayers.map((p) => html`<option key=${p.id} value=${p.id}>Give to ${playerNames?.[p.id] ?? p.id}</option>`)}
+      </select>
+      <button type="button" onClick=${() => onCollect(amount, targetPlayerId || undefined)}>Take</button>
+    </span>
+  `;
+}
+
+// Cave Hoard: draw a Bonus Card for yourself or a nearby teammate.
+function CaveHoardControls({ otherPlayers, playerNames, onUse }) {
+  const [targetPlayerId, setTargetPlayerId] = useState('');
+  return html`
+    <span class="card-controls">
+      <select onChange=${(e) => setTargetPlayerId(e.target.value)} value=${targetPlayerId}>
+        <option value="">For myself</option>
+        ${otherPlayers.map((p) => html`<option key=${p.id} value=${p.id}>For ${playerNames?.[p.id] ?? p.id}</option>`)}
+      </select>
+      <button type="button" onClick=${() => onUse(targetPlayerId || undefined)}>Draw via Cave Hoard</button>
+    </span>
+  `;
+}
+
+// Secret Tunnels: free Move for yourself or a nearby player, to any location.
+function SecretTunnelsControls({ otherPlayers, playerNames, onUse }) {
+  const [targetPlayerId, setTargetPlayerId] = useState('');
+  const [destination, setDestination] = useState(ALL_LOCATIONS[0]);
+  return html`
+    <span class="card-controls">
+      <select onChange=${(e) => setTargetPlayerId(e.target.value)} value=${targetPlayerId}>
+        <option value="">Move myself</option>
+        ${otherPlayers.map((p) => html`<option key=${p.id} value=${p.id}>Move ${playerNames?.[p.id] ?? p.id}</option>`)}
+      </select>
+      <select onChange=${(e) => setDestination(e.target.value)} value=${destination}>
+        ${ALL_LOCATIONS.map((loc) => html`<option key=${loc} value=${loc}>${loc}</option>`)}
+      </select>
+      <button type="button" onClick=${() => onUse(destination, targetPlayerId || undefined)}>Use Secret Tunnels</button>
     </span>
   `;
 }
@@ -203,7 +258,75 @@ export function PlayerPanel({ player, isCurrent, state, dispatch, pendingPick, s
 
       <details>
         <summary>Loot Drops (${player.lootDrops.length})</summary>
-        ${player.lootDrops.map((name, i) => html`<div key=${i} class="ref-text">${name} — ${findPredator(name).lootDrop ?? '—'}</div>`)}
+        ${player.lootDrops.map((name, i) => {
+          const loot = PREDATOR_LOOT[name];
+          const remaining = player.lootCharges?.[name] ?? 0;
+          return html`
+            <div key=${i} class="ref-text card-row">
+              <div>${name} — ${findPredator(name).lootDrop ?? '—'}</div>
+              ${canAct &&
+              loot?.stash &&
+              html`<${StashControls}
+                name=${name}
+                resource=${loot.stash.resource === 'egg' ? 'eggs' : 'food'}
+                remaining=${remaining}
+                otherPlayers=${otherPlayers}
+                playerNames=${playerNames}
+                onCollect=${(amount, targetPlayerId) => dispatch({ type: 'collectFromStash', playerId: player.id, predatorName: name, amount, targetPlayerId })}
+              />`}
+              ${canAct &&
+              loot?.chargedRangedAttack &&
+              html`<span class="card-controls">
+                <span class="ref-text">${remaining} arrows left</span>
+                <button
+                  type="button"
+                  disabled=${remaining < 1}
+                  onClick=${() =>
+                    setPendingPick({ type: 'cardTarget', actionType: 'useArrowPack', playerId: player.id, handIndexField: 'unused', step: 'target', extraParams: {} })}
+                >
+                  Fire Arrow (pick target on board)
+                </button>
+              </span>`}
+              ${canAct &&
+              loot?.activatableAttackReduction &&
+              html`<span class="card-controls">
+                ${remaining > 0
+                  ? html`<button
+                      type="button"
+                      onClick=${() =>
+                        setPendingPick({ type: 'cardTarget', actionType: 'useGasMask', playerId: player.id, handIndexField: 'unused', step: 'target', extraParams: {} })}
+                    >
+                      Use Gas Mask (pick Predator on board)
+                    </button>`
+                  : html`<span class="ref-text">(used)</span>`}
+              </span>`}
+              ${canAct &&
+              loot?.everyoneAtLocationRefreshExtraAction &&
+              html`<button type="button" onClick=${() => dispatch({ type: 'useChamberstick', playerId: player.id })}>
+                Refresh everyone's Token here
+              </button>`}
+              ${canAct &&
+              loot?.freeDrawBonusCardForSelfOrTeammate &&
+              html`<${CaveHoardControls}
+                otherPlayers=${otherPlayers}
+                playerNames=${playerNames}
+                onUse=${(targetPlayerId) => dispatch({ type: 'useCaveHoard', playerId: player.id, targetPlayerId })}
+              />`}
+              ${canAct &&
+              loot?.healEveryoneAtLocation &&
+              html`<button type="button" onClick=${() => dispatch({ type: 'useHealingPoultice', playerId: player.id })}>
+                Heal everyone here ${loot.healEveryoneAtLocation}
+              </button>`}
+              ${canAct &&
+              loot?.freeMoveForSelfOrNearby &&
+              html`<${SecretTunnelsControls}
+                otherPlayers=${otherPlayers}
+                playerNames=${playerNames}
+                onUse=${(destination, targetPlayerId) => dispatch({ type: 'useSecretTunnels', playerId: player.id, destination, targetPlayerId })}
+              />`}
+            </div>
+          `;
+        })}
       </details>
     </div>
   `;

@@ -45,6 +45,28 @@ test('heal never exceeds maxHealth', () => {
   assert.equal(healed.players.find((p) => p.id === 'p1')!.health, 3);
 });
 
+test("Madam Chickovsky's stage-3 Fur Coat lifts the Inside-only restriction on Lay Egg/Heal/Brood", () => {
+  const state = createGame(baseConfig());
+  const outside = withPlayer(state, 'p1', {
+    chickenName: 'Madam Chickovsky',
+    stage: 3,
+    location: 'Grit Stones',
+    health: 1,
+    maxHealth: 3,
+    food: 5,
+    eggs: 1,
+  });
+  const withDeadTarget = withPlayer(outside, 'p2', { alive: false });
+
+  assert.equal(heal(outside, 'p1', 1).players.find((p) => p.id === 'p1')!.health, 2);
+  assert.equal(layEgg(outside, 'p1').players.find((p) => p.id === 'p1')!.eggs, 2);
+  assert.equal(brood(withDeadTarget, 'p1', 'p2').players.find((p) => p.id === 'p1')!.eggs, 0);
+
+  // A chicken without Fur Coat is still blocked Outside (unaffected by this change).
+  const otherOutside = withPlayer(state, 'p1', { location: 'Grit Stones', food: 5 });
+  assert.throws(() => heal(otherOutside, 'p1', 1));
+});
+
 test('brood costs 1 egg, skips the brooder\'s next turn, and draws 2 revival choices (not an immediate revive)', () => {
   const state = createGame(baseConfig());
   const ready = withPlayer(state, 'p1', { eggs: 1 });
@@ -129,6 +151,26 @@ test('attack on a Grub requires matching Inside/Outside and a face-up card', () 
     grubDecks: { ...insideAttacker.grubDecks, inside: { ...insideAttacker.grubDecks.inside, faceUp: null } },
   };
   assert.throws(() => attack(noFaceUp, 'p1', 'grub', 'inside', 1));
+});
+
+test('attack strength floor drops to 0 against a target already at 0 health (Slug, Wild Grain, Four Leaf Clover start there)', () => {
+  const state = createGame(baseConfig());
+  const zeroHealthGrub: GameState = {
+    ...state,
+    grubDecks: {
+      ...state.grubDecks,
+      inside: { ...state.grubDecks.inside, faceUp: { ...state.grubDecks.inside.faceUp!, currentHealth: 0 } },
+    },
+  };
+  const poor = withPlayer(zeroHealthGrub, 'p1', { food: 0, location: 'Coop' });
+  assert.throws(() => attack(poor, 'p1', 'grub', 'inside', 1)); // no food to spare for strength 1
+  const result = attack(poor, 'p1', 'grub', 'inside', 0); // strength 0 is fine — it's already dead
+  assert.equal(result.players.find((p) => p.id === 'p1')!.food, 0); // no cost
+  assert.equal(result.players.find((p) => p.id === 'p1')!.grubHand.length, 1); // claimed
+
+  // A healthy target still requires real strength.
+  const healthy = withPlayer(state, 'p1', { food: 0, location: 'Coop' });
+  assert.throws(() => attack(healthy, 'p1', 'grub', 'inside', 0));
 });
 
 test('eat requires Outside, is capped by stage, and can trigger a level-up', () => {

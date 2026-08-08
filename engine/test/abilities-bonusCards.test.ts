@@ -5,6 +5,7 @@ import { playBonusCard } from '../src/actions.js';
 import { attack } from '../src/actions.js';
 import { resolveProduction } from '../src/turn.js';
 import { loadBonusCards } from '../src/data.js';
+import { BONUS_CARD_EFFECTS } from '../src/abilities/bonusCards.js';
 import { GameState } from '../src/types.js';
 import { baseConfig, constantRng } from './testHelpers.js';
 
@@ -173,8 +174,18 @@ test('"-1 to a Predators roll": shifts the next Predator-roll combat down by 1',
   assert.equal(eggsmeralda.health, damaged.predators.find((p) => p.name === 'Eggsmeralda')!.health - 1);
 });
 
-test('playing a card the registry does not implement throws (needs-hook items stay deferred)', () => {
-  const cardId = loadBonusCards().findIndex((c) => c.shorthand === 'Move everyone for free');
-  const state = withPlayer(createGame(baseConfig()), 'p1', { bonusCardHand: [cardId] });
-  assert.throws(() => playBonusCard(state, 'p1', 0));
+test('every printed Bonus Card shorthand now has an implemented effect (phase 11 closed the "needs hook" gap)', () => {
+  const shorthands = new Set(loadBonusCards().map((c) => c.shorthand));
+  for (const shorthand of shorthands) {
+    assert.ok(BONUS_CARD_EFFECTS[shorthand as string], `"${shorthand}" has no BONUS_CARD_EFFECTS entry`);
+  }
+});
+
+test('playing a card the registry does not implement throws', () => {
+  const state = withPlayer(createGame(baseConfig()), 'p1', { bonusCardHand: [0] });
+  const withFakeCard: GameState = {
+    ...state,
+    players: state.players.map((p) => (p.id === 'p1' ? { ...p, bonusCardHand: [-1] } : p)),
+  };
+  assert.throws(() => playBonusCard(withFakeCard, 'p1', 0));
 });

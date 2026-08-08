@@ -5,6 +5,7 @@
   --border: #8a6d3b;
   --accent: #b5651d;
   --danger: #a33;
+  --success: #2e7d32;
   --text: #3a2c1a;
 }
 
@@ -104,6 +105,15 @@ fieldset {
   background: #f8d7da;
   border: 1px solid var(--danger);
   color: var(--danger);
+  padding: 0.6em 1em;
+  margin: 0.6em;
+  border-radius: 6px;
+}
+
+.success-banner {
+  background: #d9f2db;
+  border: 1px solid var(--success);
+  color: var(--success);
   padding: 0.6em 1em;
   margin: 0.6em;
   border-radius: 6px;

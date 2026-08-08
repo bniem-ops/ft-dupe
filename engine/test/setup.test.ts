@@ -44,11 +44,11 @@ test('createGame places 3 regular predators + boss at the confirmed board locati
   assert.equal(locations.size, 4); // one predator per location, no overlap
 });
 
-test('predator health = (stage-3 multiplier + boss bonus) x player count', () => {
+test('predator health = (own starting-stage multiplier + boss bonus) x player count', () => {
   const state = createGame(baseConfig()); // difficulty 4 -> boss bonus +3
-  const eggsmeralda = state.predators.find((p) => p.name === 'Eggsmeralda')!; // x4, regular
-  assert.equal(eggsmeralda.health, 4 * 2);
-  const boss = state.predators.find((p) => p.isBoss)!; // Ursula Bone x5 + 3 bonus
+  const eggsmeralda = state.predators.find((p) => p.name === 'Eggsmeralda')!; // stage 1 x2, regular
+  assert.equal(eggsmeralda.health, 2 * 2);
+  const boss = state.predators.find((p) => p.isBoss)!; // Ursula Bone starts at stage 3: x5 + 3 bonus
   assert.equal(boss.health, (5 + 3) * 2);
 });
 
