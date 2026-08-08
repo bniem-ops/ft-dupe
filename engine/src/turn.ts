@@ -150,6 +150,9 @@ export function startTurn(state: GameState): GameState {
       if (result.discardAndRedrawBonusCard) {
         next = discardAndRedrawOneBonusCard(next, playerId);
       }
+      if (result.rollIntercepted) {
+        next = { ...next, players: replacePlayer(next.players, { ...getPlayer(next.players, playerId), pendingRollIntercept: null }) };
+      }
     }
   }
 
@@ -240,6 +243,7 @@ export function endTurn(state: GameState, options?: EndTurnOptions): GameState {
       if (choice === 'food') updated = { ...updated, food: updated.food - 1 };
       else if (choice === 'egg') updated = { ...updated, eggs: updated.eggs - 1 };
     }
+    if (result.rollIntercepted) updated = { ...updated, pendingRollIntercept: null };
     next = { ...next, players: replacePlayer(next.players, updated) };
   }
 

@@ -146,7 +146,7 @@ export interface ChickenAbility {
   canRedirectDamage?: boolean; // Tank — see attack()'s damageRedirect param
 
   // Phase 11f: player-initiated roll interception (see PlayerState.
-  // pendingRollIntercept's doc comment for the deliberate scope limit).
+  // pendingRollIntercept's doc comment for the full list of covered rolls).
   canAdjustAnyRollForEggs?: boolean; // Strategem — see the useStrategem action
   canRerollAnyRollForEgg?: boolean; // Deus Eggs Machina — see the useDeusEggsMachina action
 
@@ -252,7 +252,11 @@ export interface WeatherEffect {
   // everything else, i.e. defaults to true / negative unless noted).
   positive?: boolean;
 
-  onTurnStart?: (ctx: AbilityContext, rng: RNG) => { actionsDelta?: number; discardAndRedrawBonusCard?: boolean };
+  // rollIntercepted: set true when the hook actually rolled and consumed a
+  // pending roll intercept (Strategem/Deus Eggs Machina/etc.) — Tornado
+  // rolls, Earthquake doesn't, so the caller (turn.ts) needs this to know
+  // whether to clear PlayerState.pendingRollIntercept afterward.
+  onTurnStart?: (ctx: AbilityContext, rng: RNG) => { actionsDelta?: number; discardAndRedrawBonusCard?: boolean; rollIntercepted?: boolean };
   // Nighttime/Sunny: "once during this phase," not every turn — gated by
   // PlayerState.weatherAdjustmentUsedThisPhase, reset when a new card is drawn.
   turnStartOncePerPhase?: boolean;
@@ -260,7 +264,10 @@ export interface WeatherEffect {
   onForageCost?: number; // Drought — action cost override (default 1)
   onFirstForageThisTurn?: { bonusFood: number }; // Fair
   onAttack?: (ctx: CombatContext, rng: RNG) => CombatStageResult; // Fog
-  onTurnEnd?: (ctx: AbilityContext, rng: RNG) => { healthLoss?: number; discardChoice?: ('food' | 'egg')[] }; // Hail/Lightning Storm/Severe Wind — gated by ending Outside, checked by the caller
+  onTurnEnd?: (
+    ctx: AbilityContext,
+    rng: RNG,
+  ) => { healthLoss?: number; discardChoice?: ('food' | 'egg')[]; rollIntercepted?: boolean }; // Hail/Lightning Storm/Severe Wind — gated by ending Outside, checked by the caller
   onTurnEndRequiresOutside?: boolean;
   onPhaseEnd?: () => { discardAllFood?: boolean }; // Flash Flood — group-wide, no per-player context needed
   skipNextEggExchange?: boolean; // Pouring Rain

@@ -174,16 +174,24 @@ export interface PlayerState {
   pendingRerollNextRoll: boolean; // consumed by the next production/forage/layEgg/Grub-defend roll
   pendingIgnorePredatorRoll: boolean; // Scorpion Grub Reward — consumed by the next Predator attack
   pendingReflectReturnAttack: boolean; // Wasp Swarm Grub Reward — consumed by the next Predator attack
-  // Phase 11f: roll interception. Scope note — this is deliberately limited
-  // to the roll made for *this player's own next* production/forage/lay-egg
-  // action or Predator-effect combat roll (the meaningfully-impactful "any
-  // die" scenarios in actual play), not a literal hook into every single
-  // die rolled anywhere in the engine (weather rolls, Grub defend rolls,
-  // Berserker's roll, etc.) — building a truly universal interceptor would
-  // mean threading a consumed/cleared flag through every one of those call
-  // sites for comparatively rare use. Settable on any player (self or a
-  // chosen target), consumed and cleared by the first of those 4 rolls
-  // that fires for them.
+  // Phase 11f: roll interception (Strategem, Deus Eggs Machina, "Reroll a
+  // teammate's/any die," Spotted Lanternfly). Settable on any player (self
+  // or a chosen target), consumed by the first attributable die roll that
+  // fires for them — genuinely "any roll," not limited to a handful of
+  // sites: production/forage/layEgg, every custom and rollOutcomes-table
+  // Predator-effect roll, Grub defend rolls, chicken on-attack/on-damage
+  // rolls (Evasion, Berserker), weather turn-start/turn-end/on-attack
+  // rolls (Tornado, Lightning Storm, Fog), Chickira's free redraw roll,
+  // Ladybug's roll, and Gravekeeper Fowl's revival roll. Combat-stage
+  // hooks read it via abilities/chickens.ts's peekRollIntercept and rely
+  // on actions.ts's attack() to clear it afterward regardless of which
+  // hook consumed it; sites reachable outside resolveCombat (Gravekeeper
+  // Fowl's revival roll via Arrow Pack/direct card damage, and every
+  // non-combat site) clear it explicitly themselves instead. The only
+  // rolls NOT covered are ones with no single attributable player (Ice
+  // Melts' daily Grub discard has no roll at all; Bird Flu's proximity
+  // check isn't a roll either) or raw rng() calls that aren't a 1-6 die
+  // roll in the first place (shuffles, random-pick-among-several).
   pendingRollIntercept: { mode: 'adjustBy' | 'reroll' | 'forceValue'; value?: number } | null;
   // Phase 11i: "For 1 Turn, borrow an unlocked ability from a teammate" —
   // a reference (chicken name + stage), not the ability object itself

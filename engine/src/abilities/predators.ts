@@ -6,6 +6,7 @@
 import { Stage, rollDie, CombatContext, RNG, CombatStageResult } from '../types.js';
 import { loadGrubCards, parseIntField } from '../data.js';
 import { activeWeatherName } from './weather.js';
+import { peekRollIntercept } from './chickens.js';
 import { PredatorEffect, PredatorLoot } from './types.js';
 
 // Sheriff of Rottingham's 3 stage effects all key off a face-up Grub's
@@ -16,8 +17,8 @@ function grubMaxHealth(faceUp: { cardId: number } | null): number {
   return parseIntField(loadGrubCards()[faceUp.cardId]?.health ?? null, 0);
 }
 
-function coopellaRoll(_ctx: CombatContext, rng: RNG): CombatStageResult {
-  const roll = rollDie(rng);
+function coopellaRoll(ctx: CombatContext, rng: RNG): CombatStageResult {
+  const roll = peekRollIntercept(ctx.state, ctx.attackerId, rollDie(rng), rng);
   if (roll === 4) return { forcesExtraActionTokenUnavailable: true };
   if (roll >= 5) return { forcesWeatherRedraw: true };
   return {};
@@ -30,16 +31,16 @@ export const PREDATOR_EFFECTS: Record<string, Partial<Record<Stage, PredatorEffe
     // attacker, so these use `custom` rather than the single-target
     // rollOutcomes shape (same reasoning as Shere Corn's splash damage).
     2: {
-      custom: (_ctx, rng) => {
-        const roll = rollDie(rng);
+      custom: (ctx, rng) => {
+        const roll = peekRollIntercept(ctx.state, ctx.attackerId, rollDie(rng), rng);
         if (roll <= 2) return {};
         if (roll <= 4) return { attackerEggDelta: -1 };
         return { takesEggsFromEveryone: 1 };
       },
     },
     3: {
-      custom: (_ctx, rng) => {
-        const roll = rollDie(rng);
+      custom: (ctx, rng) => {
+        const roll = peekRollIntercept(ctx.state, ctx.attackerId, rollDie(rng), rng);
         if (roll <= 2) return {};
         if (roll <= 4) return { attackerEggDelta: -2 };
         return { takesEggsFromEveryone: 2 };
@@ -109,18 +110,18 @@ export const PREDATOR_EFFECTS: Record<string, Partial<Record<Stage, PredatorEffe
     // Predator's location (the attacker included), on top of the normal
     // return attack, so it uses the `custom` escape hatch rather than the
     // single-target rollOutcomes shape.
-    1: { custom: (_ctx, rng) => (rollDie(rng) >= 4 ? { splashDamage: 1 } : {}) },
+    1: { custom: (ctx, rng) => (peekRollIntercept(ctx.state, ctx.attackerId, rollDie(rng), rng) >= 4 ? { splashDamage: 1 } : {}) },
     2: {
-      custom: (_ctx, rng) => {
-        const roll = rollDie(rng);
+      custom: (ctx, rng) => {
+        const roll = peekRollIntercept(ctx.state, ctx.attackerId, rollDie(rng), rng);
         if (roll <= 2) return { splashDamage: 1 };
         if (roll <= 5) return { splashDamage: 2 };
         return { splashDamage: 3 };
       },
     },
     3: {
-      custom: (_ctx, rng) => {
-        const roll = rollDie(rng);
+      custom: (ctx, rng) => {
+        const roll = peekRollIntercept(ctx.state, ctx.attackerId, rollDie(rng), rng);
         if (roll === 1) return { splashDamage: 1 };
         if (roll <= 4) return { splashDamage: 2 };
         return { splashDamage: 3 };
@@ -136,14 +137,20 @@ export const PREDATOR_EFFECTS: Record<string, Partial<Record<Stage, PredatorEffe
     // synchronous resolver can't pause mid-combat to ask, so it's resolved
     // afterward via actions.ts's completeForcedRelocation.
     1: {
-      custom: (ctx, rng) => (rollDie(rng) >= 4 ? { dodged: true, predatorDodges: true, forcedRelocation: { playerId: ctx.attackerId } } : {}),
+      custom: (ctx, rng) =>
+        peekRollIntercept(ctx.state, ctx.attackerId, rollDie(rng), rng) >= 4
+          ? { dodged: true, predatorDodges: true, forcedRelocation: { playerId: ctx.attackerId } }
+          : {},
     },
     2: {
-      custom: (ctx, rng) => (rollDie(rng) >= 3 ? { dodged: true, predatorDodges: true, forcedRelocation: { playerId: ctx.attackerId } } : {}),
+      custom: (ctx, rng) =>
+        peekRollIntercept(ctx.state, ctx.attackerId, rollDie(rng), rng) >= 3
+          ? { dodged: true, predatorDodges: true, forcedRelocation: { playerId: ctx.attackerId } }
+          : {},
     },
     3: {
       custom: (ctx, rng) => {
-        const roll = rollDie(rng);
+        const roll = peekRollIntercept(ctx.state, ctx.attackerId, rollDie(rng), rng);
         if (roll > 3) return { dodged: true, predatorDodges: true, forcedRelocation: { playerId: ctx.attackerId } };
         // "A teammate moves out" — a random other alive player at this
         // location, if any; falls back to the attacker if they're alone.
@@ -233,10 +240,16 @@ export const PREDATOR_EFFECTS: Record<string, Partial<Record<Stage, PredatorEffe
   },
   'Sheriff of Rottingham': {
     1: {
-      custom: (ctx, rng) => ({ returnAttackOverride: grubMaxHealth(ctx.state.grubDecks[rollDie(rng) <= 3 ? 'inside' : 'outside'].faceUp) }),
+      custom: (ctx, rng) => {
+        const roll = peekRollIntercept(ctx.state, ctx.attackerId, rollDie(rng), rng);
+        return { returnAttackOverride: grubMaxHealth(ctx.state.grubDecks[roll <= 3 ? 'inside' : 'outside'].faceUp) };
+      },
     },
     2: {
-      custom: (ctx, rng) => ({ returnAttackDelta: grubMaxHealth(ctx.state.grubDecks[rollDie(rng) <= 3 ? 'inside' : 'outside'].faceUp) }),
+      custom: (ctx, rng) => {
+        const roll = peekRollIntercept(ctx.state, ctx.attackerId, rollDie(rng), rng);
+        return { returnAttackDelta: grubMaxHealth(ctx.state.grubDecks[roll <= 3 ? 'inside' : 'outside'].faceUp) };
+      },
     },
     3: {
       custom: (ctx) => ({

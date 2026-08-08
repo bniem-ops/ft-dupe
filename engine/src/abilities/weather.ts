@@ -3,7 +3,7 @@
 import { rollDie, RNG, GameState, Season } from '../types.js';
 import { seasonCardList } from '../data.js';
 import { WeatherEffect } from './types.js';
-import { isImmuneToWeather } from './chickens.js';
+import { isImmuneToWeather, peekRollIntercept } from './chickens.js';
 import { shuffle } from '../random.js';
 
 export const WEATHER_EFFECTS: Record<string, WeatherEffect> = {
@@ -38,13 +38,21 @@ export const WEATHER_EFFECTS: Record<string, WeatherEffect> = {
   },
   'Lightning Storm': {
     onTurnEndRequiresOutside: true,
-    onTurnEnd: (_ctx, rng: RNG) => (rollDie(rng) <= 2 ? { healthLoss: 1 } : {}),
+    onTurnEnd: (ctx, rng: RNG) => {
+      const rollIntercepted = !!ctx.state.players.find((p) => p.id === ctx.playerId)?.pendingRollIntercept;
+      const roll = peekRollIntercept(ctx.state, ctx.playerId, rollDie(rng), rng);
+      return { ...(roll <= 2 ? { healthLoss: 1 } : {}), rollIntercepted };
+    },
   },
   'Flash Flood': {
     onPhaseEnd: (): { discardAllFood?: boolean } => ({ discardAllFood: true }),
   },
   Tornado: {
-    onTurnStart: (_ctx, rng: RNG) => (rollDie(rng) <= 2 ? { actionsDelta: -1 } : {}),
+    onTurnStart: (ctx, rng: RNG) => {
+      const rollIntercepted = !!ctx.state.players.find((p) => p.id === ctx.playerId)?.pendingRollIntercept;
+      const roll = peekRollIntercept(ctx.state, ctx.playerId, rollDie(rng), rng);
+      return { ...(roll <= 2 ? { actionsDelta: -1 } : {}), rollIntercepted };
+    },
   },
   'Pouring Rain': {
     skipNextEggExchange: true,
@@ -70,7 +78,7 @@ export const WEATHER_EFFECTS: Record<string, WeatherEffect> = {
     onTurnEnd: () => ({ discardChoice: ['food', 'egg'] }),
   },
   Fog: {
-    onAttack: (_ctx, rng: RNG) => (rollDie(rng) <= 2 ? { dodged: true } : {}),
+    onAttack: (ctx, rng: RNG) => (peekRollIntercept(ctx.state, ctx.attackerId, rollDie(rng), rng) <= 2 ? { dodged: true } : {}),
   },
   'Dust Storm': {
     maxAttackStrengthDelta: -1,

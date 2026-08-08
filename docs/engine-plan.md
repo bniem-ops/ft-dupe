@@ -45,11 +45,15 @@ initially deferred pending a design conversation since it breaks the
 engine's one-shared-weather-card assumption, landed last — see phase 11's
 closing note for all three. Also landed: a rules clarification on Sunny/
 Nighttime ("once during this phase," but the player picks which of their
-turns it lands on, not automatically the first), and a base-game bug fix
+turns it lands on, not automatically the first); a base-game bug fix
 where gaining a Bonus Card at the hand limit was blocked outright instead
-of letting the gain happen and the player discard down to size afterward.
-232 engine tests passing. Revisit and refine this doc as new work comes
-up — it's a living plan, not a spec to freeze.
+of letting the gain happen and the player discard down to size afterward;
+a correction to Weasma and Clawnk's relocation (the player picks their
+destination, not the engine); and a widening of 11f's roll interception
+("any roll," per the printed card text) from 4 sites to every
+attributable die roll in the engine. 238 engine tests passing. Revisit
+and refine this doc as new work comes up — it's a living plan, not a spec
+to freeze.
 
 ## What "engine" means here
 
@@ -520,10 +524,11 @@ own rather than only valuable once everything else is done.
       live).
     - **11f** (roll interception): Strategem, Deus Eggs Machina, "Reroll a
       teammate's/any die," Spotted Lanternfly. New `PlayerState.
-      pendingRollIntercept`, deliberately scoped to a player's own next
-      production/forage/lay-egg/Predator-effect roll — not a literal
-      global interceptor on every `rollDie()` call in the engine (see the
-      field's doc comment for the full reasoning).
+      pendingRollIntercept`, originally scoped to just 4 sites (production/
+      forage/lay-egg/the standard Predator-effect roll) rather than a
+      literal global interceptor — **widened later** to cover every
+      attributable die roll in the engine; see the closing note below and
+      the field's doc comment for the full current list.
     - **11g** (on-demand shared-deck/schedule manipulation): Wherever Any
       Weather, Coopella, Firefly, "Draw new weather," Ice Melts, Sheriff of
       Rottingham (return attack driven by live Grub-deck health), Dungeon
@@ -695,6 +700,37 @@ own rather than only valuable once everything else is done.
     teammates at the location gets forced out, when the roll says "a
     teammate" rather than "you" — is untouched, since the table's
     correction was specifically about the destination, not who moves.
+
+    **11f widened: "any roll" now covers every attributable die roll, not
+    4 sites.** The original 11f only checked `pendingRollIntercept` at
+    production/forage/layEgg and the standard (`rollOutcomes`-table)
+    Predator-effect roll — anything else (weather rolls, Grub defend
+    rolls, and critically every `custom`-hook Predator effect, which is
+    most of what 11e/11g actually built) silently ignored a held
+    Strategem/Deus Eggs Machina/reroll card. Closed by adding a "peek"
+    variant, `peekRollIntercept` (`abilities/chickens.ts`) — reads and
+    applies a pending intercept without needing to return updated player
+    state, for hooks (`CombatStageResult`-returning `custom` predator
+    effects, Grub defend rolls, chicken on-attack/on-damage rolls,
+    weather on-attack rolls) that can't thread a state mutation back
+    through their own return type. These all rely on `attack()`'s
+    existing unconditional post-combat clear of `pendingRollIntercept`
+    (same as the original wired site already did) rather than clearing it
+    themselves. Sites reachable *outside* that cleanup — Tornado/Lightning
+    Storm's turn-start/turn-end rolls (new `rollIntercepted` flag on
+    `WeatherEffect.onTurnStart`/`onTurnEnd`'s return shape, so `turn.ts`
+    knows whether to clear it, since not every card with that hook
+    actually rolls — Earthquake doesn't), Chickira's free redraw roll,
+    Ladybug's roll, and Gravekeeper Fowl's revival roll (also reachable
+    via Arrow Pack/direct card damage, which never call `attack()` at
+    all) — clear it explicitly at their own site instead. Not covered,
+    deliberately: rolls with no single attributable player (Ice Melts has
+    no roll; Bird Flu's proximity check isn't one either) and raw `rng()`
+    calls that aren't a 1-6 die roll (shuffles, random-pick-among-several
+    — e.g. Weasma and Clawnk S3's "which teammate" pick, untouched). 6 new
+    tests in `abilities-rollIntercept.test.ts` (238 total, zero
+    regressions), including one proving the Arrow-Pack-bypasses-attack()
+    edge case clears correctly rather than leaking into a later roll.
 
 ## Open questions (not blocking yet, worth deciding before the phase that needs them)
 

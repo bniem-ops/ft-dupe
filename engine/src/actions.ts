@@ -669,8 +669,15 @@ export function useWhereverAnyWeather(state: GameState, playerId: string): GameS
   const player = assertFreeAbilityAvailable(state, playerId);
   const hasAbility = getOwnAndBorrowedAbilities(player).some((a) => a.freeWeatherRedrawRoll);
   if (!hasAbility) throw new Error(`${playerId}'s chicken has no such ability`);
-  const marked: GameState = { ...state, players: replacePlayer(state.players, { ...player, freeAbilityUsedThisTurn: true }) };
-  if (rollDie(state.config.rng) < 4) return marked;
+  let updated = { ...player, freeAbilityUsedThisTurn: true };
+  let roll = rollDie(state.config.rng);
+  if (updated.pendingRollIntercept) {
+    const applied = applyRollIntercept(updated, roll, state.config.rng);
+    roll = applied.roll;
+    updated = applied.player;
+  }
+  const marked: GameState = { ...state, players: replacePlayer(state.players, updated) };
+  if (roll < 4) return marked;
   return redrawWeatherCard(marked);
 }
 
@@ -1203,7 +1210,12 @@ function resolveCardEffect(state: GameState, playerId: string, effect: CardEffec
   }
 
   if (effect.ladybugRoll) {
-    const eggRoll = rollDie(state.config.rng);
+    let eggRoll = rollDie(state.config.rng);
+    if (player.pendingRollIntercept) {
+      const applied = applyRollIntercept(player, eggRoll, state.config.rng);
+      eggRoll = applied.roll;
+      player = applied.player;
+    }
     const foodRoll = rollDie(state.config.rng);
     const healthRoll = rollDie(state.config.rng);
     player = applyResourceDelta(player, { egg: eggRoll, food: foodRoll, health: -healthRoll });

@@ -16,8 +16,8 @@ export const CHICKEN_ABILITIES: Record<string, Partial<Record<Stage, ChickenAbil
     2: { auraTeammateRollBonus: 1, auraPredatorRollPenalty: 1 }, // Battle Cry
     3: {
       // Berseker
-      onDamageTaken: (_ctx, rng) => {
-        const roll = rollDie(rng);
+      onDamageTaken: (ctx, rng) => {
+        const roll = peekRollIntercept(ctx.state, ctx.playerId, rollDie(rng), rng);
         if (roll === 6) return 2;
         if (roll >= 3) return 1;
         return 0;
@@ -68,7 +68,7 @@ export const CHICKEN_ABILITIES: Record<string, Partial<Record<Stage, ChickenAbil
       damageMitigation: { resource: 'bonusCards', compute: (damage, spent) => (spent >= 2 ? Math.floor(damage / 2) : 0) },
     },
     2: { tagAlongUnlocked: true }, // Smallest Chicken
-    3: { onAttack: (_ctx, rng) => (rollDie(rng) >= 3 ? { dodged: true } : {}) }, // Evasion
+    3: { onAttack: (ctx, rng) => (peekRollIntercept(ctx.state, ctx.attackerId, rollDie(rng), rng) >= 3 ? { dodged: true } : {}) }, // Evasion
   },
   'Atilla the Hen': {
     1: { weatherImmunity: ['Tornado'], startingFood: 2 }, // Big-Boned
@@ -164,8 +164,8 @@ export function nearbyAuraMaxAttackBonus(state: GameState, playerId: string): nu
 // Phase 11f: consumes `player.pendingRollIntercept` (Strategem, Deus Eggs
 // Machina, "Reroll a teammate's/any die," Spotted Lanternfly) against an
 // already-rolled value — see the field's doc comment in types.ts for the
-// deliberate scope limit (self/production/forage/lay-egg/Predator-effect
-// rolls only, not every roll in the engine).
+// full list of covered roll sites (every attributable die roll, not just
+// a handful).
 export function applyRollIntercept(player: PlayerState, roll: number, rng: RNG): { roll: number; player: PlayerState } {
   const intercept = player.pendingRollIntercept;
   if (!intercept) return { roll, player };
@@ -174,6 +174,21 @@ export function applyRollIntercept(player: PlayerState, roll: number, rng: RNG):
   else if (intercept.mode === 'adjustBy') result = Math.min(6, Math.max(1, roll + (intercept.value ?? 0)));
   else if (intercept.mode === 'forceValue' && intercept.value != null) result = intercept.value;
   return { roll: result, player: { ...player, pendingRollIntercept: null } };
+}
+
+// "Peek" variant for combat-stage hooks (custom Predator effects, Grub
+// defend rolls, chicken on-attack/on-damage rolls, weather on-attack
+// rolls) that receive a GameState + playerId and return a
+// CombatStageResult, with no way to thread an updated player back out
+// through their own return type. Doesn't clear the flag itself — every
+// one of these hooks only ever runs from inside resolveCombat, and
+// actions.ts's attack() unconditionally clears pendingRollIntercept in
+// its own post-combat cleanup once the attack resolves, regardless of
+// which specific hook actually consumed it (same as it already did for
+// the original predator-effect roll site this generalizes from).
+export function peekRollIntercept(state: GameState, playerId: string, roll: number, rng: RNG): number {
+  const player = state.players.find((p) => p.id === playerId);
+  return player ? applyRollIntercept(player, roll, rng).roll : roll;
 }
 
 // Phase 11i: "For 1 Turn, borrow an unlocked ability from a teammate" — a

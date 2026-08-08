@@ -29,7 +29,7 @@ import { getPlayer, replacePlayer } from './helpers.js';
 import { dealFaceUp } from './grubs.js';
 import { bossHealthBonus } from './setup.js';
 import { activeWeatherEffect, redrawWeatherCard } from './abilities/weather.js';
-import { getActiveChickenAbilities, nearbyAuraPredatorRollPenalty, applyRollIntercept } from './abilities/chickens.js';
+import { getActiveChickenAbilities, nearbyAuraPredatorRollPenalty, applyRollIntercept, peekRollIntercept } from './abilities/chickens.js';
 import { PREDATOR_EFFECTS, PREDATOR_LOOT } from './abilities/predators.js';
 import { GRUB_DEFEND_EFFECTS } from './abilities/grubCards.js';
 
@@ -74,7 +74,8 @@ function defaultTargetEffect(ctx: CombatContext, rng: RNG): CombatStageResult {
     const effect = grubName ? GRUB_DEFEND_EFFECTS[grubName] : undefined;
     if (!effect?.rollOutcomes) return {};
     const attackerLocation = getPlayer(ctx.state.players, ctx.attackerId).location;
-    const roll = Math.max(1, rollDie(rng) - nearbyAuraPredatorRollPenalty(ctx.state, attackerLocation)); // Battle Cry
+    const baseRoll = Math.max(1, rollDie(rng) - nearbyAuraPredatorRollPenalty(ctx.state, attackerLocation)); // Battle Cry
+    const roll = peekRollIntercept(ctx.state, ctx.attackerId, baseRoll, rng);
     const outcome = effect.rollOutcomes.find((o) => roll >= o.min && roll <= o.max);
     if (!outcome) return {};
     const result: CombatStageResult = {};
@@ -163,7 +164,8 @@ function defaultChickenAbilities(ctx: CombatContext, rng: RNG): CombatStageResul
   }
   if (ctx.targetType === 'predator' && attacker.permanentReturnAttackReductionRoll) {
     const { threshold, amount } = attacker.permanentReturnAttackReductionRoll;
-    if (rollDie(rng) >= threshold) result.returnAttackDelta = (result.returnAttackDelta ?? 0) - amount;
+    const roll = peekRollIntercept(ctx.state, ctx.attackerId, rollDie(rng), rng);
+    if (roll >= threshold) result.returnAttackDelta = (result.returnAttackDelta ?? 0) - amount;
   }
   return result;
 }
@@ -429,9 +431,24 @@ function grantPredatorDefeatConsequences(
   // Gravekeeper Fowl: "When defeated, roll. If 5-6: revives with N health"
   // — undoes the defeat for every purpose below (Boss reveal, win check),
   // so it's resolved before the "any regular surviving" computation.
+  // Reached via applyDirectPredatorDamage too (Arrow Pack, a card's
+  // enemyDamage) — those paths never go through attack()'s post-combat
+  // cleanup, so the intercept is cleared explicitly here rather than
+  // relying on it like the resolveCombat-only sites above.
   const defeatedPredator = state.predators.find((p) => p.name === predatorName)!;
   const reviveRule = PREDATOR_EFFECTS[predatorName]?.[defeatedPredator.stage]?.onDefeatRevive;
-  const revives = !!reviveRule && rollDie(state.config.rng) >= reviveRule.threshold;
+  let revives = false;
+  if (reviveRule) {
+    const rolled = rollDie(state.config.rng);
+    if (killer.pendingRollIntercept) {
+      const applied = applyRollIntercept(killer, rolled, state.config.rng);
+      killer = applied.player;
+      players = replacePlayer(players, killer);
+      revives = applied.roll >= reviveRule.threshold;
+    } else {
+      revives = rolled >= reviveRule.threshold;
+    }
+  }
   const afterRevive = revives
     ? state.predators.map((p) => (p.name === predatorName ? { ...p, defeated: false, health: reviveRule!.health } : p))
     : state.predators;
