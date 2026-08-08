@@ -228,6 +228,13 @@ export interface PlayerState {
   // by useArrowPack; Gas Mask starts it at 1 (single use). Kept through
   // death like lootDrops itself (core_rules.md: "Loot Drops are kept").
   lootCharges: Record<string, number>;
+  // Mudslide (Eggspansion Summer): "Deal each player a personal Weather
+  // Card. That weather is in effect for them until Mudslide is replaced."
+  // Same shape as WeatherState.active — resolved by activeWeatherEffect/
+  // activeWeatherName when a playerId is passed and the table's shared
+  // active card is Mudslide; cleared when Mudslide itself is replaced
+  // (see abilities/weather.ts's drawNextWeatherCard).
+  personalWeatherOverride: { season: Season; cardIndex: number } | null;
 }
 
 export interface PredatorState {

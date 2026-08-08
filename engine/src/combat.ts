@@ -62,7 +62,7 @@ function mergeCombatResults(a: CombatStageResult, b: CombatStageResult): CombatS
 // Default weatherEffect hook: the active weather card's own combat effect
 // (currently just Fog's miss roll).
 function defaultWeatherEffect(ctx: CombatContext, rng: RNG): CombatStageResult {
-  return activeWeatherEffect(ctx.state)?.onAttack?.(ctx, rng) ?? {};
+  return activeWeatherEffect(ctx.state, ctx.attackerId)?.onAttack?.(ctx, rng) ?? {};
 }
 
 // Default targetEffect hook: the target Predator's own roll-table effect

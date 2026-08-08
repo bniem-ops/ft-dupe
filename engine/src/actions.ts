@@ -202,17 +202,17 @@ export function move(state: GameState, playerId: string, destination: Location):
   if (destination !== player.location && player.statusEffectsUntilNextEggExchange.includes('cannotLeaveLocation')) {
     throw new Error(`${playerId} cannot leave ${player.location} until the next Egg Exchange`);
   }
-  const weather = activeWeatherEffect(state);
+  const weather = activeWeatherEffect(state, playerId);
   const weatherImmune = weather
-    ? isImmuneToWeather(player.chickenName, player.stage, activeWeatherName(state) ?? '', weather.positive ?? false) ||
+    ? isImmuneToWeather(player.chickenName, player.stage, activeWeatherName(state, playerId) ?? '', weather.positive ?? false) ||
       player.pendingWeatherImmuneUntilNextTurn ||
       player.permanentWeatherImmuneUntilNextCard
     : false;
   if (weather?.blocksMoveToLocation === destination && !weatherImmune) {
-    throw new Error(`${destination} cannot be entered right now (${activeWeatherName(state)})`);
+    throw new Error(`${destination} cannot be entered right now (${activeWeatherName(state, playerId)})`);
   }
   if (weather?.forcesCoopLockdown && destination !== 'Coop' && !weatherImmune) {
-    throw new Error(`Cannot leave the Coop right now (${activeWeatherName(state)})`);
+    throw new Error(`Cannot leave the Coop right now (${activeWeatherName(state, playerId)})`);
   }
   const afterMove = withPlayer(state, { ...player, location: destination });
 
@@ -272,9 +272,9 @@ export function attack(
 ): GameState {
   const player = assertCanAct(state, playerId);
 
-  const weather = activeWeatherEffect(state);
+  const weather = activeWeatherEffect(state, playerId);
   const weatherImmune = weather
-    ? isImmuneToWeather(player.chickenName, player.stage, activeWeatherName(state) ?? '', weather.positive ?? false) ||
+    ? isImmuneToWeather(player.chickenName, player.stage, activeWeatherName(state, playerId) ?? '', weather.positive ?? false) ||
       player.pendingWeatherImmuneUntilNextTurn ||
       player.permanentWeatherImmuneUntilNextCard
     : false;
@@ -291,7 +291,7 @@ export function attack(
     if (predator.cannotBeAttackedToday) throw new Error(`${targetId} cannot be attacked today (a player just moved into its area)`);
     targetCurrentHealth = predator.health;
   } else {
-    if (weather?.blocksGrubAttacks && !weatherImmune) throw new Error(`Cannot Fight Grubs right now (${activeWeatherName(state)})`);
+    if (weather?.blocksGrubAttacks && !weatherImmune) throw new Error(`Cannot Fight Grubs right now (${activeWeatherName(state, playerId)})`);
     const side = targetId === 'inside' ? 'inside' : targetId === 'outside' ? 'outside' : null;
     if (!side) throw new Error(`Grub target must be 'inside' or 'outside'`);
     const playerSide = player.location === 'Coop' ? 'inside' : 'outside';
@@ -843,7 +843,7 @@ export function eat(state: GameState, playerId: string, amount: number): GameSta
   const player = assertCanAct(state, playerId);
   // Freezing: "May Eat inside during this phase" — overrides the normal
   // Outside-only requirement while trapped in the Coop by the same card.
-  const allowsEatInside = activeWeatherEffect(state)?.allowsEatInside && player.location === 'Coop';
+  const allowsEatInside = activeWeatherEffect(state, playerId)?.allowsEatInside && player.location === 'Coop';
   if (!isOutside(player.location) && !allowsEatInside) throw new Error('Eat requires being Outside');
   if (player.statusEffectsUntilNextEggExchange.includes('cannotEat')) {
     throw new Error(`${playerId} cannot Eat until the next Egg Exchange`);
@@ -861,9 +861,9 @@ export function forage(state: GameState, playerId: string): GameState {
   const player = assertCanAct(state, playerId);
   if (!isOutside(player.location)) throw new Error('Forage requires being Outside');
 
-  const weather = activeWeatherEffect(state);
+  const weather = activeWeatherEffect(state, playerId);
   const weatherImmune = weather
-    ? isImmuneToWeather(player.chickenName, player.stage, activeWeatherName(state) ?? '', weather.positive ?? false) ||
+    ? isImmuneToWeather(player.chickenName, player.stage, activeWeatherName(state, playerId) ?? '', weather.positive ?? false) ||
       player.pendingWeatherImmuneUntilNextTurn ||
       player.permanentWeatherImmuneUntilNextCard
     : false;

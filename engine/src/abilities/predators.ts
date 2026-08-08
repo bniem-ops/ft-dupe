@@ -192,11 +192,14 @@ export const PREDATOR_EFFECTS: Record<string, Partial<Record<Stage, PredatorEffe
   // use Bonus/Grub Cards to dodge" is deliberately out of scope — see
   // docs/engine-plan.md's phase 11j writeup for why.
   'Owl Coopone': {
+    // Resolved from the attacker's own weather (matters under Mudslide,
+    // where different players can be experiencing different personal
+    // cards at once — see abilities/weather.ts's activeWeatherName).
     1: {
-      custom: (ctx) => (activeWeatherName(ctx.state) === 'Nighttime' ? { predatorHealthDelta: 2, returnAttackDelta: 1 } : {}),
+      custom: (ctx) => (activeWeatherName(ctx.state, ctx.attackerId) === 'Nighttime' ? { predatorHealthDelta: 2, returnAttackDelta: 1 } : {}),
     },
-    2: { custom: (ctx) => (activeWeatherName(ctx.state) === 'Sunny' ? { predatorHealthDelta: 3 } : {}) },
-    3: { custom: (ctx) => (activeWeatherName(ctx.state) === 'Snow' ? { predatorHealthDelta: 4 } : {}) },
+    2: { custom: (ctx) => (activeWeatherName(ctx.state, ctx.attackerId) === 'Sunny' ? { predatorHealthDelta: 3 } : {}) },
+    3: { custom: (ctx) => (activeWeatherName(ctx.state, ctx.attackerId) === 'Snow' ? { predatorHealthDelta: 4 } : {}) },
   },
   'Chew Bawka': {
     // Dynamic return-attack scaling — each stage counts a different live

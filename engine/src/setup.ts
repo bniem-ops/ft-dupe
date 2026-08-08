@@ -353,6 +353,7 @@ function createPlayer(id: string, chickenName: string, startingLocation: Locatio
     pendingMayActAsInsideThisTurn: false,
     pendingFreeMove: false,
     actionCountsThisTurn: {},
+    personalWeatherOverride: null,
   };
 }
 

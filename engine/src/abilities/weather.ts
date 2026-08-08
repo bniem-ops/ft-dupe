@@ -1,11 +1,10 @@
-// The 16 "executable now" weather effects (docs/rules-audit.md). Keyed by
-// card name — unique across all 3 season decks + the Eggspansion cards.
-// Freezing/Bird Flu (Spring) are "needs hook" (H) and intentionally
-// absent; Ice Melts/Mudslide (Eggspansion) are also H.
+// The weather effects (docs/rules-audit.md). Keyed by card name — unique
+// across all 3 season decks + the Eggspansion cards.
 import { rollDie, RNG, GameState, Season } from '../types.js';
 import { seasonCardList } from '../data.js';
 import { WeatherEffect } from './types.js';
 import { isImmuneToWeather } from './chickens.js';
+import { shuffle } from '../random.js';
 
 export const WEATHER_EFFECTS: Record<string, WeatherEffect> = {
   // --- Spring ---
@@ -81,6 +80,9 @@ export const WEATHER_EFFECTS: Record<string, WeatherEffect> = {
   'Ice Melts': {
     discardBothGrubsDaily: true,
   },
+  Mudslide: {
+    dealsPersonalWeatherOnDraw: true,
+  },
   Earthquake: {
     onTurnStart: (ctx) => {
       const player = ctx.state.players.find((p) => p.id === ctx.playerId)!;
@@ -89,25 +91,47 @@ export const WEATHER_EFFECTS: Record<string, WeatherEffect> = {
   },
 };
 
-// Resolves state.weather.active (a season + index into that season's
-// combined card list) to its name and WEATHER_EFFECTS entry, if any.
-export function activeWeatherName(state: GameState): string | null {
-  const active = state.weather.active;
-  if (!active) return null;
-  const cards = seasonCardList(active.season.toLowerCase() as 'spring' | 'summer' | 'fall', state.config.eggspansion);
-  return cards[active.cardIndex]?.name ?? null;
+function cardNameAt(pointer: { season: Season; cardIndex: number }, eggspansion: boolean): string | null {
+  const cards = seasonCardList(pointer.season.toLowerCase() as 'spring' | 'summer' | 'fall', eggspansion);
+  return cards[pointer.cardIndex]?.name ?? null;
 }
 
-export function activeWeatherEffect(state: GameState): WeatherEffect | null {
-  const name = activeWeatherName(state);
+// Resolves the weather a given player actually experiences right now.
+// Normally that's just the shared state.weather.active card. Mudslide is
+// the one exception (core_rules.md/Eggspansion): once it's drawn, each
+// player gets their own personal card, in effect "until Mudslide is
+// replaced" — so while the table's shared card is still Mudslide, a
+// player holding a personalWeatherOverride sees THAT card instead. Omit
+// playerId for the plain table-wide lookup (day-end/global checks that
+// have no single acting player, e.g. Ice Melts/Bird Flu).
+export function activeWeatherName(state: GameState, playerId?: string): string | null {
+  const active = state.weather.active;
+  if (!active) return null;
+  if (playerId) {
+    const activeName = cardNameAt(active, state.config.eggspansion);
+    if (activeName === 'Mudslide') {
+      const player = state.players.find((p) => p.id === playerId);
+      if (player?.personalWeatherOverride) {
+        return cardNameAt(player.personalWeatherOverride, state.config.eggspansion);
+      }
+    }
+  }
+  return cardNameAt(active, state.config.eggspansion);
+}
+
+export function activeWeatherEffect(state: GameState, playerId?: string): WeatherEffect | null {
+  const name = activeWeatherName(state, playerId);
   return name ? (WEATHER_EFFECTS[name] ?? null) : null;
 }
 
 // Draws the next card for `season` (phase-boundary scheduled draws, and the
 // on-demand redraws below). Freezing's "Immediately enter the Coop" fires
 // right here, the moment the card is drawn, rather than waiting for
-// someone's next Move.
+// someone's next Move. Same treatment for Mudslide's personal deal-out,
+// and for clearing everyone's personal override the moment Mudslide is
+// itself replaced by whatever this call draws next.
 export function drawNextWeatherCard(state: GameState, season: Season): GameState {
+  const wasMudslide = state.weather.active ? cardNameAt(state.weather.active, state.config.eggspansion) === 'Mudslide' : false;
   const deck = [...state.weather.seasonDecks[season]];
   const cardIndex = deck.shift();
   if (cardIndex == null) return state; // deck exhausted — shouldn't happen within 3 seasons' draw counts
@@ -117,6 +141,7 @@ export function drawNextWeatherCard(state: GameState, season: Season): GameState
       seasonDecks: { ...state.weather.seasonDecks, [season]: deck },
       active: { season, cardIndex },
     },
+    players: wasMudslide ? state.players.map((p) => ({ ...p, personalWeatherOverride: null })) : state.players,
   };
   const effect = activeWeatherEffect(next);
   if (effect?.forcesCoopLockdown) {
@@ -133,7 +158,35 @@ export function drawNextWeatherCard(state: GameState, season: Season): GameState
       }),
     };
   }
+  if (effect?.dealsPersonalWeatherOnDraw) {
+    next = dealPersonalWeatherCards(next, season);
+  }
   return next;
+}
+
+// Mudslide: "Shuffle the rest of the Summer deck. Deal each player a
+// personal Weather Card." `state.weather.seasonDecks[season]` at this
+// point IS "the rest" — Mudslide's own index was already shifted off
+// above. Dealt cards are removed from the deck (a real deck would run
+// out), same as any other draw. If there aren't enough distinct cards
+// left for every alive player (rare — 6 base Summer cards minus however
+// many already drawn this season), deals with replacement rather than
+// failing; disclosed here rather than silently duplicating without a
+// reason.
+function dealPersonalWeatherCards(state: GameState, season: Season): GameState {
+  const remaining = shuffle(state.weather.seasonDecks[season], state.config.rng);
+  if (remaining.length === 0) return state;
+  const aliveIds = state.players.filter((p) => p.alive).map((p) => p.id);
+  const dealt = new Map<string, number>();
+  aliveIds.forEach((id, i) => dealt.set(id, remaining[i % remaining.length]));
+  const usedCount = Math.min(remaining.length, aliveIds.length);
+  return {
+    ...state,
+    weather: { ...state.weather, seasonDecks: { ...state.weather.seasonDecks, [season]: remaining.slice(usedCount) } },
+    players: state.players.map((p) =>
+      dealt.has(p.id) ? { ...p, personalWeatherOverride: { season, cardIndex: dealt.get(p.id)! } } : p,
+    ),
+  };
 }
 
 // Phase 11g: on-demand weather redraw, outside the normal phase-boundary

@@ -48,7 +48,7 @@ export function resolveProduction(state: GameState, player: PlayerState, rng: RN
   if (!match) return player;
   const eggAmount = parseInt(match[2], 10);
 
-  const weather = activeWeatherEffect(state);
+  const weather = activeWeatherEffect(state, player.id);
   const threshold = weather?.onProductionThreshold ?? parseInt(match[1], 10);
 
   const abilities = getActiveChickenAbilities(player.chickenName, player.stage);
@@ -137,11 +137,11 @@ export function startTurn(state: GameState): GameState {
   // explicit useWeatherActionAdjustment action below. Only ordinary
   // per-turn onTurnStart effects (Tornado's random -1, Earthquake's
   // redraw) still fire automatically on every turn.
-  const weather = activeWeatherEffect(next);
+  const weather = activeWeatherEffect(next, playerId);
   if (weather?.onTurnStart && !weather.turnStartOncePerPhase) {
     const current = getPlayer(next.players, playerId);
     const immune =
-      isImmuneToWeather(current.chickenName, current.stage, activeWeatherName(next) ?? '', weather.positive ?? false) ||
+      isImmuneToWeather(current.chickenName, current.stage, activeWeatherName(next, playerId) ?? '', weather.positive ?? false) ||
       current.pendingWeatherImmuneUntilNextTurn ||
       current.permanentWeatherImmuneUntilNextCard;
     if (!immune) {
@@ -183,7 +183,7 @@ export function useWeatherActionAdjustment(state: GameState, playerId: string): 
   }
   const player = getPlayer(state.players, playerId);
   if (!player.alive) throw new Error(`${playerId} is not alive`);
-  const weather = activeWeatherEffect(state);
+  const weather = activeWeatherEffect(state, playerId);
   if (!weather?.turnStartOncePerPhase || !weather.onTurnStart) {
     throw new Error('No discretionary weather action-adjustment is available right now');
   }
@@ -191,7 +191,7 @@ export function useWeatherActionAdjustment(state: GameState, playerId: string): 
     throw new Error(`${playerId} has already used this phase's weather action adjustment`);
   }
   const immune =
-    isImmuneToWeather(player.chickenName, player.stage, activeWeatherName(state) ?? '', weather.positive ?? false) ||
+    isImmuneToWeather(player.chickenName, player.stage, activeWeatherName(state, playerId) ?? '', weather.positive ?? false) ||
     player.pendingWeatherImmuneUntilNextTurn ||
     player.permanentWeatherImmuneUntilNextCard;
   if (immune) throw new Error(`${playerId} is immune to the active weather`);
@@ -222,9 +222,9 @@ export function endTurn(state: GameState, options?: EndTurnOptions): GameState {
   const playerId = state.turnOrder[state.currentPlayerIndex];
   let next = state;
   const player = getPlayer(next.players, playerId);
-  const weather = activeWeatherEffect(next);
+  const weather = activeWeatherEffect(next, playerId);
   const immune = weather
-    ? isImmuneToWeather(player.chickenName, player.stage, activeWeatherName(next) ?? '', weather.positive ?? false) ||
+    ? isImmuneToWeather(player.chickenName, player.stage, activeWeatherName(next, playerId) ?? '', weather.positive ?? false) ||
       player.pendingWeatherImmuneUntilNextTurn ||
       player.permanentWeatherImmuneUntilNextCard
     : false;
@@ -388,22 +388,24 @@ export function advanceDay(state: GameState, options: AdvanceDayOptions): GameSt
     // The Egg Exchange happening right now wraps up the phase that just
     // ended, so it's still governed by the OUTGOING weather card (Flash
     // Flood's end-of-phase wipe, Pouring Rain's skip, Snow's bonus) — the
-    // new card is drawn immediately after, for the upcoming phase.
-    const outgoingWeather = activeWeatherEffect(next);
+    // new card is drawn immediately after, for the upcoming phase. Resolved
+    // per-player (not once table-wide) since under Mudslide each player's
+    // outgoing card can differ from everyone else's.
+    next = {
+      ...next,
+      players: next.players.map((p) => (activeWeatherEffect(next, p.id)?.onPhaseEnd?.().discardAllFood ? { ...p, food: 0 } : p)),
+    };
 
-    if (outgoingWeather?.onPhaseEnd?.().discardAllFood) {
-      next = { ...next, players: next.players.map((p) => ({ ...p, food: 0 })) };
-    }
-
-    const outgoingWeatherName = activeWeatherName(next) ?? '';
     for (const exchange of options.exchanges ?? []) {
       const player = getPlayer(next.players, exchange.playerId);
       if (player.statusEffectsUntilNextEggExchange.includes('cannotParticipateInEggExchange')) continue;
+      const playerOutgoingWeather = activeWeatherEffect(next, player.id);
+      const playerOutgoingWeatherName = activeWeatherName(next, player.id) ?? '';
       // Pouring Rain skips the exchange group-wide, except for a player
       // immune to it (Long Legs) — checked per-player, not gated globally.
       if (
-        outgoingWeather?.skipNextEggExchange &&
-        !isImmuneToWeather(player.chickenName, player.stage, outgoingWeatherName, outgoingWeather.positive ?? false) &&
+        playerOutgoingWeather?.skipNextEggExchange &&
+        !isImmuneToWeather(player.chickenName, player.stage, playerOutgoingWeatherName, playerOutgoingWeather.positive ?? false) &&
         !player.pendingWeatherImmuneUntilNextTurn &&
         !player.permanentWeatherImmuneUntilNextCard
       ) {
@@ -411,8 +413,8 @@ export function advanceDay(state: GameState, options: AdvanceDayOptions): GameSt
       }
       const rate = getActiveChickenAbilities(player.chickenName, player.stage).reduce((r, a) => a.eggExchangeRate ?? r, 1);
       let traded = applyEggExchange(player, exchange.amount, rate);
-      if (outgoingWeather?.eggExchangeBonusFoodIfParticipating && exchange.amount > 0) {
-        traded = { ...traded, food: traded.food + outgoingWeather.eggExchangeBonusFoodIfParticipating };
+      if (playerOutgoingWeather?.eggExchangeBonusFoodIfParticipating && exchange.amount > 0) {
+        traded = { ...traded, food: traded.food + playerOutgoingWeather.eggExchangeBonusFoodIfParticipating };
       }
       next = { ...next, players: replacePlayer(next.players, traded) };
     }

@@ -272,4 +272,5 @@ export interface WeatherEffect {
   forcesCoopLockdown?: boolean; // Freezing — everyone not immune snaps to Coop and can't leave while active
   allowsEatInside?: boolean; // Freezing — overrides Eat's normal Outside-only requirement while in the Coop
   discardBothGrubsDaily?: boolean; // Ice Melts — both locations' face-up Grubs discard at day's end, not just the chosen one
+  dealsPersonalWeatherOnDraw?: boolean; // Mudslide — see abilities/weather.ts's drawNextWeatherCard
 }

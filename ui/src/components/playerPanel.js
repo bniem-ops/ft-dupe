@@ -10,6 +10,7 @@ import {
   PREDATOR_LOOT,
   OUTSIDE_LOCATIONS,
   activeWeatherName,
+  seasonCardList,
 } from '../engine.js';
 
 const ALL_LOCATIONS = ['Coop', ...OUTSIDE_LOCATIONS];
@@ -253,10 +254,21 @@ export function PlayerPanel({ player, isCurrent, state, dispatch, pendingPick, s
   // act on its own panel — same canAct nicety as actionBar.js.
   const canAct = myPlayerId == null || myPlayerId === player.id;
   const label = displayName ?? player.id;
+  // Mudslide: the board's weather card shows the shared Mudslide card
+  // itself, not what any one player is actually experiencing — this is
+  // the one place a player's *personal* card (dealt while Mudslide is
+  // active, in effect until it's replaced) needs to be visible.
+  const personalWeatherCard = player.personalWeatherOverride
+    ? seasonCardList(player.personalWeatherOverride.season.toLowerCase(), state.config.eggspansion)[player.personalWeatherOverride.cardIndex]
+    : null;
 
   return html`
     <div class=${`player-panel ${isCurrent ? 'current' : ''} ${!player.alive ? 'dead' : ''}`}>
       <h3>${label} — ${chicken.name}${!player.alive ? ' (dead)' : ''}</h3>
+      ${personalWeatherCard &&
+      html`<div class="ref-text">
+        Your weather (Mudslide): <strong>${personalWeatherCard.name}</strong> — ${personalWeatherCard.effect}
+      </div>`}
       ${player.pendingRevivalChoices &&
       html`<div class="revival-choice">
         <strong>Choose your chicken to rejoin (as a Chick):</strong>

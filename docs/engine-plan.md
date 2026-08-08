@@ -36,17 +36,18 @@ the same action, and predators were picked manually) with a flow that
 matches the physical game: named joins, predators randomly selected for
 the whole table *before* anyone sees a chicken, then each player dealt
 2 chicken candidates to choose between (see phase 10 below). 164 tests
-passing. Phase 11 (the 75 "needs hook" items) is **done, engine and UI**:
-11a through 11j all landed (closing every H item except Mudslide, 11k,
-explicitly flagged and deferred — see below), and the remaining UI-wiring
-backlog from 11b/11d/11e/11f/11g/11h/11i/11j (~25 actions that were
-engine-correct and dispatchable but had no board/panel control) has since
-been closed — see phase 11's closing note for the full list of what got
-wired and where. Also landed since: a rules clarification on Sunny/
+passing. Phase 11 (the 75 "needs hook" items) is **fully done, including
+11k (Mudslide)** — every H item from `docs/rules-audit.md` now has a real
+implementation. 11a through 11j landed first; the UI-wiring backlog they
+left behind (~25 actions that were engine-correct and dispatchable but had
+no board/panel control) was closed in a follow-up pass; Mudslide (11k),
+initially deferred pending a design conversation since it breaks the
+engine's one-shared-weather-card assumption, landed last — see phase 11's
+closing note for all three. Also landed: a rules clarification on Sunny/
 Nighttime ("once during this phase," but the player picks which of their
-turns it lands on, not automatically the first) — see phase 11's closing
-note. 226 engine tests passing. Revisit and refine this doc as new work
-comes up — it's a living plan, not a spec to freeze.
+turns it lands on, not automatically the first). 231 engine tests passing.
+Revisit and refine this doc as new work comes up — it's a living plan, not
+a spec to freeze.
 
 ## What "engine" means here
 
@@ -606,14 +607,55 @@ own rather than only valuable once everything else is done.
       per-turn weather effects — Tornado's random roll, Earthquake's
       redraw — are unaffected, still automatic).
 
-    **11k. Mudslide (Eggspansion weather) — deliberately deferred.** "Deal
-    each player a personal Weather Card in effect until replaced" breaks
-    the base model's core assumption that `GameState.weather.active` is
-    one shared card everyone reads — doing this properly means threading a
-    per-player weather override through every `activeWeatherEffect`/
-    `activeWeatherName` call site (~10 of them across `turn.ts`/
-    `actions.ts`/`combat.ts`). Flagged rather than guessed at; needs a
-    scoping conversation before starting.
+    **11k. Mudslide (Eggspansion weather) — done.** Landed after a scoping
+    conversation (deferred initially since it breaks the base model's
+    assumption that `GameState.weather.active` is one shared card
+    everyone reads) resolved two open questions:
+    - **How "deal each player a personal card" actually works**: it's a
+      one-time event at the moment Mudslide is drawn, not an ongoing
+      per-player deck — the printed text ("shuffle *the rest of* the
+      Summer deck") already describes it as a single deal-out, not a
+      recurring one. New `WeatherEffect.dealsPersonalWeatherOnDraw` flag
+      (Mudslide only) and `PlayerState.personalWeatherOverride: {season,
+      cardIndex} | null`, resolved in `abilities/weather.ts`'s
+      `drawNextWeatherCard` right alongside Freezing's existing "immediate
+      side effect on draw" handling. Dealt cards are removed from the
+      season's remaining deck (a real deck would run out); if there aren't
+      enough distinct cards left for every alive player, deals with
+      replacement rather than failing (disclosed in the code, not a
+      realistic table state at 6 base Summer cards vs. typical player
+      counts). Every player's override clears automatically the moment
+      Mudslide is replaced by the next drawn card, same function.
+    - **How predator stats that depend on weather work when players are
+      experiencing different weather** (Owl Coopone's "+N health while
+      [card] is active"): ruled that it resolves from the *attacking*
+      player's personal weather, at the moment of that attack — confirmed
+      this needs no compromise, since Owl Coopone's bonus was already
+      modeled (for an unrelated reason, back in 11j) as a per-combat
+      self-heal evaluated fresh each attack rather than a persisted stat,
+      and the attacker is always known at that instant
+      (`CombatContext.attackerId`). It turned out to be the *only*
+      predator stat that's weather-conditional at all.
+    `activeWeatherEffect`/`activeWeatherName` (`abilities/weather.ts`)
+    gained an optional `playerId` param: pass one to prefer that player's
+    override over the shared card (only takes effect while the shared
+    card is actually Mudslide); omit it for genuinely global/no-single-
+    actor checks (Ice Melts' daily Grub discard, Bird Flu's day-end
+    proximity check — neither can ever coexist with Mudslide anyway, being
+    different seasons). Every other call site across `turn.ts`/
+    `actions.ts`/`combat.ts`/`abilities/predators.ts` already had the
+    relevant player in scope, so threading it through was mechanical
+    everywhere except one spot: `advanceDay`'s outgoing-phase-boundary
+    resolution (Flash Flood's food wipe, Pouring Rain's Egg Exchange skip,
+    Snow's bonus) applied some effects globally and only walked players
+    for others — unified into one per-player pass so a personal Flash
+    Flood, say, only discards that one player's food. UI: `playerPanel.js`
+    shows a player's personal card (name + effect text) whenever one is
+    set, since the board only ever displays the shared card — misleading
+    on its own once Mudslide is active. 5 new tests in `engine/test/
+    abilities-mudslide.test.ts` (231 total, zero regressions): the deal-out
+    itself, per-player resolution, override clearing on replacement, Owl
+    Coopone resolving per-attacker, and the phase-boundary fix.
 
 ## Open questions (not blocking yet, worth deciding before the phase that needs them)
 
