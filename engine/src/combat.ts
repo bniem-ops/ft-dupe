@@ -20,7 +20,6 @@ import {
   CombatContext,
   CombatStageResult,
   Location,
-  OUTSIDE_LOCATIONS,
   Season,
   RNG,
   rollDie,
@@ -34,7 +33,6 @@ import { getActiveChickenAbilities, nearbyAuraPredatorRollPenalty, applyRollInte
 import { PREDATOR_EFFECTS, PREDATOR_LOOT } from './abilities/predators.js';
 import { GRUB_DEFEND_EFFECTS } from './abilities/grubCards.js';
 
-const ALL_LOCATIONS: Location[] = ['Coop', ...OUTSIDE_LOCATIONS];
 // Coopella's "redraw on Fair/Sunny/Snow" clause — the guaranteed-positive
 // card per season, same mapping setup.ts's setupWeather uses.
 const SEASON_POSITIVE_CARD: Record<Season, string> = { Spring: 'Fair', Summer: 'Sunny', Fall: 'Snow' };
@@ -343,12 +341,12 @@ function resolvePredatorAttack(
   }
 
   // Weasma and Clawnk: combat was voided (dodged/predatorDodges already
-  // suppress all damage above) — relocate whoever was forced out.
+  // suppress all damage above) — the mover is flagged as forced out;
+  // "pick your destination" is their own choice, resolved separately via
+  // completeForcedRelocation (actions.ts), not decided here.
   if (effects.forcedRelocation) {
     const mover = getPlayer(players, effects.forcedRelocation.playerId);
-    const otherLocations = ALL_LOCATIONS.filter((l) => l !== mover.location);
-    const destination = otherLocations[Math.floor(state.config.rng() * otherLocations.length)];
-    players = replacePlayer(players, { ...mover, location: destination });
+    players = replacePlayer(players, { ...mover, pendingForcedRelocation: true });
   }
 
   // Coopella: "4: Exhaust Extra Action Token."

@@ -130,11 +130,11 @@ export const PREDATOR_EFFECTS: Record<string, Partial<Record<Stage, PredatorEffe
   'Weasma and Clawnk': {
     // "Roll before attack... Move out of this location (deal and take no
     // DMG, keep food, pick your destination)" — voids the combat instance
-    // entirely (dodged + predatorDodges) and relocates whoever's forced
-    // out. "Pick your destination" needs a player choice a synchronous
-    // resolver can't pause for, so — same simplification precedent as
-    // "Reroll your own die" (phase 7) — the engine picks a random other
-    // location instead of prompting.
+    // entirely (dodged + predatorDodges) and flags whoever's forced out
+    // (PlayerState.pendingForcedRelocation), leaving their location
+    // unchanged. "Pick your destination" is their own choice — a
+    // synchronous resolver can't pause mid-combat to ask, so it's resolved
+    // afterward via actions.ts's completeForcedRelocation.
     1: {
       custom: (ctx, rng) => (rollDie(rng) >= 4 ? { dodged: true, predatorDodges: true, forcedRelocation: { playerId: ctx.attackerId } } : {}),
     },

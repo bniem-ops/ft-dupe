@@ -230,6 +230,22 @@ function FreeMoveGrantControls({ onUse }) {
   `;
 }
 
+// Weasma and Clawnk: "pick your destination" — your own choice of where
+// you're forced out to, any location other than the one you're in now.
+function ForcedRelocationControls({ currentLocation, onUse }) {
+  const options = ALL_LOCATIONS.filter((loc) => loc !== currentLocation);
+  const [destination, setDestination] = useState(options[0]);
+  return html`
+    <span class="card-controls">
+      <span class="ref-text">Weasma and Clawnk forced you out — pick where you go:</span>
+      <select onChange=${(e) => setDestination(e.target.value)} value=${destination}>
+        ${options.map((loc) => html`<option key=${loc} value=${loc}>${loc}</option>`)}
+      </select>
+      <button type="button" onClick=${() => onUse(destination)}>Move</button>
+    </span>
+  `;
+}
+
 // Snow's last-phase clause: an ad-hoc Egg Exchange outside the normal
 // phase-boundary cadence, available only while Snow is active in phase 3.
 function AdHocExchangeControls({ maxEggs, onUse }) {
@@ -293,6 +309,12 @@ export function PlayerPanel({ player, isCurrent, state, dispatch, pendingPick, s
       ${canAct &&
       player.pendingFreeMove &&
       html`<${FreeMoveGrantControls} onUse=${(destination) => dispatch({ type: 'useFreeMoveGrant', playerId: player.id, destination })} />`}
+      ${canAct &&
+      player.pendingForcedRelocation &&
+      html`<${ForcedRelocationControls}
+        currentLocation=${player.location}
+        onUse=${(destination) => dispatch({ type: 'completeForcedRelocation', playerId: player.id, destination })}
+      />`}
       ${canAct &&
       activeWeatherName(state) === 'Snow' &&
       state.phase === 3 &&

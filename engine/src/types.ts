@@ -200,6 +200,11 @@ export interface PlayerState {
   pendingMayActAsInsideThisTurn: boolean;
   // "Move everyone for free" Bonus Card — consumed by the next move().
   pendingFreeMove: boolean;
+  // Weasma and Clawnk: "pick your destination" — the printed text is a
+  // player choice, not an engine pick, so the mover is flagged here
+  // (location left unchanged) until they resolve it via
+  // completeForcedRelocation. See combat.ts's forcedRelocation handling.
+  pendingForcedRelocation: boolean;
   // Dedication (J.R.R. Yolkien S2): "Whenever you take the same action
   // twice on your turn, lay an egg" — counts per action type, reset in
   // startTurn.
@@ -419,7 +424,10 @@ export type Action =
   | { type: 'useWeatherActionAdjustment'; playerId: string }
   // Free, only available once actually over the Bonus Card hand limit —
   // see actions.ts's discardBonusCard for the rules-gap reasoning.
-  | { type: 'discardBonusCard'; playerId: string; cardHandIndex: number };
+  | { type: 'discardBonusCard'; playerId: string; cardHandIndex: number }
+  // Weasma and Clawnk: resolves a pending forced relocation with the
+  // mover's own choice of destination.
+  | { type: 'completeForcedRelocation'; playerId: string; destination: Location };
 
 export function rollDie(rng: RNG): number {
   return Math.floor(rng() * 6) + 1;

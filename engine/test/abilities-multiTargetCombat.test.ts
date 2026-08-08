@@ -5,9 +5,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame } from '../src/setup.js';
 import { resolveCombat } from '../src/combat.js';
-import { attack, attackWithCompanion, playBonusCard, useGrubReward } from '../src/actions.js';
+import { attack, attackWithCompanion, playBonusCard, useGrubReward, completeForcedRelocation } from '../src/actions.js';
 import { loadGrubCards } from '../src/data.js';
-import { GameState } from '../src/types.js';
+import { GameState, OUTSIDE_LOCATIONS } from '../src/types.js';
 import { baseConfig } from './testHelpers.js';
 
 function withPlayer(state: GameState, playerId: string, patch: Partial<GameState['players'][number]>): GameState {
@@ -31,7 +31,7 @@ test('Shere Corn: splash damage hits every alive player at its location, attacke
   assert.equal(result2.players.find((p) => p.id === 'p2')!.health, 10); // not nearby -> untouched
 });
 
-test('Weasma and Clawnk: a triggered roll voids the whole combat instance and relocates the mover', () => {
+test('Weasma and Clawnk: a triggered roll voids the whole combat instance and flags the mover for relocation, their own choice', () => {
   const config = baseConfig({
     eggspansion: true,
     predators: { regular: ['Weasma and Clawnk', 'Sal Moe Nella', 'Professor Moltiarty'], boss: 'Ursula Bone' },
@@ -44,7 +44,19 @@ test('Weasma and Clawnk: a triggered roll voids the whole combat instance and re
   const result = resolveCombat(rolledSix, 'p1', 'predator', 'Weasma and Clawnk', 3);
   assert.equal(result.predators.find((p) => p.name === 'Weasma and Clawnk')!.health, wac.health); // no damage dealt
   assert.equal(result.players.find((p) => p.id === 'p1')!.health, 10); // no damage taken
-  assert.notEqual(result.players.find((p) => p.id === 'p1')!.location, wac.location); // relocated
+  // "Pick your destination" is the mover's own choice, not the engine's —
+  // location is unchanged until they resolve it themselves.
+  const flagged = result.players.find((p) => p.id === 'p1')!;
+  assert.equal(flagged.location, wac.location);
+  assert.equal(flagged.pendingForcedRelocation, true);
+
+  const elsewhere = [...OUTSIDE_LOCATIONS, 'Coop' as const].find((l) => l !== wac.location)!;
+  assert.throws(() => completeForcedRelocation(result, 'p1', wac.location)); // must pick somewhere else
+  const relocated = completeForcedRelocation(result, 'p1', elsewhere);
+  const p1 = relocated.players.find((p) => p.id === 'p1')!;
+  assert.equal(p1.location, elsewhere);
+  assert.equal(p1.pendingForcedRelocation, false);
+  assert.throws(() => completeForcedRelocation(relocated, 'p1', 'Coop')); // nothing pending anymore
 });
 
 test('Wasp Swarm Reward: dodges the return attack and reflects the Predator\'s base return attack back onto it', () => {

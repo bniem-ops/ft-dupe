@@ -513,9 +513,7 @@ own rather than only valuable once everything else is done.
       (forced Coop lockdown + Eat-inside override) since it shares Fur
       Coat's location-override shape.
     - **11e** (multi-target/redirected combat): Shere Corn's splash,
-      Weasma and Clawnk's forced relocation (a player's own choice of
-      destination is modeled as engine-random, same simplification
-      precedent as phase 7's "reroll your own die"), Wasp Swarm's
+      Weasma and Clawnk's forced relocation, Wasp Swarm's
       reflected damage, Quite Friendly (`attackWithCompanion`, a documented
       simplified interpretation — see the function's own comment), Tank
       (`attack()`'s new `damageRedirect` param, finally making Just Reward
@@ -682,6 +680,21 @@ own rather than only valuable once everything else is done.
     tests in `abilities-grubRewards.test.ts` (Dragonfly, Mosquitoes) had
     stale expected counts baked in from the old silent-drop bug, corrected.
     232 tests total, zero regressions.
+
+    **11e correction: Weasma and Clawnk's destination is a player choice,
+    not engine-random.** The printed effect text literally says "pick your
+    destination" — the original 11e call to model it as engine-random (the
+    same precedent used for "reroll your own die") didn't actually fit
+    here; flagged by the table. Fixed: combat no longer picks a
+    destination itself — it flags the mover (new `PlayerState.
+    pendingForcedRelocation`, `combat.ts`) and leaves their location
+    unchanged. A new `completeForcedRelocation` action (any location other
+    than the one they're being moved out of) resolves it, surfaced as a
+    picker in `playerPanel.js` that only appears while the flag is set.
+    The stage 3 clause's *other* random element — which of several
+    teammates at the location gets forced out, when the roll says "a
+    teammate" rather than "you" — is untouched, since the table's
+    correction was specifically about the destination, not who moves.
 
 ## Open questions (not blocking yet, worth deciding before the phase that needs them)
 

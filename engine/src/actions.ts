@@ -784,6 +784,16 @@ export function useFreeMoveGrant(state: GameState, playerId: string, destination
   return { ...state, players: replacePlayer(state.players, { ...player, location: destination, pendingFreeMove: false }) };
 }
 
+// Weasma and Clawnk: "pick your destination" — resolves a pending forced
+// relocation (combat.ts's forcedRelocation handling) with the mover's own
+// choice, any location other than the one they're being moved out of.
+export function completeForcedRelocation(state: GameState, playerId: string, destination: Location): GameState {
+  const player = requireAlive(state, playerId);
+  if (!player.pendingForcedRelocation) throw new Error(`${playerId} has no pending forced relocation`);
+  if (destination === player.location) throw new Error(`${playerId} must move to a different location`);
+  return { ...state, players: replacePlayer(state.players, { ...player, location: destination, pendingForcedRelocation: false }) };
+}
+
 // Portable House (Layonardo's Loot): "You or a nearby player may ignore
 // weather effects for one turn (multi-use)." Reuses the existing
 // pendingWeatherImmuneUntilNextTurn field (already checked at every

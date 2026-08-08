@@ -146,6 +146,9 @@ export function applyAction(state: GameState, action: Action): GameState {
     case 'discardBonusCard':
       next = actions.discardBonusCard(state, action.playerId, action.cardHandIndex);
       break;
+    case 'completeForcedRelocation':
+      next = actions.completeForcedRelocation(state, action.playerId, action.destination);
+      break;
     default: {
       const exhaustive: never = action;
       throw new Error(`Unknown action type: ${JSON.stringify(exhaustive)}`);
