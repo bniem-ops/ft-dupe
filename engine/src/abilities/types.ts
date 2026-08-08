@@ -194,6 +194,10 @@ export interface CardEffect {
   // player's own next turn begins.
   eggOrWeatherImmune?: boolean;
   drawBonusCards?: { draw: number; keep: number; giveTeammate: number }; // Dragonfly/Mosquitoes
+  // Requires targetType/targetId (a Predator name, or 'inside'/'outside' for
+  // a Grub) — declaring the target up front is what lets Owl Coopone's
+  // "cannot use Bonus/Grub Cards to dodge" reject the play outright instead
+  // of silently no-op'ing once the return attack actually lands.
   dodgeNextAttack?: boolean; // pending — PlayerState.pendingDodgeNextAttack
   grantsFreeAttackPoint?: boolean; // pending — pendingFreeAttackPoint
   reducesPredatorRoll?: 1 | 2; // pending — pendingPredatorRollReduction

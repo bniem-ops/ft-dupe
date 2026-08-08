@@ -22,7 +22,7 @@ Format per entry:
 - Expected: I expect Owl Coopone to have 4 health until Sunny weather is no longer in play
 - Card/rule involved: Sunny weather card, Nighttime weather card, Owl Coopone Health
 - Triage: not-yet-implemented — Owl Coopone's weather-conditional stat bonuses are classified "H" (needs hook) in rules-audit.md:151-154, explicitly out of Phase 6's scope (only the 77 "E" items were built). Its health today is just its flat base stat with no weather modifier at all. Needs a "predator stat conditional on active weather card" hook — worth scoping as part of the H-item follow-up work, not Phase 7 (which is Bonus/Grub cards).
-- Status: deferred (needs-hook backlog, not yet scheduled)
+- Status: closed — weather-conditional health/attack bonus shipped in phase 11j (modeled as a per-combat self-heal resolved from the attacker's own weather, tested per-attacker under Mudslide in 11k). The remaining "cannot use Bonus/Grub Cards to dodge Predator attacks" clause shipped separately: `playBonusCard`/`useGrubReward` now require a `targetType`/`targetId` on any dodge-shaped card ("Dodge Enemy attack", Praying Mantis's Reward) and reject the play outright when the target is Owl Coopone, rather than letting the card go to waste — see `actions.ts`'s `dodgeNextAttack` branch in `resolveCardEffect`.
 
 ## 2026-08-03 — Nighttime Action Economy
 - What happened: In Nighttime, I was able to take 2 actions in each turn.

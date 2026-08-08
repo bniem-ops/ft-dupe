@@ -68,11 +68,17 @@ test('Dragonfly: draw 3, keep 2, give 1 to a teammate', () => {
 
 test('Praying Mantis: dodge an enemy attack (and effects)', () => {
   let state = withPlayer(withGrubReward(createGame(baseConfig()), 'p1', 'Praying Mantis'), 'p1', { food: 5, location: 'Hendred Acre Wood' });
-  const played = useGrubReward(state, 'p1', 0);
+  const played = useGrubReward(state, 'p1', 0, { targetType: 'predator', targetId: 'Eggsmeralda' });
   const before = played.players.find((p) => p.id === 'p1')!.health;
   const hitConfig = { ...played.config, rng: constantRng(0.999) };
   const result = attack({ ...played, config: hitConfig }, 'p1', 'predator', 'Eggsmeralda', 1);
   assert.equal(result.players.find((p) => p.id === 'p1')!.health, before);
+});
+
+test('Praying Mantis: cannot be played to dodge Owl Coopone', () => {
+  const config = baseConfig({ predators: { regular: ['Owl Coopone', 'Sal Moe Nella', 'Professor Moltiarty'], boss: 'Ursula Bone' } });
+  const state = withPlayer(withGrubReward(createGame(config), 'p1', 'Praying Mantis'), 'p1', { food: 5, location: 'Hendred Acre Wood' });
+  assert.throws(() => useGrubReward(state, 'p1', 0, { targetType: 'predator', targetId: 'Owl Coopone' }), /Owl Coopone cannot be dodged/);
 });
 
 test('Caterpillar: +1 to your egg production rolls (Permanent Upgrade)', () => {

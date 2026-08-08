@@ -196,8 +196,8 @@ export const PREDATOR_EFFECTS: Record<string, Partial<Record<Stage, PredatorEffe
   // maxHealth) applied every combat instance while that card is active,
   // not a permanent maxHealth change, since the base model doesn't track
   // a predator's maxHealth fluctuating with the weather elsewhere. "Can't
-  // use Bonus/Grub Cards to dodge" is deliberately out of scope — see
-  // docs/engine-plan.md's phase 11j writeup for why.
+  // use Bonus/Grub Cards to dodge" is enforced separately, at card-play
+  // time — see resolveCardEffect's dodgeNextAttack branch in actions.ts.
   'Owl Coopone': {
     // Resolved from the attacker's own weather (matters under Mudslide,
     // where different players can be experiencing different personal

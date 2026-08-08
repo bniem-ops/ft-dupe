@@ -1162,7 +1162,19 @@ function resolveCardEffect(state: GameState, playerId: string, effect: CardEffec
     if (overflow.length > 0) bonusDeck = { ...bonusDeck, discard: [...bonusDeck.discard, ...overflow] };
   }
 
-  if (effect.dodgeNextAttack) player = { ...player, pendingDodgeNextAttack: true };
+  if (effect.dodgeNextAttack) {
+    if (!params.targetType || !params.targetId) throw new Error('This card requires an enemy target');
+    if (params.targetType === 'predator') {
+      const target = predators.find((p) => p.name === params.targetId);
+      if (!target) throw new Error(`Unknown predator: ${params.targetId}`);
+      // Owl Coopone (all stages): "Cannot use Bonus or Grub Cards to dodge
+      // Predator attacks." Rejected at play time rather than left to
+      // silently do nothing once the return attack lands, so the card
+      // isn't wasted holding a dodge that was never going to work.
+      if (target.name === 'Owl Coopone') throw new Error('Owl Coopone cannot be dodged with Bonus or Grub Cards');
+    }
+    player = { ...player, pendingDodgeNextAttack: true };
+  }
   if (effect.grantsFreeAttackPoint) player = { ...player, pendingFreeAttackPoint: true };
   if (effect.reducesPredatorRoll) player = { ...player, pendingPredatorRollReduction: player.pendingPredatorRollReduction + effect.reducesPredatorRoll };
   if (effect.reducesIncomingDamage) player = { ...player, pendingIncomingDamageReduction: player.pendingIncomingDamageReduction + effect.reducesIncomingDamage };

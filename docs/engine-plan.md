@@ -554,8 +554,8 @@ own rather than only valuable once everything else is done.
       location can collect), Wilderness Guide, Portable House, Eggsmeralda
       S2/S3 ("take eggs from every player"), Owl Coopone (modeled as a
       per-combat self-heal while its matching weather is active, not a
-      permanent maxHealth change — its "can't use cards to dodge" clause is
-      deliberately out of scope, see the code comment for why), Four Leaf
+      permanent maxHealth change — its "can't use cards to dodge" clause
+      shipped later, see the playtest-feedback.md entry), Four Leaf
       Clover, Snow's last-phase ad-hoc Egg Exchange, "Move everyone for
       free."
     - **UI gap — closed.** The ~25 actions from 11b/11d(partial)/11e/11f/

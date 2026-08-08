@@ -143,11 +143,18 @@ test('"+1 egg OR Discard an additional bonus card for +3 eggs": option 2 require
 test('"Dodge Enemy attack": suppresses the next attack\'s return damage and target effect entirely', () => {
   let state = withBonusCard(createGame(baseConfig()), 'p1', 'Dodge Enemy attack');
   state = withPlayer(state, 'p1', { food: 5, location: 'Hendred Acre Wood' });
-  const played = playBonusCard(state, 'p1', 0);
+  const played = playBonusCard(state, 'p1', 0, { targetType: 'predator', targetId: 'Eggsmeralda' });
   const before = played.players.find((p) => p.id === 'p1')!.health;
   const hitConfig = { ...played.config, rng: constantRng(0.999) }; // would otherwise hit Eggsmeralda's self-heal roll
   const result = attack({ ...played, config: hitConfig }, 'p1', 'predator', 'Eggsmeralda', 1);
   assert.equal(result.players.find((p) => p.id === 'p1')!.health, before); // no return damage
+});
+
+test('"Dodge Enemy attack": cannot be played against Owl Coopone', () => {
+  const config = baseConfig({ predators: { regular: ['Owl Coopone', 'Sal Moe Nella', 'Professor Moltiarty'], boss: 'Ursula Bone' } });
+  let state = withBonusCard(createGame(config), 'p1', 'Dodge Enemy attack');
+  state = withPlayer(state, 'p1', { food: 5, location: 'Hendred Acre Wood' });
+  assert.throws(() => playBonusCard(state, 'p1', 0, { targetType: 'predator', targetId: 'Owl Coopone' }), /Owl Coopone cannot be dodged/);
 });
 
 test('"2 extra actions": grants 2 bonus actions this turn', () => {

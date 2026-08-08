@@ -45,7 +45,7 @@ function cardInputShape(effect) {
     allowSelfAsTarget: targetsAnyRoll,
     needsAmount: !!(effect.teammateGain && effect.teammateGain.maxAmount > 1) || !!effect.pickTargetPlayerNextRollOutcome,
     maxAmount: effect.pickTargetPlayerNextRollOutcome ? 6 : (effect.teammateGain?.maxAmount ?? 1),
-    needsEnemy: !!effect.enemyDamage,
+    needsEnemy: !!(effect.enemyDamage || effect.dodgeNextAttack),
     needsExtraCardDiscard: !!effect.discardExtraForBonus,
     // Borrow a teammate's ability: pick which of their unlocked stages'
     // ability to use (capped at their actual stage — actions.ts clamps
