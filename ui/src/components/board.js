@@ -4,12 +4,13 @@ import { monogram, SEASON_COLORS } from '../cardVisuals.js';
 
 export const PLAYER_COLORS = ['#c0392b', '#2980b9', '#27ae60', '#8e44ad', '#e67e22', '#16a085'];
 
-// Percentage anchors on the board art (native 1024x809), matching the
-// design mockup's own coordinate table ("2b — how the anchors work"). Every
-// on-board element is one `{ id, x, y }` positioned with
-// left:x%; top:y%; transform:translate(-50%,-50%) — nothing re-measures on
-// resize, and swapping in a higher-res scan of the same board changes
-// nothing but the image file.
+// Percentage anchors on the board art (native ~1155x912, same layout across
+// all three difficulty-tier scans below), matching the design mockup's own
+// coordinate table ("2b — how the anchors work"). Every on-board element is
+// one `{ id, x, y }` positioned with left:x%; top:y%;
+// transform:translate(-50%,-50%) — nothing re-measures on resize, and
+// swapping in a higher-res scan of the same composition changes nothing but
+// the image file.
 const BOARD_ANCHORS = {
   bonusDeck: { x: 7.5, y: 11.5 },
   bonusDiscard: { x: 19, y: 11.5 },
@@ -34,6 +35,16 @@ const LOCATION_ANCHOR_KEY = {
 
 function anchorStyle(anchor) {
   return { left: `${anchor.x}%`, top: `${anchor.y}%`, transform: 'translate(-50%,-50%)' };
+}
+
+// Difficulty 1-3 → lighthearted, 4-6 → normal, 7-8 → dark and gloomy. Same
+// village/river/mountain composition across all three scans (only mood and
+// lighting change), so the BOARD_ANCHORS table above needs no per-tier
+// variant — just the image file swaps.
+function boardImageForDifficulty(difficulty) {
+  if (difficulty <= 3) return 'assets/board-light.jpg';
+  if (difficulty <= 6) return 'assets/board-normal.jpg';
+  return 'assets/board-dark.jpg';
 }
 
 export function playerColor(state, playerId) {
@@ -209,7 +220,7 @@ export function Board({ state, dispatch, pendingPick, setPendingPick, playerName
 
   return html`
     <div class="board board-photo">
-      <img class="board-img" src="assets/board.png" alt="Flock Together board" />
+      <img class="board-img" src=${boardImageForDifficulty(state.config.difficulty)} alt="Flock Together board" />
       <div class="board-scrim"></div>
 
       <div class="board-locations">
