@@ -19,10 +19,46 @@ import { NameEntry } from './components/nameEntry.js';
 import { Lobby } from './components/lobby.js';
 import { ChickenDraft } from './components/chickenDraft.js';
 import { remoteSession, fromSyncedDoc } from './remoteSession.js';
-import { Board } from './components/board.js';
+import { Board, playerColor } from './components/board.js';
 import { PlayerPanel } from './components/playerPanel.js';
 import { ActionBar } from './components/actionBar.js';
 import { TurnControls } from './components/turnControls.js';
+
+const SEASON_ORDER = ['Spring', 'Summer', 'Fall'];
+
+// Turns a raw dispatched Action into a short log sentence — actionLog only
+// stores the action objects themselves (engine/src/types.ts), not text, so
+// this is purely a UI presentation concern. Falls back to a generic label
+// for the long tail of ability/loot actions rather than enumerating all of
+// them here.
+function formatLogEntry(action, playerNames) {
+  const name = (id) => playerNames?.[id] ?? id;
+  switch (action.type) {
+    case 'move':
+      return html`${name(action.playerId)} moved to <b>${action.destination}</b>.`;
+    case 'attack':
+    case 'attackWithCompanion':
+      return html`${name(action.playerId)} attacked <b>${action.targetId}</b>.`;
+    case 'forage':
+      return html`${name(action.playerId)} foraged.`;
+    case 'layEgg':
+      return html`${name(action.playerId)} laid an <b>egg</b>.`;
+    case 'heal':
+      return html`${name(action.playerId)} healed ${action.amount}.`;
+    case 'brood':
+      return html`${name(action.playerId)} brooded ${name(action.targetPlayerId)}.`;
+    case 'eat':
+      return html`${name(action.playerId)} ate ${action.amount} food.`;
+    case 'drawCard':
+      return html`${name(action.playerId)} drew a <b>Bonus Card</b>.`;
+    case 'playBonusCard':
+      return html`${name(action.playerId)} played a <b>Bonus Card</b>.`;
+    case 'useGrubReward':
+      return html`${name(action.playerId)} used a <b>Grub Reward</b>.`;
+    default:
+      return html`${name(action.playerId)} — ${action.type}.`;
+  }
+}
 
 // Advances from `state` until either a living player's turn has started
 // (production applied via startTurn) or the day has ended and needs the
@@ -49,6 +85,10 @@ function App() {
   const [error, setError] = useState(null);
   const [dayEndPending, setDayEndPending] = useState(false);
   const [pendingPick, setPendingPick] = useState(null);
+  // Mobile bottom-sheet UI state (≤900px — see styles.css's .gs-mobile-dock).
+  // Purely local presentation state, not synced.
+  const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
+  const [mobileTab, setMobileTab] = useState('board');
 
   // Session state — every game is a session now, no local hotseat mode.
   const [sessionCode, setSessionCode] = useState(null);
@@ -312,47 +352,157 @@ function App() {
   const currentPlayerId = gameState.turnOrder[gameState.currentPlayerIndex];
   const currentPlayer = gameState.players.find((p) => p.id === currentPlayerId);
   const playerNames = Object.fromEntries(Object.entries(seats).map(([id, s]) => [id, s.name]));
+  const opponents = gameState.players.filter((p) => p.id !== currentPlayerId);
+  const recentLog = gameState.actionLog.slice(-12).reverse();
 
-  return html`
-    <div class="game">
-      ${error && html`<div class="error-banner">${error}</div>`}
-      <${Board}
+  // Functions, not hoisted vnodes — the dock is rendered in two places at
+  // once (desktop .gs-dock, CSS-hidden on mobile; mobile sheet, CSS-hidden
+  // on desktop), and Preact can't render the same vnode instance twice.
+  const dockPanel = () => html`<${PlayerPanel}
+    variant="dock"
+    player=${currentPlayer}
+    isCurrent=${true}
+    state=${gameState}
+    dispatch=${dispatch}
+    pendingPick=${pendingPick}
+    setPendingPick=${setPendingPick}
+    myPlayerId=${myPlayerId}
+    displayName=${playerNames[currentPlayer.id] ?? currentPlayer.id}
+    playerNames=${playerNames}
+  />`;
+
+  const actionBar = () => html`<${ActionBar}
+    state=${gameState}
+    player=${currentPlayer}
+    dispatch=${dispatch}
+    onEndTurn=${handleEndTurn}
+    onUseExtraAction=${() => handleUseExtraAction(currentPlayer.id)}
+    pendingPick=${pendingPick}
+    setPendingPick=${setPendingPick}
+    myPlayerId=${myPlayerId}
+    displayName=${playerNames[currentPlayer.id] ?? currentPlayer.id}
+    playerNames=${playerNames}
+  />`;
+
+  const rail = html`
+    <div class="gs-rail-title">FLOCK</div>
+    ${opponents.map(
+      (p) => html`<${PlayerPanel}
+        key=${p.id}
+        variant="rail"
+        player=${p}
+        isCurrent=${p.id === currentPlayerId}
         state=${gameState}
         dispatch=${dispatch}
         pendingPick=${pendingPick}
         setPendingPick=${setPendingPick}
+        myPlayerId=${myPlayerId}
+        displayName=${playerNames[p.id] ?? p.id}
         playerNames=${playerNames}
-      />
-      <div class="players">
-        ${gameState.players.map(
-          (p) => html`<${PlayerPanel}
-            key=${p.id}
-            player=${p}
-            isCurrent=${p.id === currentPlayerId}
-            state=${gameState}
-            dispatch=${dispatch}
-            pendingPick=${pendingPick}
-            setPendingPick=${setPendingPick}
-            myPlayerId=${myPlayerId}
-            displayName=${playerNames[p.id] ?? p.id}
-            playerNames=${playerNames}
-          />`,
-        )}
+      />`,
+    )}
+    <div class="gs-log">
+      <div class="gs-log-title">LOG</div>
+      ${recentLog.map((a, i) => html`<div key=${i} class="gs-log-entry">${formatLogEntry(a, playerNames)}</div>`)}
+    </div>
+  `;
+
+  return html`
+    <div class="game">
+      ${error && html`<div class="error-banner">${error}</div>`}
+
+      <div class="gs-topbar">
+        <span class="gs-title">FLOCK TOGETHER</span>
+        <div class="gs-divider"></div>
+        <div class="gs-season">
+          <span class="gs-season-label">SEASON</span>
+          <div class="season-pills">
+            ${SEASON_ORDER.map((s) => html`<span key=${s} class=${`season-pill ${s === gameState.season ? 'active' : ''}`}>${s.toUpperCase()}</span>`)}
+          </div>
+          <span class="gs-day">Day ${gameState.day} · Phase ${gameState.phase}</span>
+        </div>
+        <div class="gs-divider"></div>
+        <div class="gs-turnorder">
+          ${gameState.turnOrder.map(
+            (id) =>
+              html`<span
+                key=${id}
+                class=${`turn-avatar ${id === currentPlayerId ? 'active' : ''}`}
+                title=${playerNames[id] ?? id}
+                style=${{ background: playerColor(gameState, id) }}
+              >${(playerNames[id] ?? id).slice(0, 2)}</span>`,
+          )}
+        </div>
+        <div class="gs-spacer"></div>
       </div>
-      ${dayEndPending
-        ? html`<${TurnControls} state=${gameState} onSubmitDayEnd=${handleDayEndSubmit} myPlayerId=${myPlayerId} playerNames=${playerNames} />`
-        : html`<${ActionBar}
+
+      <div class="gs-mid">
+        <div class="gs-board">
+          <${Board}
             state=${gameState}
-            player=${currentPlayer}
             dispatch=${dispatch}
-            onEndTurn=${handleEndTurn}
-            onUseExtraAction=${() => handleUseExtraAction(currentPlayer.id)}
             pendingPick=${pendingPick}
             setPendingPick=${setPendingPick}
-            myPlayerId=${myPlayerId}
-            displayName=${playerNames[currentPlayer.id] ?? currentPlayer.id}
             playerNames=${playerNames}
-          />`}
+            hereLocation=${currentPlayer.location}
+          />
+        </div>
+        <div class="gs-rail">${rail}</div>
+      </div>
+
+      ${dayEndPending
+        ? html`<div class="gs-dock-dayend">
+            <${TurnControls} state=${gameState} onSubmitDayEnd=${handleDayEndSubmit} myPlayerId=${myPlayerId} playerNames=${playerNames} />
+          </div>`
+        : html`<div class="gs-dock">${dockPanel()}${actionBar()}</div>`}
+
+      <div class="gs-mobile-dock">
+        ${!mobileSheetOpen
+          ? html`
+              <div class="mobile-dock-collapsed">
+                <span class="name">${playerNames[currentPlayer.id] ?? currentPlayer.id}</span>
+                <span class="ref-text">❤ ${currentPlayer.health}/${currentPlayer.maxHealth}</span>
+                <div class="gs-spacer"></div>
+                <div class="meal"><span>MEAL</span><strong>${currentPlayer.mealCounter}</strong></div>
+                <button type="button" class="sheet-toggle" onClick=${() => setMobileSheetOpen(true)}>Board ▲</button>
+              </div>
+            `
+          : html`
+              <div class="mobile-dock-expanded">
+                <div class="mobile-tabs">
+                  ${['board', 'flock', 'log'].map(
+                    (t) =>
+                      html`<button key=${t} type="button" class=${`mobile-tab ${mobileTab === t ? 'active' : ''}`} onClick=${() => setMobileTab(t)}>
+                        ${t === 'board' ? 'My board' : t === 'flock' ? 'Flock' : 'Log'}
+                      </button>`,
+                  )}
+                  <button type="button" class="sheet-toggle" onClick=${() => setMobileSheetOpen(false)}>▼</button>
+                </div>
+                <div class="mobile-tab-body">
+                  ${mobileTab === 'board' && (dayEndPending
+                    ? html`<${TurnControls} state=${gameState} onSubmitDayEnd=${handleDayEndSubmit} myPlayerId=${myPlayerId} playerNames=${playerNames} />`
+                    : html`${dockPanel()}${actionBar()}`)}
+                  ${mobileTab === 'flock' &&
+                  opponents.map(
+                    (p) => html`<${PlayerPanel}
+                      key=${p.id}
+                      variant="rail"
+                      player=${p}
+                      isCurrent=${p.id === currentPlayerId}
+                      state=${gameState}
+                      dispatch=${dispatch}
+                      pendingPick=${pendingPick}
+                      setPendingPick=${setPendingPick}
+                      myPlayerId=${myPlayerId}
+                      displayName=${playerNames[p.id] ?? p.id}
+                      playerNames=${playerNames}
+                    />`,
+                  )}
+                  ${mobileTab === 'log' && recentLog.map((a, i) => html`<div key=${i} class="gs-log-entry">${formatLogEntry(a, playerNames)}</div>`)}
+                </div>
+              </div>
+            `}
+      </div>
     </div>
   `;
 }

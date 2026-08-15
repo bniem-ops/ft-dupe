@@ -260,7 +260,22 @@ function AdHocExchangeControls({ maxEggs, onUse }) {
   `;
 }
 
-export function PlayerPanel({ player, isCurrent, state, dispatch, pendingPick, setPendingPick, myPlayerId, displayName, playerNames }) {
+// Own-board dock's meal-counter track: a single highlighted box at the
+// player's current position, not a fill-up-to-here progress bar. Stage 3
+// chickens have no further mealsToNext, so there's no fixed track length —
+// falls back to a plain chip in that case.
+function MealCounterStrip({ mealCounter, mealsToNext }) {
+  if (!mealsToNext) {
+    return html`<div class="chip-stat">Meals ${mealCounter}</div>`;
+  }
+  return html`
+    <div class="meal-counter-strip">
+      ${Array.from({ length: mealsToNext }, (_, i) => html`<span key=${i} class=${i + 1 === mealCounter ? 'filled' : ''}>${i + 1}</span>`)}
+    </div>
+  `;
+}
+
+export function PlayerPanel({ player, isCurrent, state, dispatch, pendingPick, setPendingPick, myPlayerId, displayName, playerNames, variant = 'rail' }) {
   const chicken = findChicken(player.chickenName);
   const stageData = chicken.stages.find((s) => s.stage === player.stage);
   const otherPlayers = state.players.filter((p) => p.id !== player.id && p.alive);
@@ -283,235 +298,291 @@ export function PlayerPanel({ player, isCurrent, state, dispatch, pendingPick, s
   // standing "discard" button next to every card.
   const overBonusCardHandLimit = !player.permanentNoBonusCardHandLimit && player.bonusCardHand.length > player.bonusCardHandLimit;
 
-  return html`
-    <div class=${`player-panel ${isCurrent ? 'current' : ''} ${!player.alive ? 'dead' : ''}`}>
-      <h3>${label} — ${chicken.name}${!player.alive ? ' (dead)' : ''}</h3>
-      ${personalWeatherCard &&
-      html`<div class="ref-text">
-        Your weather (Mudslide): <strong>${personalWeatherCard.name}</strong> — ${personalWeatherCard.effect}
-      </div>`}
-      ${player.pendingRevivalChoices &&
-      html`<div class="revival-choice">
-        <strong>Choose your chicken to rejoin (as a Chick):</strong>
-        ${!canAct && html`<span class="ref-text">(waiting for ${label}'s device)</span>`}
-        ${player.pendingRevivalChoices.map(
-          (name) =>
-            html`<button
-              key=${name}
-              type="button"
-              disabled=${!canAct}
-              onClick=${() => dispatch({ type: 'completeRevival', playerId: player.id, chickenName: name })}
-            >
-              ${name}
-            </button>`,
-        )}
-      </div>`}
-      ${canAct &&
-      player.pendingFreeMove &&
-      html`<${FreeMoveGrantControls} onUse=${(destination) => dispatch({ type: 'useFreeMoveGrant', playerId: player.id, destination })} />`}
-      ${canAct &&
-      player.pendingForcedRelocation &&
-      html`<${ForcedRelocationControls}
+  const [dockTab, setDockTab] = useState('traits');
+
+  const hasUrgentPending =
+    !!player.pendingRevivalChoices ||
+    !!player.pendingFreeMove ||
+    !!player.pendingForcedRelocation ||
+    (activeWeatherName(state) === 'Snow' && state.phase === 3) ||
+    (state.boardEggs?.[player.location] ?? 0) > 0;
+
+  const pendingBlock = html`
+    ${personalWeatherCard &&
+    html`<div class="ref-text">Your weather (Mudslide): <strong>${personalWeatherCard.name}</strong> — ${personalWeatherCard.effect}</div>`}
+    ${player.pendingRevivalChoices &&
+    html`<div class="dock-pending revival-choice">
+      <strong>Choose your chicken to rejoin (as a Chick):</strong>
+      ${!canAct && html`<span class="ref-text">(waiting for ${label}'s device)</span>`}
+      ${player.pendingRevivalChoices.map(
+        (name) =>
+          html`<button
+            key=${name}
+            type="button"
+            disabled=${!canAct}
+            onClick=${() => dispatch({ type: 'completeRevival', playerId: player.id, chickenName: name })}
+          >
+            ${name}
+          </button>`,
+      )}
+    </div>`}
+    ${canAct &&
+    player.pendingFreeMove &&
+    html`<div class="dock-pending"><${FreeMoveGrantControls} onUse=${(destination) => dispatch({ type: 'useFreeMoveGrant', playerId: player.id, destination })} /></div>`}
+    ${canAct &&
+    player.pendingForcedRelocation &&
+    html`<div class="dock-pending">
+      <${ForcedRelocationControls}
         currentLocation=${player.location}
         onUse=${(destination) => dispatch({ type: 'completeForcedRelocation', playerId: player.id, destination })}
-      />`}
-      ${canAct &&
-      activeWeatherName(state) === 'Snow' &&
-      state.phase === 3 &&
-      html`<${AdHocExchangeControls} maxEggs=${player.eggs} onUse=${(amount) => dispatch({ type: 'adHocEggExchange', playerId: player.id, amount })} />`}
-      ${canAct &&
-      (state.boardEggs?.[player.location] ?? 0) > 0 &&
-      html`<button type="button" onClick=${() => dispatch({ type: 'collectBoardEgg', playerId: player.id, location: player.location })}>
+      />
+    </div>`}
+    ${canAct &&
+    activeWeatherName(state) === 'Snow' &&
+    state.phase === 3 &&
+    html`<div class="dock-pending"><${AdHocExchangeControls} maxEggs=${player.eggs} onUse=${(amount) => dispatch({ type: 'adHocEggExchange', playerId: player.id, amount })} /></div>`}
+    ${canAct &&
+    (state.boardEggs?.[player.location] ?? 0) > 0 &&
+    html`<div class="dock-pending">
+      <button type="button" onClick=${() => dispatch({ type: 'collectBoardEgg', playerId: player.id, location: player.location })}>
         Collect egg here (${state.boardEggs[player.location]} available)
-      </button>`}
-      <div class="breed">${chicken.breed} · Stage ${player.stage}</div>
-      <${Hearts} health=${player.health} maxHealth=${player.maxHealth} />
-      <div class="stats-row">
-        <span>🌾 ${player.food}</span>
-        <span>🥚 ${player.eggs}</span>
-        <span>👊 ${player.attackStrength}</span>
-        <span>📍 ${player.location}</span>
+      </button>
+    </div>`}
+  `;
+
+  const traitsTab = html`
+    ${chicken.stages.map(
+      (s) => html`
+        <div key=${s.stage} class=${`notebook-row ${s.stage > player.stage ? 'future' : ''}`}>
+          <div class="row-head">
+            <span class="row-title">Stage ${s.stage} — ${s.label}</span>
+          </div>
+          ${s.abilities.map((a, i) => html`<div key=${i} class="row-text">${a.name ? html`<strong>${a.name}</strong> — ` : ''}${a.text}</div>`)}
+        </div>
+      `,
+    )}
+  `;
+
+  const bonusCardEntries = player.bonusCardHand.map((id, i) => {
+    const card = loadBonusCards()[id];
+    const effect = card?.shorthand ? BONUS_CARD_EFFECTS[card.shorthand] : undefined;
+    const remainingCards = player.bonusCardHand
+      .filter((_, j) => j !== i)
+      .map((cid, j) => ({ index: j, label: loadBonusCards()[cid]?.shorthand ?? '?' }));
+    return html`
+      <div key=${`bonus-${i}`} class="notebook-row card-row">
+        <div class="row-text">${card?.shorthand} — ${card?.description}</div>
+        ${canAct
+          ? html`<${PlayCardControls}
+              effect=${effect}
+              selfId=${player.id}
+              otherPlayers=${otherPlayers}
+              playerNames=${playerNames}
+              remainingCards=${remainingCards}
+              onPlay=${(params) => dispatch({ type: 'playBonusCard', playerId: player.id, cardHandIndex: i, ...params })}
+              onPickEnemy=${(params) =>
+                setPendingPick({
+                  type: 'cardTarget',
+                  actionType: 'playBonusCard',
+                  playerId: player.id,
+                  handIndexField: 'cardHandIndex',
+                  handIndex: i,
+                  step: 'target',
+                  extraParams: params,
+                })}
+            />`
+          : html`<span class="ref-text">(waiting for ${label}'s device)</span>`}
+        ${canAct &&
+        overBonusCardHandLimit &&
+        html`<button type="button" onClick=${() => dispatch({ type: 'discardBonusCard', playerId: player.id, cardHandIndex: i })}>Discard</button>`}
       </div>
-      <div class="meal-counter">Meals: ${player.mealCounter}${stageData?.mealsToNext ? ` / ${stageData.mealsToNext}` : ''}</div>
-      <div class="extra-action">Extra Action Token: ${player.extraActionTokenAvailable ? 'available' : 'used'}</div>
+    `;
+  });
 
-      <details open=${isCurrent}>
-        <summary>Abilities</summary>
-        ${chicken.stages.map(
-          (s) => html`
-            <div key=${s.stage} class=${s.stage > player.stage ? 'ability-future' : 'ability-current'}>
-              <strong>Stage ${s.stage} (${s.label}):</strong>
-              ${s.abilities.map((a, i) => html`<div key=${i}>${a.name ? `${a.name} — ` : ''}${a.text}</div>`)}
-            </div>
-          `,
-        )}
-      </details>
+  const grubCardEntries = player.grubHand.map((held, i) => {
+    const card = loadGrubCards()[held.cardId];
+    const effect = card?.name ? GRUB_REWARDS[card.name] : undefined;
+    return html`
+      <div key=${`grub-${i}`} class="notebook-row card-row">
+        <div class="row-text">${card?.name} (${held.currentHealth}/${card?.health}) — Reward: ${card?.reward ?? '—'}</div>
+        ${held.rewardUsed
+          ? html`<span class="ref-text">(Reward used)</span>`
+          : !canAct
+          ? html`<span class="ref-text">(waiting for ${label}'s device)</span>`
+          : html`<${PlayCardControls}
+              effect=${effect}
+              selfId=${player.id}
+              otherPlayers=${otherPlayers}
+              playerNames=${playerNames}
+              remainingCards=${[]}
+              onPlay=${(params) => dispatch({ type: 'useGrubReward', playerId: player.id, grubHandIndex: i, ...params })}
+              onPickEnemy=${(params) =>
+                setPendingPick({
+                  type: 'cardTarget',
+                  actionType: 'useGrubReward',
+                  playerId: player.id,
+                  handIndexField: 'grubHandIndex',
+                  handIndex: i,
+                  step: 'target',
+                  extraParams: params,
+                })}
+            />`}
+      </div>
+    `;
+  });
 
-      <details open=${overBonusCardHandLimit}>
-        <summary>Bonus Cards (${player.bonusCardHand.length}${overBonusCardHandLimit ? ` / ${player.bonusCardHandLimit} — over limit, must discard` : ''})</summary>
-        ${player.bonusCardHand.map((id, i) => {
-          const card = loadBonusCards()[id];
-          const effect = card?.shorthand ? BONUS_CARD_EFFECTS[card.shorthand] : undefined;
-          const remainingCards = player.bonusCardHand
-            .filter((_, j) => j !== i)
-            .map((cid, j) => ({ index: j, label: loadBonusCards()[cid]?.shorthand ?? '?' }));
-          return html`
-            <div key=${i} class="ref-text card-row">
-              <div>${card?.shorthand} — ${card?.description}</div>
-              ${canAct
-                ? html`<${PlayCardControls}
-                    effect=${effect}
-                    selfId=${player.id}
-                    otherPlayers=${otherPlayers}
-                    playerNames=${playerNames}
-                    remainingCards=${remainingCards}
-                    onPlay=${(params) => dispatch({ type: 'playBonusCard', playerId: player.id, cardHandIndex: i, ...params })}
-                    onPickEnemy=${(params) =>
-                      setPendingPick({
-                        type: 'cardTarget',
-                        actionType: 'playBonusCard',
-                        playerId: player.id,
-                        handIndexField: 'cardHandIndex',
-                        handIndex: i,
-                        step: 'target',
-                        extraParams: params,
-                      })}
-                  />`
-                : html`<span class="ref-text">(waiting for ${label}'s device)</span>`}
-              ${canAct &&
-              overBonusCardHandLimit &&
-              html`<button type="button" onClick=${() => dispatch({ type: 'discardBonusCard', playerId: player.id, cardHandIndex: i })}>
-                Discard
-              </button>`}
-            </div>
-          `;
-        })}
-      </details>
+  const lootEntries = player.lootDrops.map((name, i) => {
+    const loot = PREDATOR_LOOT[name];
+    const remaining = player.lootCharges?.[name] ?? 0;
+    return html`
+      <div key=${`loot-${i}`} class="notebook-row card-row">
+        <div class="row-text">${name} — ${findPredator(name).lootDrop ?? '—'}</div>
+        ${canAct &&
+        loot?.stash &&
+        html`<${StashControls}
+          name=${name}
+          resource=${loot.stash.resource === 'egg' ? 'eggs' : 'food'}
+          remaining=${remaining}
+          otherPlayers=${otherPlayers}
+          playerNames=${playerNames}
+          onCollect=${(amount, targetPlayerId) => dispatch({ type: 'collectFromStash', playerId: player.id, predatorName: name, amount, targetPlayerId })}
+        />`}
+        ${canAct &&
+        loot?.chargedRangedAttack &&
+        html`<span class="card-controls">
+          <span class="ref-text">${remaining} arrows left</span>
+          <button
+            type="button"
+            disabled=${remaining < 1}
+            onClick=${() =>
+              setPendingPick({ type: 'cardTarget', actionType: 'useArrowPack', playerId: player.id, handIndexField: 'unused', step: 'target', extraParams: {} })}
+          >
+            Fire Arrow (pick target on board)
+          </button>
+        </span>`}
+        ${canAct &&
+        loot?.activatableAttackReduction &&
+        html`<span class="card-controls">
+          ${remaining > 0
+            ? html`<button
+                type="button"
+                onClick=${() =>
+                  setPendingPick({ type: 'cardTarget', actionType: 'useGasMask', playerId: player.id, handIndexField: 'unused', step: 'target', extraParams: {} })}
+              >
+                Use Gas Mask (pick Predator on board)
+              </button>`
+            : html`<span class="ref-text">(used)</span>`}
+        </span>`}
+        ${canAct &&
+        loot?.everyoneAtLocationRefreshExtraAction &&
+        html`<button type="button" onClick=${() => dispatch({ type: 'useChamberstick', playerId: player.id })}>Refresh everyone's Token here</button>`}
+        ${canAct &&
+        loot?.freeDrawBonusCardForSelfOrTeammate &&
+        html`<${CaveHoardControls}
+          otherPlayers=${otherPlayers}
+          playerNames=${playerNames}
+          onUse=${(targetPlayerId) => dispatch({ type: 'useCaveHoard', playerId: player.id, targetPlayerId })}
+        />`}
+        ${canAct &&
+        loot?.healEveryoneAtLocation &&
+        html`<button type="button" onClick=${() => dispatch({ type: 'useHealingPoultice', playerId: player.id })}>
+          Heal everyone here ${loot.healEveryoneAtLocation}
+        </button>`}
+        ${canAct &&
+        loot?.freeMoveForSelfOrNearby &&
+        html`<${SecretTunnelsControls}
+          otherPlayers=${otherPlayers}
+          playerNames=${playerNames}
+          onUse=${(destination, targetPlayerId) => dispatch({ type: 'useSecretTunnels', playerId: player.id, destination, targetPlayerId })}
+        />`}
+        ${canAct &&
+        loot?.dungeonKeys &&
+        (remaining > 0
+          ? html`<${DungeonKeysControls}
+              myId=${player.id}
+              nearbyOtherPlayers=${nearbyOtherPlayers}
+              playerNames=${playerNames}
+              onUse=${(targetPlayerId) => dispatch({ type: 'useDungeonKeys', playerId: player.id, targetPlayerId })}
+            />`
+          : html`<span class="ref-text">(used)</span>`)}
+        ${canAct &&
+        loot?.grantsWeatherImmunityForTurn &&
+        html`<${PortableHouseControls}
+          myId=${player.id}
+          nearbyOtherPlayers=${nearbyOtherPlayers}
+          playerNames=${playerNames}
+          onUse=${(targetPlayerId) => dispatch({ type: 'usePortableHouse', playerId: player.id, targetPlayerId })}
+        />`}
+      </div>
+    `;
+  });
 
-      <details>
-        <summary>Grub Cards (${player.grubHand.length})</summary>
-        ${player.grubHand.map((held, i) => {
-          const card = loadGrubCards()[held.cardId];
-          const effect = card?.name ? GRUB_REWARDS[card.name] : undefined;
-          return html`
-            <div key=${i} class="ref-text card-row">
-              <div>${card?.name} (${held.currentHealth}/${card?.health}) — Reward: ${card?.reward ?? '—'}</div>
-              ${held.rewardUsed
-                ? html`<span class="ref-text">(Reward used)</span>`
-                : !canAct
-                ? html`<span class="ref-text">(waiting for ${label}'s device)</span>`
-                : html`<${PlayCardControls}
-                    effect=${effect}
-                    selfId=${player.id}
-                    otherPlayers=${otherPlayers}
-                    playerNames=${playerNames}
-                    remainingCards=${[]}
-                    onPlay=${(params) => dispatch({ type: 'useGrubReward', playerId: player.id, grubHandIndex: i, ...params })}
-                    onPickEnemy=${(params) =>
-                      setPendingPick({
-                        type: 'cardTarget',
-                        actionType: 'useGrubReward',
-                        playerId: player.id,
-                        handIndexField: 'grubHandIndex',
-                        handIndex: i,
-                        step: 'target',
-                        extraParams: params,
-                      })}
-                  />`}
-            </div>
-          `;
-        })}
-      </details>
+  const cardsTab = html`
+    <div class="notebook-row"><span class="row-title">Bonus Cards (${player.bonusCardHand.length}${overBonusCardHandLimit ? ` / ${player.bonusCardHandLimit} — over limit` : ''})</span></div>
+    ${bonusCardEntries}
+    <div class="notebook-row"><span class="row-title">Grub Cards (${player.grubHand.length})</span></div>
+    ${grubCardEntries}
+    <div class="notebook-row"><span class="row-title">Loot Drops (${player.lootDrops.length})</span></div>
+    ${lootEntries}
+  `;
 
-      <details>
-        <summary>Loot Drops (${player.lootDrops.length})</summary>
-        ${player.lootDrops.map((name, i) => {
-          const loot = PREDATOR_LOOT[name];
-          const remaining = player.lootCharges?.[name] ?? 0;
-          return html`
-            <div key=${i} class="ref-text card-row">
-              <div>${name} — ${findPredator(name).lootDrop ?? '—'}</div>
-              ${canAct &&
-              loot?.stash &&
-              html`<${StashControls}
-                name=${name}
-                resource=${loot.stash.resource === 'egg' ? 'eggs' : 'food'}
-                remaining=${remaining}
-                otherPlayers=${otherPlayers}
-                playerNames=${playerNames}
-                onCollect=${(amount, targetPlayerId) => dispatch({ type: 'collectFromStash', playerId: player.id, predatorName: name, amount, targetPlayerId })}
-              />`}
-              ${canAct &&
-              loot?.chargedRangedAttack &&
-              html`<span class="card-controls">
-                <span class="ref-text">${remaining} arrows left</span>
-                <button
-                  type="button"
-                  disabled=${remaining < 1}
-                  onClick=${() =>
-                    setPendingPick({ type: 'cardTarget', actionType: 'useArrowPack', playerId: player.id, handIndexField: 'unused', step: 'target', extraParams: {} })}
-                >
-                  Fire Arrow (pick target on board)
-                </button>
-              </span>`}
-              ${canAct &&
-              loot?.activatableAttackReduction &&
-              html`<span class="card-controls">
-                ${remaining > 0
-                  ? html`<button
-                      type="button"
-                      onClick=${() =>
-                        setPendingPick({ type: 'cardTarget', actionType: 'useGasMask', playerId: player.id, handIndexField: 'unused', step: 'target', extraParams: {} })}
-                    >
-                      Use Gas Mask (pick Predator on board)
-                    </button>`
-                  : html`<span class="ref-text">(used)</span>`}
-              </span>`}
-              ${canAct &&
-              loot?.everyoneAtLocationRefreshExtraAction &&
-              html`<button type="button" onClick=${() => dispatch({ type: 'useChamberstick', playerId: player.id })}>
-                Refresh everyone's Token here
-              </button>`}
-              ${canAct &&
-              loot?.freeDrawBonusCardForSelfOrTeammate &&
-              html`<${CaveHoardControls}
-                otherPlayers=${otherPlayers}
-                playerNames=${playerNames}
-                onUse=${(targetPlayerId) => dispatch({ type: 'useCaveHoard', playerId: player.id, targetPlayerId })}
-              />`}
-              ${canAct &&
-              loot?.healEveryoneAtLocation &&
-              html`<button type="button" onClick=${() => dispatch({ type: 'useHealingPoultice', playerId: player.id })}>
-                Heal everyone here ${loot.healEveryoneAtLocation}
-              </button>`}
-              ${canAct &&
-              loot?.freeMoveForSelfOrNearby &&
-              html`<${SecretTunnelsControls}
-                otherPlayers=${otherPlayers}
-                playerNames=${playerNames}
-                onUse=${(destination, targetPlayerId) => dispatch({ type: 'useSecretTunnels', playerId: player.id, destination, targetPlayerId })}
-              />`}
-              ${canAct &&
-              loot?.dungeonKeys &&
-              (remaining > 0
-                ? html`<${DungeonKeysControls}
-                    myId=${player.id}
-                    nearbyOtherPlayers=${nearbyOtherPlayers}
-                    playerNames=${playerNames}
-                    onUse=${(targetPlayerId) => dispatch({ type: 'useDungeonKeys', playerId: player.id, targetPlayerId })}
-                  />`
-                : html`<span class="ref-text">(used)</span>`)}
-              ${canAct &&
-              loot?.grantsWeatherImmunityForTurn &&
-              html`<${PortableHouseControls}
-                myId=${player.id}
-                nearbyOtherPlayers=${nearbyOtherPlayers}
-                playerNames=${playerNames}
-                onUse=${(targetPlayerId) => dispatch({ type: 'usePortableHouse', playerId: player.id, targetPlayerId })}
-              />`}
-            </div>
-          `;
-        })}
+  const vitals = html`
+    <div class="stats-row">
+      <span>🌾 ${player.food}</span>
+      <span>🥚 ${player.eggs}</span>
+      <span>👊 ${player.attackStrength}</span>
+      <span>📍 ${player.location}</span>
+    </div>
+    <div class="meal-counter">Meals: ${player.mealCounter}${stageData?.mealsToNext ? ` / ${stageData.mealsToNext}` : ''}</div>
+    <div class="extra-action">Extra Action Token: ${player.extraActionTokenAvailable ? 'available' : 'used'}</div>
+  `;
+
+  if (variant === 'dock') {
+    return html`
+      <div class="player-panel dock">
+        ${pendingBlock}
+        <div class="dock-charcard">
+          <div class="name">${label}</div>
+          <div class="breed">${chicken.name} — ${chicken.breed} Stage ${player.stage}${!player.alive ? ' (dead)' : ''}</div>
+          <div class="chips">
+            <span class="chip">${state.actionsRemainingThisTurn} action(s)</span>
+            <span class="chip">${player.attackStrength} claw</span>
+          </div>
+        </div>
+        <div class="dock-notebook">
+          <div class="dock-tabs">
+            <button type="button" class=${`dock-tab ${dockTab === 'traits' ? 'active' : ''}`} onClick=${() => setDockTab('traits')}>Traits</button>
+            <button type="button" class=${`dock-tab ${dockTab === 'cards' ? 'active' : ''}`} onClick=${() => setDockTab('cards')}>Cards</button>
+          </div>
+          <div class="dock-notebook-body">${dockTab === 'traits' ? traitsTab : cardsTab}</div>
+        </div>
+        <div class="dock-vitals">
+          <div class="stats-row">
+            <${Hearts} health=${player.health} maxHealth=${player.maxHealth} />
+            <span class="chip-stat food">🌾 ${player.food}</span>
+            <span class="chip-stat">🥚 ${player.eggs}</span>
+          </div>
+          <${MealCounterStrip} mealCounter=${player.mealCounter} mealsToNext=${stageData?.mealsToNext} />
+          <div class="stats-row">
+            <span class="ref-text">👊 ${player.attackStrength} · 📍 ${player.location}</span>
+            <span class="ref-text">Extra Action Token: ${player.extraActionTokenAvailable ? 'available' : 'used'}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  return html`
+    <div class=${`player-panel rail ${isCurrent ? 'current' : ''} ${!player.alive ? 'dead' : ''}`}>
+      <h3>${label} — ${chicken.name}${!player.alive ? ' (dead)' : ''}</h3>
+      ${pendingBlock}
+      <div class="breed">${chicken.breed} · Stage ${player.stage} · ${player.location}</div>
+      <${Hearts} health=${player.health} maxHealth=${player.maxHealth} />
+      ${vitals}
+      <details class="rail-more" open=${hasUrgentPending || overBonusCardHandLimit}>
+        <summary>Abilities · Cards · Loot</summary>
+        ${traitsTab}
+        ${cardsTab}
       </details>
     </div>
   `;

@@ -14,6 +14,15 @@ function eatCap(stage) {
   return stage === 1 ? 1 : stage === 2 ? 2 : 0;
 }
 
+function ActionButton({ label, hint, colorClass, disabled, onClick }) {
+  return html`
+    <button type="button" class=${`action-btn ${colorClass ?? ''}`} disabled=${disabled} onClick=${onClick}>
+      <span class="action-btn-head">${label}</span>
+      <span class="action-btn-body">${hint}</span>
+    </button>
+  `;
+}
+
 export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction, pendingPick, setPendingPick, myPlayerId, displayName, playerNames }) {
   const [healAmount, setHealAmount] = useState(1);
   const [eatAmount, setEatAmount] = useState(0);
@@ -185,7 +194,12 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
       `}
 
       <div class="actions-grid">
-        <button type="button" disabled=${noActions} onClick=${() => dispatch({ type: 'layEgg', playerId: player.id })}>Lay Egg</button>
+        <${ActionButton}
+          label="Lay Egg"
+          hint="Gain 1 egg · free"
+          disabled=${noActions}
+          onClick=${() => dispatch({ type: 'layEgg', playerId: player.id })}
+        />
 
         <div class="action-with-amount">
           <input
@@ -195,9 +209,12 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
             value=${healAmount}
             onInput=${(e) => setHealAmount(Number(e.target.value))}
           />
-          <button type="button" disabled=${noActions} onClick=${() => dispatch({ type: 'heal', playerId: player.id, amount: healAmount })}>
-            Heal
-          </button>
+          <${ActionButton}
+            label="Heal"
+            hint="1 food per ♥"
+            disabled=${noActions}
+            onClick=${() => dispatch({ type: 'heal', playerId: player.id, amount: healAmount })}
+          />
         </div>
 
         <div class="action-with-amount">
@@ -205,31 +222,46 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
             <option value="">Dead player…</option>
             ${deadPlayers.map((p) => html`<option key=${p.id} value=${p.id}>${playerNames?.[p.id] ?? p.id}</option>`)}
           </select>
-          <button
-            type="button"
+          <${ActionButton}
+            label="Brood"
+            hint="1 egg · revive"
             disabled=${noActions || !broodTarget}
             onClick=${() => dispatch({ type: 'brood', playerId: player.id, targetPlayerId: broodTarget })}
-          >
-            Brood
-          </button>
+          />
         </div>
 
-        <button type="button" disabled=${noActions} onClick=${() => setPendingPick({ type: 'move', playerId: player.id })}>Move</button>
+        <${ActionButton}
+          label="Move"
+          hint="New location"
+          colorClass="dusk"
+          disabled=${noActions}
+          onClick=${() => setPendingPick({ type: 'move', playerId: player.id })}
+        />
 
-        <button type="button" disabled=${noActions} onClick=${() => dispatch({ type: 'drawCard', playerId: player.id })}>Draw Card</button>
+        <${ActionButton}
+          label="Draw Card"
+          hint="1 bonus card"
+          colorClass="dusk"
+          disabled=${noActions}
+          onClick=${() => dispatch({ type: 'drawCard', playerId: player.id })}
+        />
 
-        <button type="button" disabled=${noActions} onClick=${() => setPendingPick({ type: 'attack', step: 'target', playerId: player.id })}>
-          Attack
-        </button>
+        <${ActionButton}
+          label="Attack"
+          hint="1 food per claw"
+          colorClass="blood"
+          disabled=${noActions}
+          onClick=${() => setPendingPick({ type: 'attack', step: 'target', playerId: player.id })}
+        />
 
         ${abilities.some((a) => a.joinsAttackAsSecond) &&
-        html`<button
-          type="button"
+        html`<${ActionButton}
+          label="Attack w/ Companion"
+          hint="Quite Friendly"
+          colorClass="blood"
           disabled=${noActions || nearbyAlivePlayers.length === 0}
           onClick=${() => setPendingPick({ type: 'attackWithCompanion', step: 'companion', playerId: player.id })}
-        >
-          Attack with Companion (Quite Friendly)
-        </button>`}
+        />`}
 
         <div class="action-with-amount">
           <input
@@ -239,12 +271,22 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
             value=${eatAmount}
             onInput=${(e) => setEatAmount(Number(e.target.value))}
           />
-          <button type="button" disabled=${noActions} onClick=${() => dispatch({ type: 'eat', playerId: player.id, amount: eatAmount })}>
-            Eat
-          </button>
+          <${ActionButton}
+            label="Eat"
+            hint="Food → meal"
+            colorClass="teal"
+            disabled=${noActions}
+            onClick=${() => dispatch({ type: 'eat', playerId: player.id, amount: eatAmount })}
+          />
         </div>
 
-        <button type="button" disabled=${noActions} onClick=${() => dispatch({ type: 'forage', playerId: player.id })}>Forage</button>
+        <${ActionButton}
+          label="Forage"
+          hint="Gain 1 food"
+          colorClass="field"
+          disabled=${noActions}
+          onClick=${() => dispatch({ type: 'forage', playerId: player.id })}
+        />
       </div>
 
       ${abilities.some((a) => a.canAdjustAnyRollForEggs) &&

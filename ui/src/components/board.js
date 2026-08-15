@@ -1,9 +1,21 @@
 import { html } from 'htm/preact';
 import { findPredator, loadGrubCards, seasonCardList, OUTSIDE_LOCATIONS, getOwnAndBorrowedAbilities } from '../engine.js';
 
-const PLAYER_COLORS = ['#c0392b', '#2980b9', '#27ae60', '#8e44ad', '#e67e22', '#16a085'];
+export const PLAYER_COLORS = ['#c0392b', '#2980b9', '#27ae60', '#8e44ad', '#e67e22', '#16a085'];
 
-function playerColor(state, playerId) {
+// Fixed board layout (Coop + the 4 real Outside locations) — percentage
+// positions matching the design mockup's node placement. Hardcoded per
+// location name since the board itself is a fixed 5-node layout, not
+// dynamically generated.
+const LOCATION_POSITIONS = {
+  Coop: { left: '50%', top: '50%', transform: 'translate(-50%,-50%)' },
+  'Golden Gables': { left: '4%', top: '18%' },
+  Badlands: { right: '4%', top: '5%' },
+  'Grit Stones': { right: '4%', bottom: '5%' },
+  'Hendred Acre Wood': { left: '4%', bottom: '5%' },
+};
+
+export function playerColor(state, playerId) {
   return PLAYER_COLORS[state.turnOrder.indexOf(playerId) % PLAYER_COLORS.length];
 }
 
@@ -47,7 +59,8 @@ function PredatorCard({ predator, clickable, onSelect }) {
   `;
 }
 
-function LocationCard({ name, state, dispatch, pendingPick, setPendingPick, playerNames }) {
+function LocationNode({ name, state, dispatch, pendingPick, setPendingPick, playerNames, hereLocation }) {
+  const isCoop = name === 'Coop';
   const predator = state.predators.find((p) => p.location === name);
   const pickingMove = pendingPick?.type === 'move';
   const pickingAttackTarget =
@@ -77,19 +90,21 @@ function LocationCard({ name, state, dispatch, pendingPick, setPendingPick, play
     }
   }
 
+  function move() {
+    dispatch({ type: 'move', playerId: pendingPick.playerId, destination: name });
+    setPendingPick(null);
+  }
+
   return html`
     <div
-      class=${`location-card ${pickingMove ? 'pickable' : ''}`}
-      onClick=${
-        pickingMove
-          ? () => {
-              dispatch({ type: 'move', playerId: pendingPick.playerId, destination: name });
-              setPendingPick(null);
-            }
-          : undefined
-      }
+      class=${`loc-node ${isCoop ? 'coop' : ''} ${pickingMove ? 'pickable' : ''}`}
+      style=${LOCATION_POSITIONS[name]}
+      onClick=${pickingMove ? move : undefined}
     >
-      <h3>${name}</h3>
+      <div class="loc-name">
+        <span>${name}</span>
+        ${hereLocation === name && html`<span class="here-badge">YOU ARE HERE</span>`}
+      </div>
       ${predator &&
       html`<${PredatorCard}
         predator=${predator}
@@ -97,11 +112,12 @@ function LocationCard({ name, state, dispatch, pendingPick, setPendingPick, play
         onSelect=${selectPredator}
       />`}
       <${PlayerTokens} state=${state} location=${name} playerNames=${playerNames} />
+      ${pickingMove && html`<span class="loc-move-btn">Move here</span>`}
     </div>
   `;
 }
 
-function GrubCard({ side, deckSide, state, dispatch, pendingPick, setPendingPick }) {
+function GrubDeckBadge({ side, deckSide, state, dispatch, pendingPick, setPendingPick }) {
   const pickingAttackTarget =
     (pendingPick?.type === 'attack' || pendingPick?.type === 'attackWithCompanion') && pendingPick.step === 'target';
   const pickingCardTarget = pendingPick?.type === 'cardTarget' && pendingPick.step === 'target';
@@ -115,6 +131,7 @@ function GrubCard({ side, deckSide, state, dispatch, pendingPick, setPendingPick
   const playerSide = actingPlayer ? (actingPlayer.location === 'Coop' ? 'inside' : 'outside') : null;
   const mayAttackAnyLocation = actingPlayer ? getOwnAndBorrowedAbilities(actingPlayer).some((a) => a.mayAttackGrubsFromAnyLocation) : false;
   const attackTargetReachable = !pickingAttackTarget || mayAttackAnyLocation || side === playerSide;
+  const clickable = !!card && ((pickingAttackTarget && attackTargetReachable) || pickingCardTarget);
 
   function select() {
     if (pickingCardTarget) {
@@ -133,36 +150,29 @@ function GrubCard({ side, deckSide, state, dispatch, pendingPick, setPendingPick
   }
 
   return html`
-    <div class="grub-card">
-      <h4>${side === 'inside' ? 'Inside Grub' : 'Outside Grub'}</h4>
+    <div class=${`deck-badge ${clickable ? 'clickable' : ''}`} onClick=${clickable ? select : undefined}>
+      <div class="deck-label">${side === 'inside' ? 'INSIDE GRUB' : 'OUTSIDE GRUB'}</div>
       ${card
         ? html`
-            <div
-              class=${`grub-face ${(pickingAttackTarget && attackTargetReachable) || pickingCardTarget ? 'clickable' : ''}`}
-              onClick=${(pickingAttackTarget && attackTargetReachable) || pickingCardTarget ? select : undefined}
-            >
-              <div class="grub-name">${card.name ?? 'Unnamed Grub'}</div>
-              <div class="health-text">${deckSide.faceUp.currentHealth} / ${card.health}</div>
-              ${card.effect && html`<div class="ref-text">Defend: ${card.effect}</div>`}
-              <div class="ref-text">Reward: ${card.reward ?? '—'}</div>
-            </div>
+            <div class="grub-name">${card.name ?? 'Unnamed Grub'}</div>
+            <div class="health-text">${deckSide.faceUp.currentHealth} / ${card.health}</div>
           `
-        : html`<div class="grub-face empty">No face-up Grub</div>`}
-      <div class="deck-counts">Draw: ${deckSide.drawPile.length} · Discard: ${deckSide.discard.length}</div>
+        : html`<div class="ref-text">empty</div>`}
+      <div class="deck-counts">Draw ${deckSide.drawPile.length} · Disc ${deckSide.discard.length}</div>
     </div>
   `;
 }
 
-export function Board({ state, dispatch, pendingPick, setPendingPick, playerNames }) {
+export function Board({ state, dispatch, pendingPick, setPendingPick, playerNames, hereLocation }) {
   const weatherCard = activeWeatherCard(state);
-  const pickingMove = pendingPick?.type === 'move';
+  const locations = ['Coop', ...OUTSIDE_LOCATIONS];
 
   return html`
     <div class="board">
-      <div class="locations">
-        ${OUTSIDE_LOCATIONS.map(
+      <div class="board-locations">
+        ${locations.map(
           (loc) =>
-            html`<${LocationCard}
+            html`<${LocationNode}
               key=${loc}
               name=${loc}
               state=${state}
@@ -170,42 +180,25 @@ export function Board({ state, dispatch, pendingPick, setPendingPick, playerName
               pendingPick=${pendingPick}
               setPendingPick=${setPendingPick}
               playerNames=${playerNames}
+              hereLocation=${hereLocation}
             />`,
         )}
       </div>
 
-      <div class="board-middle">
-        <div
-          class=${`coop-card ${pickingMove ? 'pickable' : ''}`}
-          onClick=${
-            pickingMove
-              ? () => {
-                  dispatch({ type: 'move', playerId: pendingPick.playerId, destination: 'Coop' });
-                  setPendingPick(null);
-                }
-              : undefined
-          }
-        >
-          <h3>Coop</h3>
-          <${PlayerTokens} state=${state} location="Coop" playerNames=${playerNames} />
-        </div>
-
-        <div class="weather-card">
-          <div>${state.season} · Day ${state.day} (Phase ${state.phase})</div>
-          ${weatherCard
-            ? html`<div class="ref-text"><strong>${weatherCard.name ?? 'Unnamed weather'}</strong> — ${weatherCard.effect ?? ''}</div>`
-            : html`<div class="ref-text">No weather card active</div>`}
-        </div>
-
-        <div class="bonus-deck-card">
-          <div>Bonus Cards</div>
-          <div class="deck-counts">Draw: ${state.bonusDeck.drawPile.length} · Discard: ${state.bonusDeck.discard.length}</div>
-        </div>
+      <div class="board-hud">
+        <strong>${state.season} · Day ${state.day} (Phase ${state.phase})</strong>
+        ${weatherCard
+          ? html`<span>${weatherCard.name ?? 'Unnamed weather'} — ${weatherCard.effect ?? ''}</span>`
+          : html`<span>No weather card active</span>`}
       </div>
 
-      <div class="grubs">
-        <${GrubCard} side="inside" deckSide=${state.grubDecks.inside} state=${state} dispatch=${dispatch} pendingPick=${pendingPick} setPendingPick=${setPendingPick} />
-        <${GrubCard} side="outside" deckSide=${state.grubDecks.outside} state=${state} dispatch=${dispatch} pendingPick=${pendingPick} setPendingPick=${setPendingPick} />
+      <div class="board-decks">
+        <div class="deck-badge">
+          <div class="deck-label">BONUS</div>
+          <div class="deck-counts">Draw ${state.bonusDeck.drawPile.length} · Disc ${state.bonusDeck.discard.length}</div>
+        </div>
+        <${GrubDeckBadge} side="inside" deckSide=${state.grubDecks.inside} state=${state} dispatch=${dispatch} pendingPick=${pendingPick} setPendingPick=${setPendingPick} />
+        <${GrubDeckBadge} side="outside" deckSide=${state.grubDecks.outside} state=${state} dispatch=${dispatch} pendingPick=${pendingPick} setPendingPick=${setPendingPick} />
       </div>
     </div>
   `;
