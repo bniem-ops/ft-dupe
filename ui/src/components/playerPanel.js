@@ -12,6 +12,14 @@ import {
   activeWeatherName,
   seasonCardList,
 } from '../engine.js';
+import { monogram } from '../cardVisuals.js';
+
+// A card's identity in hand — same "card anatomy" language as the board's
+// full card plates (board.js), just collapsed to a monogram chip since a
+// hand list has no room for the full frame.
+function CardChip({ kind, name }) {
+  return html`<span class=${`card-chip kind-${kind}`}>${monogram(name)}</span>`;
+}
 
 const ALL_LOCATIONS = ['Coop', ...OUTSIDE_LOCATIONS];
 
@@ -371,6 +379,7 @@ export function PlayerPanel({ player, isCurrent, state, dispatch, pendingPick, s
       .map((cid, j) => ({ index: j, label: loadBonusCards()[cid]?.shorthand ?? '?' }));
     return html`
       <div key=${`bonus-${i}`} class="notebook-row card-row">
+        <${CardChip} kind="bonus" name=${card?.shorthand} />
         <div class="row-text">${card?.shorthand} — ${card?.description}</div>
         ${canAct
           ? html`<${PlayCardControls}
@@ -404,6 +413,7 @@ export function PlayerPanel({ player, isCurrent, state, dispatch, pendingPick, s
     const effect = card?.name ? GRUB_REWARDS[card.name] : undefined;
     return html`
       <div key=${`grub-${i}`} class="notebook-row card-row">
+        <${CardChip} kind="grub" name=${card?.name} />
         <div class="row-text">${card?.name} (${held.currentHealth}/${card?.health}) — Reward: ${card?.reward ?? '—'}</div>
         ${held.rewardUsed
           ? html`<span class="ref-text">(Reward used)</span>`

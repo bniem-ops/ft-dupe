@@ -1,19 +1,40 @@
 import { html } from 'htm/preact';
 import { findPredator, loadGrubCards, seasonCardList, OUTSIDE_LOCATIONS, getOwnAndBorrowedAbilities } from '../engine.js';
+import { monogram, SEASON_COLORS } from '../cardVisuals.js';
 
 export const PLAYER_COLORS = ['#c0392b', '#2980b9', '#27ae60', '#8e44ad', '#e67e22', '#16a085'];
 
-// Fixed board layout (Coop + the 4 real Outside locations) — percentage
-// positions matching the design mockup's node placement. Hardcoded per
-// location name since the board itself is a fixed 5-node layout, not
-// dynamically generated.
-const LOCATION_POSITIONS = {
-  Coop: { left: '50%', top: '50%', transform: 'translate(-50%,-50%)' },
-  'Golden Gables': { left: '4%', top: '18%' },
-  Badlands: { right: '4%', top: '5%' },
-  'Grit Stones': { right: '4%', bottom: '5%' },
-  'Hendred Acre Wood': { left: '4%', bottom: '5%' },
+// Percentage anchors on the board art (native 1151x909), matching the
+// design mockup's own coordinate table ("2b — how the anchors work"). Every
+// on-board element is one `{ id, x, y }` positioned with
+// left:x%; top:y%; transform:translate(-50%,-50%) — nothing re-measures on
+// resize, and swapping in a higher-res scan of the same board changes
+// nothing but the image file.
+const BOARD_ANCHORS = {
+  bonusDeck: { x: 7.5, y: 11.5 },
+  bonusDiscard: { x: 19, y: 11.5 },
+  grubDiscard: { x: 92.5, y: 10.5 },
+  goldenGables: { x: 21, y: 52 },
+  badlands: { x: 63, y: 35 },
+  grubsOutside: { x: 86, y: 50 },
+  grubsInside: { x: 63, y: 62 },
+  coop: { x: 59, y: 73 },
+  hendredAcreWood: { x: 12, y: 90 },
+  gritStones: { x: 88, y: 90 },
+  weatherTrack: { x: 52, y: 91 },
 };
+
+const LOCATION_ANCHOR_KEY = {
+  Coop: 'coop',
+  'Golden Gables': 'goldenGables',
+  Badlands: 'badlands',
+  'Grit Stones': 'gritStones',
+  'Hendred Acre Wood': 'hendredAcreWood',
+};
+
+function anchorStyle(anchor) {
+  return { left: `${anchor.x}%`, top: `${anchor.y}%`, transform: 'translate(-50%,-50%)' };
+}
 
 export function playerColor(state, playerId) {
   return PLAYER_COLORS[state.turnOrder.indexOf(playerId) % PLAYER_COLORS.length];
@@ -38,28 +59,45 @@ function PlayerTokens({ state, location, playerNames }) {
   `;
 }
 
+// One frame, one optional art layer (design mockup turn 3 — "card
+// anatomy"): a colour band for the card's kind, a monogram plate standing
+// in for real art, and rules text. Predators and Grubs both use this; the
+// data shape only needs { kind, name, subtitle, band, hp, text }.
 function PredatorCard({ predator, clickable, onSelect }) {
   if (!predator.revealed) {
-    return html`<div class="predator-card hidden">Face-down Boss</div>`;
+    return html`
+      <div class="card-plate kind-predator hidden">
+        <div class="card-plate-header"><span>PREDATOR</span></div>
+        <div class="card-plate-art"><span class="monogram">?</span></div>
+        <div class="card-plate-body"><div class="ref-text">Face-down Boss</div></div>
+      </div>
+    `;
   }
   const data = findPredator(predator.name);
   const stageData = data.stages.find((s) => s.stage === predator.stage);
   return html`
     <div
-      class=${`predator-card ${predator.defeated ? 'defeated' : ''} ${clickable ? 'clickable' : ''}`}
+      class=${`card-plate kind-predator ${predator.defeated ? 'defeated' : ''} ${clickable ? 'clickable' : ''}`}
       onClick=${clickable ? onSelect : undefined}
     >
-      <div class="predator-name">${predator.name} ${predator.isBoss ? '👑' : ''}</div>
-      <div class="predator-species">${data.species} · Stage ${predator.stage}</div>
-      <div class="health-bar"><div class="health-fill" style=${{ width: `${(predator.health / predator.maxHealth) * 100}%` }}></div></div>
-      <div class="health-text">${predator.health} / ${predator.maxHealth}</div>
-      ${!predator.defeated && html`<div class="ref-text">Return attack: ${stageData?.returnAttack ?? '?'} — ${stageData?.effect ?? ''}</div>`}
-      ${predator.defeated && html`<div class="ref-text loot">Loot: ${data.lootDrop ?? '—'}</div>`}
+      <div class="card-plate-header">
+        <span>${predator.name} ${predator.isBoss ? '👑' : ''}</span>
+      </div>
+      <div class="card-plate-art"><span class="monogram">${monogram(predator.name)}</span></div>
+      <div class="card-plate-body">
+        <div class="card-plate-title-row">
+          <span class="card-plate-name">${data.species} · Stage ${predator.stage}</span>
+          <span class="card-plate-hp">♥ ${predator.health}/${predator.maxHealth}</span>
+        </div>
+        <div class="health-bar"><div class="health-fill" style=${{ width: `${(predator.health / predator.maxHealth) * 100}%` }}></div></div>
+        ${!predator.defeated && html`<div class="ref-text">Return attack: ${stageData?.returnAttack ?? '?'} — ${stageData?.effect ?? ''}</div>`}
+        ${predator.defeated && html`<div class="ref-text loot">Loot: ${data.lootDrop ?? '—'}</div>`}
+      </div>
     </div>
   `;
 }
 
-function LocationNode({ name, state, dispatch, pendingPick, setPendingPick, playerNames, hereLocation }) {
+function LocationNode({ name, anchor, state, dispatch, pendingPick, setPendingPick, playerNames, hereLocation }) {
   const isCoop = name === 'Coop';
   const predator = state.predators.find((p) => p.location === name);
   const pickingMove = pendingPick?.type === 'move';
@@ -98,7 +136,7 @@ function LocationNode({ name, state, dispatch, pendingPick, setPendingPick, play
   return html`
     <div
       class=${`loc-node ${isCoop ? 'coop' : ''} ${pickingMove ? 'pickable' : ''}`}
-      style=${LOCATION_POSITIONS[name]}
+      style=${anchorStyle(anchor)}
       onClick=${pickingMove ? move : undefined}
     >
       <div class="loc-name">
@@ -150,15 +188,16 @@ function GrubDeckBadge({ side, deckSide, state, dispatch, pendingPick, setPendin
   }
 
   return html`
-    <div class=${`deck-badge ${clickable ? 'clickable' : ''}`} onClick=${clickable ? select : undefined}>
-      <div class="deck-label">${side === 'inside' ? 'INSIDE GRUB' : 'OUTSIDE GRUB'}</div>
-      ${card
-        ? html`
-            <div class="grub-name">${card.name ?? 'Unnamed Grub'}</div>
-            <div class="health-text">${deckSide.faceUp.currentHealth} / ${card.health}</div>
-          `
-        : html`<div class="ref-text">empty</div>`}
-      <div class="deck-counts">Draw ${deckSide.drawPile.length} · Disc ${deckSide.discard.length}</div>
+    <div class=${`card-plate kind-grub ${clickable ? 'clickable' : ''}`} onClick=${clickable ? select : undefined}>
+      <div class="card-plate-header">
+        <span>${side === 'inside' ? 'INSIDE GRUB' : 'OUTSIDE GRUB'}</span>
+        ${card && html`<span>${deckSide.faceUp.currentHealth}/${card.health}</span>`}
+      </div>
+      <div class="card-plate-art"><span class="monogram">${card ? monogram(card.name) : '—'}</span></div>
+      <div class="card-plate-body">
+        ${card ? html`<div class="card-plate-name">${card.name ?? 'Unnamed Grub'}</div>` : html`<div class="ref-text">empty</div>`}
+        <div class="ref-text">Draw ${deckSide.drawPile.length} · Disc ${deckSide.discard.length}</div>
+      </div>
     </div>
   `;
 }
@@ -166,15 +205,20 @@ function GrubDeckBadge({ side, deckSide, state, dispatch, pendingPick, setPendin
 export function Board({ state, dispatch, pendingPick, setPendingPick, playerNames, hereLocation }) {
   const weatherCard = activeWeatherCard(state);
   const locations = ['Coop', ...OUTSIDE_LOCATIONS];
+  const grubDiscardCount = state.grubDecks.inside.discard.length + state.grubDecks.outside.discard.length;
 
   return html`
-    <div class="board">
+    <div class="board board-photo">
+      <img class="board-img" src="assets/board.png" alt="Flock Together board" />
+      <div class="board-scrim"></div>
+
       <div class="board-locations">
         ${locations.map(
           (loc) =>
             html`<${LocationNode}
               key=${loc}
               name=${loc}
+              anchor=${BOARD_ANCHORS[LOCATION_ANCHOR_KEY[loc]]}
               state=${state}
               dispatch=${dispatch}
               pendingPick=${pendingPick}
@@ -185,20 +229,49 @@ export function Board({ state, dispatch, pendingPick, setPendingPick, playerName
         )}
       </div>
 
-      <div class="board-hud">
-        <strong>${state.season} · Day ${state.day} (Phase ${state.phase})</strong>
-        ${weatherCard
-          ? html`<span>${weatherCard.name ?? 'Unnamed weather'} — ${weatherCard.effect ?? ''}</span>`
-          : html`<span>No weather card active</span>`}
+      <div class="board-slot" style=${{ ...anchorStyle(BOARD_ANCHORS.bonusDeck), width: '92px' }}>
+        <div class="card-plate kind-bonus">
+          <div class="card-plate-header"><span>BONUS</span></div>
+          <div class="card-plate-art"><span class="monogram">${state.bonusDeck.drawPile.length}</span></div>
+          <div class="card-plate-body"><div class="ref-text">face down</div></div>
+        </div>
+      </div>
+      <div class="board-slot" style=${{ ...anchorStyle(BOARD_ANCHORS.bonusDiscard), width: '84px' }}>
+        <div class="card-plate kind-empty">
+          <div class="ref-text">DISCARD</div>
+          <div class="card-plate-count">${state.bonusDeck.discard.length}</div>
+        </div>
+      </div>
+      <div class="board-slot" style=${{ ...anchorStyle(BOARD_ANCHORS.grubDiscard), width: '94px' }}>
+        <div class="card-plate kind-empty">
+          <div class="ref-text">GRUB DISCARD</div>
+          <div class="card-plate-count">${grubDiscardCount}</div>
+        </div>
       </div>
 
-      <div class="board-decks">
-        <div class="deck-badge">
-          <div class="deck-label">BONUS</div>
-          <div class="deck-counts">Draw ${state.bonusDeck.drawPile.length} · Disc ${state.bonusDeck.discard.length}</div>
-        </div>
+      <div class="board-slot" style=${{ ...anchorStyle(BOARD_ANCHORS.grubsInside), width: '116px' }}>
         <${GrubDeckBadge} side="inside" deckSide=${state.grubDecks.inside} state=${state} dispatch=${dispatch} pendingPick=${pendingPick} setPendingPick=${setPendingPick} />
+      </div>
+      <div class="board-slot" style=${{ ...anchorStyle(BOARD_ANCHORS.grubsOutside), width: '116px' }}>
         <${GrubDeckBadge} side="outside" deckSide=${state.grubDecks.outside} state=${state} dispatch=${dispatch} pendingPick=${pendingPick} setPendingPick=${setPendingPick} />
+      </div>
+
+      <div class="board-slot" style=${{ ...anchorStyle(BOARD_ANCHORS.weatherTrack), width: '170px' }}>
+        <div class="card-plate kind-weather">
+          <div class="card-plate-stripe" style=${{ background: SEASON_COLORS[state.season] ?? 'var(--gs-ochre)' }}></div>
+          <div class="card-plate-body">
+            ${weatherCard
+              ? html`
+                  <div class="weather-name">${(weatherCard.name ?? 'Unnamed weather').toUpperCase()}</div>
+                  <div class="weather-tag">${state.season.toUpperCase()} · DAY ${state.day}</div>
+                  <div class="ref-text">${weatherCard.effect ?? ''}</div>
+                `
+              : html`
+                  <div class="weather-name">NO WEATHER</div>
+                  <div class="weather-tag">${state.season.toUpperCase()} · DAY ${state.day}</div>
+                `}
+          </div>
+        </div>
       </div>
     </div>
   `;

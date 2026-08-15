@@ -135,12 +135,13 @@ fieldset {
 }
 
 /* --- Board --- */
-
-.board {
-  display: flex;
-  flex-direction: column;
-  gap: 0.8em;
-}
+/* .board's own box model is owned entirely by .board.board-photo further
+   down (the real board-photo layout) — a bare `.board { display:flex }`
+   rule used to live here from the pre-redesign board and was silently
+   winning the `display`/`flex-direction` cascade for `.board.board-photo`
+   too (equal specificity, but this ran first), which broke the mobile
+   pannable-board sizing via flex-shrink. Removed; nothing else in the app
+   renders `.board` without `.board-photo` alongside it. */
 
 .locations {
   display: grid;
@@ -592,28 +593,48 @@ details {
   flex: 1;
   position: relative;
   min-width: 0;
+  min-height: 0;
   background: var(--gs-wood-900);
   padding: 14px;
   overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.board {
+/* Real board scan as the surface (design mockup turn 2): one <img> at its
+   native aspect ratio, everything else positioned in percentages inside the
+   same box — nothing re-measures on resize, and swapping in a higher-res
+   scan changes nothing but the file. The gradient is the fallback shown
+   while assets/board.png loads (or if it's missing). */
+.board.board-photo {
   position: relative;
-  width: 100%;
   height: 100%;
-  min-height: 480px;
+  width: auto;
+  max-width: 100%;
+  aspect-ratio: 1151 / 909;
   border-radius: 8px;
   overflow: hidden;
   border: 1px solid rgba(240, 227, 196, 0.12);
   background: linear-gradient(170deg, #a97b6a 0%, #c99a63 22%, #d9b45c 46%, #c9a24a 68%, #8f7a3e 100%);
 }
 
-.board::before {
-  content: '';
+.board-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.board-scrim {
   position: absolute;
   inset: 0;
-  background: repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.06) 0 2px, transparent 2px 13px);
+  background: radial-gradient(ellipse at 58% 68%, rgba(0, 0, 0, 0) 40%, rgba(20, 14, 8, 0.4) 100%);
   pointer-events: none;
+}
+
+.board-slot {
+  position: absolute;
 }
 
 .board-locations {
@@ -624,7 +645,7 @@ details {
 .loc-node {
   position: absolute;
   width: 178px;
-  padding: 10px 12px;
+  padding: 5px 10px;
   border-radius: 12px;
   background: rgba(56, 39, 27, 0.55);
   border: 1.5px solid rgba(240, 227, 196, 0.5);
@@ -650,13 +671,13 @@ details {
 
 .loc-name {
   font-family: var(--font-display);
-  font-size: 12px;
+  font-size: 11px;
   color: #f4ecd6;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .here-badge {
@@ -670,8 +691,13 @@ details {
   white-space: nowrap;
 }
 
+.loc-node .card-plate {
+  margin-bottom: 4px;
+}
+
 .loc-node .tokens {
-  margin-bottom: 8px;
+  margin-top: 0;
+  margin-bottom: 0;
 }
 
 .loc-move-btn {
@@ -685,46 +711,134 @@ details {
   color: #f4ecd6;
 }
 
-/* --- Predator / Grub cards (embedded in a location node, or a deck badge) --- */
+/* --- Card anatomy (design mockup turn 3): one frame, one optional art
+   layer. Grubs/bonus/weather stay type-only forever — a coloured band for
+   the card's kind plus a "monogram" plate standing in for real art;
+   predators (and eventually chickens) are the kinds that get real
+   illustrations later, without changing this markup. Used both for cards
+   pinned to the board and for the compact versions in a player's hand
+   (playerPanel.js's .card-row). --- */
 
-.predator-card {
-  border-radius: 6px;
-  background: linear-gradient(170deg, #5c3a3a, #3d2424);
-  border: 1.5px solid #f0e3c4;
-  padding: 7px 9px;
-  margin-bottom: 8px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+.card-plate {
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.45);
+  font-family: var(--font-ui);
+  color: var(--gs-parchment);
 }
 
-.predator-card.clickable {
+.card-plate-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 7px;
+  font-family: var(--font-display);
+  font-size: 8.5px;
+  letter-spacing: 0.04em;
+}
+
+.card-plate-art {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 0;
+}
+
+.monogram {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(240, 227, 196, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 14px;
+  flex: none;
+}
+
+.card-plate-body {
+  padding: 5px 7px 7px;
+}
+
+/* Cards pinned directly to the board (as opposed to a hand-list row) sit in
+   a tight anchor grid calibrated to the real board scan's printed slots —
+   noticeably more compact than a full detail card. */
+.board-slot .card-plate-art,
+.loc-node .card-plate-art {
+  padding: 2px 0;
+}
+
+.board-slot .monogram,
+.loc-node .monogram {
+  width: 22px;
+  height: 22px;
+  font-size: 9px;
+}
+
+.loc-node .token {
+  width: 1.5em;
+  height: 1.5em;
+  line-height: 1.5em;
+}
+
+.board-slot .card-plate-header,
+.loc-node .card-plate-header {
+  padding: 2px 6px;
+  font-size: 7.5px;
+}
+
+.board-slot .card-plate-body,
+.loc-node .card-plate-body {
+  padding: 2px 6px 3px;
+}
+
+.board-slot .card-plate-name,
+.loc-node .card-plate-name {
+  font-size: 8px;
+}
+
+.board-slot .ref-text,
+.loc-node .ref-text {
+  font-size: 0.78em;
+  -webkit-line-clamp: 1;
+}
+
+.card-plate-name {
+  font-family: var(--font-display);
+  font-size: 9px;
+  line-height: 1.2;
+}
+
+.card-plate-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 5px;
+}
+
+.card-plate-hp {
+  font-family: var(--font-display);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+/* Predator effect text can be long — clamp it so a location node's height
+   stays predictable and doesn't collide with a neighboring node. */
+.card-plate .ref-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.card-plate.clickable {
   cursor: pointer;
   outline: 2px solid var(--gs-ochre);
   outline-offset: 1px;
-}
-
-.predator-card.hidden {
-  opacity: 0.6;
-  font-style: italic;
-  padding: 7px 9px;
-}
-
-.predator-card.defeated {
-  opacity: 0.55;
-}
-
-.predator-name {
-  font-family: var(--font-display);
-  font-size: 10.5px;
-  color: #f0c9a0;
-  display: flex;
-  justify-content: space-between;
-  gap: 6px;
-}
-
-.predator-species {
-  font-size: 9px;
-  color: rgba(240, 227, 196, 0.65);
-  margin: 2px 0 5px;
 }
 
 .health-bar {
@@ -740,79 +854,97 @@ details {
   background: var(--gs-blood);
 }
 
-.health-text {
-  font-size: 9.5px;
-  color: rgba(240, 227, 196, 0.8);
+.card-plate.kind-grub {
+  background: #20404a;
+  border: 1.5px solid #8fc0cc;
+}
+.card-plate.kind-grub .card-plate-header {
+  background: #2f5a63;
+  color: #cfe6ec;
+}
+.card-plate.kind-grub .card-plate-art {
+  background: radial-gradient(circle at 50% 40%, #2c5560, #1b3a43);
+}
+.card-plate.kind-grub .monogram {
+  color: #cfe6ec;
 }
 
-/* Predator effect text can be long — clamp it so a location node's height
-   stays predictable and doesn't collide with a neighboring node. */
-.predator-card .ref-text {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+.card-plate.kind-bonus {
+  background: #2b3350;
+  border: 1.5px solid #9aa6cc;
+}
+.card-plate.kind-bonus .card-plate-header {
+  background: #3a4468;
+  color: #d5dcf0;
+}
+.card-plate.kind-bonus .card-plate-art {
+  background: radial-gradient(circle at 50% 40%, #3a4468, #242b45);
+}
+.card-plate.kind-bonus .monogram {
+  color: #d5dcf0;
+  border-radius: 9px;
 }
 
-.grub-name {
+.card-plate.kind-predator {
+  background: #3a1f1d;
+  border: 1.5px solid #d99a92;
+}
+.card-plate.kind-predator .card-plate-header {
+  background: #8c3b34;
+  color: #f7ddd8;
+}
+.card-plate.kind-predator .card-plate-art {
+  background: repeating-linear-gradient(135deg, #4a2523, #4a2523 5px, #402020 5px, #402020 10px);
+}
+.card-plate.kind-predator .monogram {
+  color: #f7ddd8;
+}
+.card-plate.kind-predator.hidden {
+  opacity: 0.75;
+  font-style: italic;
+}
+.card-plate.kind-predator.defeated {
+  opacity: 0.55;
+}
+
+.card-plate.kind-weather {
+  background: #f4ecd6;
+  border: 1.5px solid #c9b48a;
+  color: #3c2b1c;
+}
+.card-plate-stripe {
+  height: 6px;
+  flex: none;
+}
+.card-plate.kind-weather .weather-name {
   font-family: var(--font-display);
-  font-size: 9.5px;
-  color: #f4ecd6;
+  font-size: 13px;
+}
+.card-plate.kind-weather .weather-tag {
+  font: 600 8px ui-monospace, Menlo, monospace;
+  letter-spacing: 0.08em;
+  color: rgba(60, 43, 28, 0.6);
+  margin: 2px 0 3px;
+}
+.card-plate.kind-weather .ref-text {
+  color: rgba(60, 43, 28, 0.8);
 }
 
-.board-hud {
-  position: absolute;
-  left: 14px;
-  top: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 8px 12px;
-  border-radius: 10px;
-  background: rgba(43, 36, 28, 0.82);
-  border: 1px solid rgba(240, 227, 196, 0.28);
-  max-width: 260px;
-  font-size: 11px;
-}
-
-.board-hud strong {
-  color: #f4ecd6;
-}
-
-.board-decks {
-  position: absolute;
-  left: 50%;
-  bottom: 14px;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 8px;
-}
-
-.deck-badge {
-  width: 88px;
-  border-radius: 6px;
-  background: linear-gradient(170deg, var(--gs-teal), #22434a);
-  border: 1.5px solid #f0e3c4;
-  padding: 7px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+.card-plate.kind-empty {
+  align-items: center;
   text-align: center;
-  color: var(--gs-parchment);
+  padding: 8px 6px;
+  background: rgba(43, 36, 28, 0.62);
+  border: 1.5px dashed rgba(240, 227, 196, 0.45);
 }
-
-.deck-badge.clickable {
-  cursor: pointer;
-  outline: 2px solid var(--gs-ochre);
-  outline-offset: 1px;
+.card-plate.kind-empty .ref-text {
+  letter-spacing: 0.05em;
+  font-size: 9px;
+  -webkit-line-clamp: unset;
 }
-
-.deck-badge .deck-label {
+.card-plate-count {
   font-family: var(--font-display);
-  font-size: 9.5px;
-}
-
-.deck-badge .deck-counts {
-  font-size: 8.5px;
-  color: rgba(240, 227, 196, 0.65);
+  font-size: 13px;
   margin-top: 2px;
 }
 
@@ -1115,12 +1247,54 @@ details {
   margin-top: 2px;
 }
 
+.notebook-row.card-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 7px;
+}
+
+.notebook-row.card-row .row-text {
+  flex: 1;
+  min-width: 140px;
+}
+
 .notebook-row .card-controls {
+  flex-basis: 100%;
   margin-top: 5px;
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
   align-items: center;
+}
+
+.notebook-row.card-row > .ref-text {
+  flex-basis: 100%;
+}
+
+.card-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  flex: none;
+  font-family: var(--font-display);
+  font-size: 9.5px;
+  border: 1.5px solid rgba(240, 227, 196, 0.4);
+}
+
+.card-chip.kind-bonus {
+  background: #2b3350;
+  color: #d5dcf0;
+  border-color: #9aa6cc;
+}
+
+.card-chip.kind-grub {
+  background: #20404a;
+  color: #cfe6ec;
+  border-color: #8fc0cc;
 }
 
 .notebook-row select,
@@ -1439,11 +1613,16 @@ details {
   }
   .gs-board {
     padding: 0;
+    align-items: flex-start;
+    justify-content: flex-start;
   }
-  .board {
+  .board.board-photo {
     border-radius: 0;
-    min-width: 700px;
-    min-height: 700px;
+    width: 900px;
+    max-width: none;
+    max-height: none;
+    height: auto;
+    flex-shrink: 0;
   }
   .player-panel.dock {
     flex-direction: column;
