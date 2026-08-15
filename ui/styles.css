@@ -985,6 +985,10 @@ details {
   gap: 14px;
   flex: 1;
   min-width: 0;
+  background: none;
+  border: none;
+  border-radius: 0;
+  padding: 0;
 }
 
 .dock-pending {
@@ -1204,6 +1208,11 @@ details {
   display: flex;
   flex-direction: column;
   gap: 7px;
+  background: none;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  position: static;
 }
 
 .turn-status {
@@ -1371,8 +1380,10 @@ details {
 .turn-controls.day-end {
   background: var(--gs-notebook);
   color: var(--gs-notebook-text);
+  border: none;
   border-radius: 10px;
   padding: 16px 18px;
+  position: static;
   font-family: var(--font-ui);
   max-width: 640px;
   width: 100%;
