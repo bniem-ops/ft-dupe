@@ -4,7 +4,7 @@ import { monogram, SEASON_COLORS } from '../cardVisuals.js';
 
 export const PLAYER_COLORS = ['#c0392b', '#2980b9', '#27ae60', '#8e44ad', '#e67e22', '#16a085'];
 
-// Percentage anchors on the board art (native 1151x909), matching the
+// Percentage anchors on the board art (native 1024x809), matching the
 // design mockup's own coordinate table ("2b — how the anchors work"). Every
 // on-board element is one `{ id, x, y }` positioned with
 // left:x%; top:y%; transform:translate(-50%,-50%) — nothing re-measures on
@@ -14,13 +14,13 @@ const BOARD_ANCHORS = {
   bonusDeck: { x: 7.5, y: 11.5 },
   bonusDiscard: { x: 19, y: 11.5 },
   grubDiscard: { x: 92.5, y: 10.5 },
-  goldenGables: { x: 21, y: 52 },
-  badlands: { x: 63, y: 35 },
-  grubsOutside: { x: 86, y: 50 },
-  grubsInside: { x: 63, y: 62 },
-  coop: { x: 59, y: 73 },
-  hendredAcreWood: { x: 12, y: 90 },
-  gritStones: { x: 88, y: 90 },
+  goldenGables: { x: 22, y: 47 },
+  badlands: { x: 69, y: 31 },
+  grubsOutside: { x: 85.8, y: 42 },
+  grubsInside: { x: 63.3, y: 50.2 },
+  coop: { x: 59.7, y: 66.5 },
+  hendredAcreWood: { x: 11, y: 87 },
+  gritStones: { x: 88, y: 84 },
   weatherTrack: { x: 52, y: 91 },
 };
 
