@@ -1,5 +1,5 @@
 import { html } from 'htm/preact';
-import { DifficultySettings, difficultyBlurb } from './createGame.js';
+import { DifficultySettings, DifficultyBlurb } from './createGame.js';
 
 function FlockSizeField({ value, onChange, minPlayers, eggspansion }) {
   const maxPlayers = eggspansion ? 6 : 5;
@@ -110,7 +110,7 @@ export function Lobby({ role, code, hostConfig, seats, myPlayerId, onUpdateHostC
                   <div class="roost-summary-row"><span>Flock size</span><span>${hostConfig.playerCount}</span></div>
                   <div class="roost-summary-row"><span>Eggspansion</span><span>${hostConfig.eggspansion ? 'ON' : 'OFF'}</span></div>
                   <div class="roost-summary-row"><span>Difficulty</span><span>${hostConfig.difficulty}${hostConfig.difficulty === 4 ? ' · NORMAL' : ''}</span></div>
-                  <div class="ref-text">${difficultyBlurb(hostConfig.difficulty, hostConfig.eggspansion)}</div>
+                  <${DifficultyBlurb} difficulty=${hostConfig.difficulty} eggspansion=${hostConfig.eggspansion} />
                 `}
           </div>
         </div>

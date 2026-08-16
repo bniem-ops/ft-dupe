@@ -361,9 +361,19 @@ details {
   border-color: var(--accent);
 }
 
-.difficulty-blurb {
+.difficulty-blurb-list {
   display: block;
-  margin-top: 0.4em;
+  margin: 0.4em 0 0;
+  padding-left: 1.1em;
+}
+
+.difficulty-blurb-list li {
+  margin-bottom: 0.2em;
+}
+
+.difficulty-blurb-list ul {
+  margin: 0.2em 0 0.2em 0;
+  padding-left: 1.2em;
 }
 
 /* ==========================================================================

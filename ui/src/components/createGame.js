@@ -9,11 +9,12 @@ import {
 } from '../engine.js';
 
 // Generated straight from the engine's own difficulty-modifier functions
-// (setup.ts) so this text can never drift from what the game actually
-// does — no hand-copied rules summary to keep in sync. Exported so both
-// the lobby's host settings column and the guest's read-only summary can
-// show the same text.
-export function difficultyBlurb(difficulty, eggspansion) {
+// (setup.ts) so this list can never drift from what the game actually
+// does — no hand-copied rules summary to keep in sync. Each entry is
+// either a plain string (one bullet) or a {label, items} pair rendered as
+// a labeled sub-list, since the predator/boss pool reads much easier as
+// an indented list than as a comma-joined sentence.
+function difficultyBlurbParts(difficulty, eggspansion) {
   const parts = [];
   if (grantsRandomLootDrop(difficulty)) parts.push('Every player starts with a random Loot Drop.');
   if (bossHealthBonus(difficulty) === 0) parts.push('No Boss health bonus.');
@@ -22,9 +23,30 @@ export function difficultyBlurb(difficulty, eggspansion) {
   if (positiveWeatherRemoved(difficulty)) parts.push('Fair/Sunny/Snow removed from the Weather decks.');
   const fourPool = allFourPool(difficulty, eggspansion);
   const bPool = bossPool(difficulty, eggspansion);
-  if (fourPool) parts.push(`All 4 Predators randomly chosen from: ${fourPool.join(', ')}.`);
-  else if (bPool) parts.push(`Boss randomly chosen from: ${bPool.join(', ')}.`);
-  return parts.length ? parts.join(' ') : 'No modifiers.';
+  if (fourPool) parts.push({ label: 'All 4 Predators randomly chosen from:', items: fourPool });
+  else if (bPool) parts.push({ label: 'Boss randomly chosen from:', items: bPool });
+  return parts;
+}
+
+// Exported so both the lobby's host settings column and the guest's
+// read-only summary render the same list instead of duplicating markup.
+export function DifficultyBlurb({ difficulty, eggspansion }) {
+  const parts = difficultyBlurbParts(difficulty, eggspansion);
+  if (parts.length === 0) return html`<div class="ref-text">No modifiers.</div>`;
+  return html`
+    <ul class="difficulty-blurb-list ref-text">
+      ${parts.map((part, i) =>
+        typeof part === 'string'
+          ? html`<li key=${i}>${part}</li>`
+          : html`<li key=${i}>
+              ${part.label}
+              <ul>
+                ${part.items.map((item) => html`<li key=${item}>${item}</li>`)}
+              </ul>
+            </li>`,
+      )}
+    </ul>
+  `;
 }
 
 // Eggspansion + Difficulty pickers only — no player count (the lobby's
@@ -55,7 +77,7 @@ export function DifficultySettings({ eggspansion, difficulty, onChangeEggspansio
           </button>`,
         )}
       </div>
-      <span class="ref-text difficulty-blurb">${difficultyBlurb(difficulty, eggspansion)}</span>
+      <${DifficultyBlurb} difficulty=${difficulty} eggspansion=${eggspansion} />
     </div>
   `;
 }
