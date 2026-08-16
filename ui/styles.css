@@ -1878,6 +1878,14 @@ input.entry-code-box:focus {
   -webkit-line-clamp: 1;
 }
 
+/* Grub reward text needs a bit more room than the 1-line clamp above (it's
+   what a player reads to decide whether to fight a Grub) — the extra
+   class-selector segment outweighs the plain .ref-text rule regardless of
+   source order. */
+.board-slot .grub-reward-text {
+  -webkit-line-clamp: 2;
+}
+
 .card-plate-name {
   font-family: var(--font-display);
   font-size: 9px;

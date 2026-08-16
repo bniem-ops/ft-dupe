@@ -207,6 +207,7 @@ function GrubDeckBadge({ side, deckSide, state, dispatch, pendingPick, setPendin
       <div class="card-plate-art"><span class="monogram">${card ? monogram(card.name) : '—'}</span></div>
       <div class="card-plate-body">
         ${card ? html`<div class="card-plate-name">${card.name ?? 'Unnamed Grub'}</div>` : html`<div class="ref-text">empty</div>`}
+        ${card && html`<div class="ref-text grub-reward-text">Reward: ${card.reward ?? '—'}</div>`}
         <div class="ref-text">Draw ${deckSide.drawPile.length} · Disc ${deckSide.discard.length}</div>
       </div>
     </div>
