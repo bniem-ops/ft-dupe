@@ -28,30 +28,25 @@ function PredatorsStrip({ predators }) {
   `;
 }
 
-// Compact row for the candidates list — click to preview in the detail
-// panel. Only ever 2 rows (dealChickenChoices always deals a pair), so this
-// is a small stand-in for the design mockup's scrollable 9-bird "roost"
-// list, without any "taken by" state — see the ChickenDraft comment below
-// for why that cross-player contention can't happen here.
-function CandidateRow({ name, viewing, onClick }) {
-  const chicken = findChicken(name);
-  return html`
-    <div class=${`draft-roost-row ${viewing ? 'viewing' : ''}`} onClick=${onClick}>
-      <div class="draft-roost-swatch"></div>
-      <div class="draft-roost-info">
-        <div class="draft-roost-name">${name}</div>
-        <div class="ref-text">${chicken.breed}</div>
-      </div>
-      ${viewing && html`<span class="draft-roost-viewing">VIEWING</span>`}
-    </div>
-  `;
+// A stat value can be a short number/word ("3", "+1 food" — set in the
+// blocky display font, like the design mockup's HEALTH/ATTACK/TO GROW) or a
+// full sentence (a Stage 2/3 die-roll description like "Roll 1 die: 3-6 =
+// +1 egg, else nothing"). Forcing the display font on the long form is what
+// caused the bleeding/overlapping letters — Bevan is a condensed display
+// face never meant to set full sentences at body size. Longer values fall
+// back to the same serif used for flavour/rules text elsewhere.
+function StatValue({ text }) {
+  const long = String(text).length > 12;
+  return html`<b class=${long ? 'draft-stat-value-long' : ''}>${text}</b>`;
 }
 
-// Full stat detail for whichever candidate is currently highlighted.
-function CandidateDetail({ name }) {
+// Full stat card for one candidate. Both candidates render side by side
+// (there are always exactly 2 — dealChickenChoices always deals a pair) so
+// they can be compared directly without clicking back and forth.
+function CandidateCard({ name, selected, onClick }) {
   const chicken = findChicken(name);
   return html`
-    <div class="draft-detail">
+    <div class=${`draft-detail ${selected ? 'selected' : ''}`} onClick=${onClick}>
       <div class="draft-detail-head">
         <div class="draft-detail-swatch"></div>
         <div class="draft-detail-headtext">
@@ -59,6 +54,7 @@ function CandidateDetail({ name }) {
           <div class="ref-text">${chicken.breed}</div>
           ${chicken.flavorQuote && html`<div class="draft-detail-quote">"${chicken.flavorQuote}"</div>`}
         </div>
+        <div class=${`draft-detail-pick ${selected ? 'is-selected' : ''}`}>${selected ? '✓ Picking this one' : 'Pick this one'}</div>
       </div>
       <div class="draft-stages">
         ${chicken.stages.map(
@@ -66,10 +62,10 @@ function CandidateDetail({ name }) {
             <div key=${s.stage} class="draft-stage-row">
               <div class="draft-stage-head"><b>STAGE ${s.stage}</b> <span class="ref-text">${s.label}</span></div>
               <div class="draft-stage-stats">
-                <div class="draft-stat"><span class="ref-text">HEALTH</span><b>${s.health ?? '?'}</b></div>
-                <div class="draft-stat"><span class="ref-text">ATTACK</span><b>${s.attackStrength ?? '?'}</b></div>
-                <div class="draft-stat draft-stat-wide"><span class="ref-text">PRODUCE</span><b>${s.production ?? '?'}</b></div>
-                ${s.mealsToNext && html`<div class="draft-stat"><span class="ref-text">TO GROW</span><b>${s.mealsToNext}</b></div>`}
+                <div class="draft-stat stat-health"><span class="ref-text">HEALTH</span><${StatValue} text=${s.health ?? '?'} /></div>
+                <div class="draft-stat"><span class="ref-text">ATTACK</span><${StatValue} text=${s.attackStrength ?? '?'} /></div>
+                <div class="draft-stat draft-stat-wide stat-produce"><span class="ref-text">PRODUCE</span><${StatValue} text=${s.production ?? '?'} /></div>
+                ${s.mealsToNext && html`<div class="draft-stat"><span class="ref-text">TO GROW</span><${StatValue} text=${s.mealsToNext} /></div>`}
               </div>
               ${s.abilities.map(
                 (a, i) => html`<div key=${i} class="draft-ability">
@@ -133,14 +129,14 @@ export function ChickenDraft({ predators, candidates, lockedIn, seatIds, seats, 
         <${PredatorsStrip} predators=${predators} />
 
         <div class="draft-main">
-          <div class="draft-roost">
-            <div class="draft-candidates-label">YOUR CANDIDATES</div>
-            ${candidates.map(
-              (name) => html`<${CandidateRow} key=${name} name=${name} viewing=${highlighted === name} onClick=${() => setHighlighted(name)} />`,
-            )}
+          <div class="draft-candidates-compare">
+            <div class="draft-candidates-label">YOUR CANDIDATES — pick one</div>
+            <div class="draft-candidates-grid">
+              ${candidates.map(
+                (name) => html`<${CandidateCard} key=${name} name=${name} selected=${highlighted === name} onClick=${() => setHighlighted(name)} />`,
+              )}
+            </div>
           </div>
-
-          ${highlighted && html`<${CandidateDetail} name=${highlighted} />`}
 
           <${FlockStatus} seatIds=${seatIds} seats=${seats} chosenChicken=${chosenChicken} myPlayerId=${myPlayerId} />
         </div>
