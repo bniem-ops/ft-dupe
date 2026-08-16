@@ -108,6 +108,11 @@ function App() {
   // difficulty/Eggspansion step in between, so the name can't be used to
   // create+claim a seat until that step submits.
   const [pendingName, setPendingName] = useState(null);
+  // True only for a session actually created via the solo-setup flow
+  // (handleStartSolo) — NOT derivable from hostConfig.playerCount === 1,
+  // since a host can also drop a real multiplayer lobby's flock size to 1
+  // while still expecting the normal lobby + explicit Start Game tap.
+  const [soloFlow, setSoloFlow] = useState(false);
   // Guards the solo auto-start effect against firing twice (mirrors
   // finalizingRef below, same rapid-double-snapshot concern).
   const soloStartingRef = useRef(false);
@@ -160,7 +165,10 @@ function App() {
         // Solo skips the waiting-room lobby entirely — its one seat is
         // already filled the moment it's claimed, so jump straight to the
         // draft instead of rendering a lobby nobody else will ever join.
-        if (doc.hostConfig?.playerCount === 1 && !soloStartingRef.current) {
+        // Gated on soloFlow (this device actually came from the solo-setup
+        // step), not just a flock size of 1 — a real multiplayer lobby the
+        // host shrinks to 1 player should still wait for an explicit Start.
+        if (soloFlow && doc.hostConfig?.playerCount === 1 && !soloStartingRef.current) {
           soloStartingRef.current = true;
           startDraftFor(sessionCode, doc.hostConfig);
           return;
@@ -171,7 +179,7 @@ function App() {
       setScreen('chickenDraft');
     });
     return unsubscribe;
-  }, [sessionCode, myPlayerId]);
+  }, [sessionCode, myPlayerId, soloFlow]);
 
   // A screen change always means something already handled whatever error
   // (if any) led to it — an error banner should never survive into a
@@ -330,6 +338,7 @@ function App() {
 
   async function handleStartSolo(soloConfig) {
     try {
+      setSoloFlow(true);
       const code = await remoteSession.createSession({ playerCount: 1, ...soloConfig });
       setIsHost(true);
       const seatId = await remoteSession.joinAndClaimSeat(code, pendingName);

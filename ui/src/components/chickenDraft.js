@@ -28,23 +28,14 @@ function PredatorsStrip({ predators }) {
   `;
 }
 
-function CandidateRow({ name, selected, onClick }) {
+// Full stat detail for one candidate, shown side by side with the other
+// candidate (there are always exactly 2 — dealChickenChoices always deals
+// a pair) so they can be compared directly instead of clicking back and
+// forth between a list and a single detail panel.
+function CandidateCard({ name, selected, onClick }) {
   const chicken = findChicken(name);
   return html`
-    <div class=${`draft-candidate-row ${selected ? 'selected' : ''}`} onClick=${onClick}>
-      <div class="draft-candidate-swatch"></div>
-      <div class="draft-candidate-info">
-        <div class="draft-candidate-name">${name}</div>
-        <div class="ref-text">${chicken.breed}</div>
-      </div>
-    </div>
-  `;
-}
-
-function CandidateDetail({ name }) {
-  const chicken = findChicken(name);
-  return html`
-    <div class="draft-detail">
+    <div class=${`draft-detail ${selected ? 'selected' : ''}`} onClick=${onClick}>
       <div class="draft-detail-head">
         <div class="draft-detail-swatch"></div>
         <div class="draft-detail-headtext">
@@ -52,11 +43,12 @@ function CandidateDetail({ name }) {
           <div class="ref-text">${chicken.breed}</div>
           ${chicken.flavorQuote && html`<div class="draft-detail-quote">"${chicken.flavorQuote}"</div>`}
         </div>
+        <div class=${`draft-detail-pick ${selected ? 'is-selected' : ''}`}>${selected ? '✓ Picking this one' : 'Pick this one'}</div>
       </div>
       <div class="draft-stages">
         ${chicken.stages.map(
           (s) => html`
-            <div key=${s.stage} class="draft-stage-col">
+            <div key=${s.stage} class="draft-stage-row">
               <div class="draft-stage-head"><b>STAGE ${s.stage}</b> <span class="ref-text">${s.label}</span></div>
               <div class="draft-stage-stats">
                 <div class="draft-stat"><span class="ref-text">HEALTH</span><b>${s.health ?? '?'}</b></div>
@@ -66,8 +58,7 @@ function CandidateDetail({ name }) {
               </div>
               ${s.abilities.map(
                 (a, i) => html`<div key=${i} class="draft-ability">
-                  ${a.name && html`<div class="draft-ability-name">${a.name}</div>`}
-                  <div class="ref-text">${a.text}</div>
+                  ${a.name && html`<span class="draft-ability-name">${a.name} — </span>`}<span class="ref-text">${a.text}</span>
                 </div>`,
               )}
             </div>
@@ -119,14 +110,14 @@ export function ChickenDraft({ predators, candidates, lockedIn, seatIds, seats, 
         <${PredatorsStrip} predators=${predators} />
 
         <div class="draft-main">
-          <div class="draft-candidates">
-            <div class="draft-candidates-label">YOUR CANDIDATES</div>
-            ${candidates.map(
-              (name) => html`<${CandidateRow} key=${name} name=${name} selected=${highlighted === name} onClick=${() => setHighlighted(name)} />`,
-            )}
+          <div class="draft-candidates-compare">
+            <div class="draft-candidates-label">YOUR CANDIDATES — pick one</div>
+            <div class="draft-candidates-grid">
+              ${candidates.map(
+                (name) => html`<${CandidateCard} key=${name} name=${name} selected=${highlighted === name} onClick=${() => setHighlighted(name)} />`,
+              )}
+            </div>
           </div>
-
-          ${highlighted && html`<${CandidateDetail} name=${highlighted} />`}
 
           <${FlockStatus} seatIds=${seatIds} seats=${seats} chosenChicken=${chosenChicken} myPlayerId=${myPlayerId} />
         </div>
