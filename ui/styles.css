@@ -558,7 +558,8 @@ input.entry-code-box {
   border: 1.5px solid #f0e3c4;
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.18);
   text-align: center;
-  font-family: var(--font-display);
+  font-family: var(--font-code);
+  font-weight: 700;
   font-size: 22px;
   line-height: 1;
   color: var(--gs-wood-900);
@@ -660,7 +661,8 @@ input.entry-code-box:focus {
 }
 
 .roost-code-value {
-  font-family: var(--font-display);
+  font-family: var(--font-code);
+  font-weight: 700;
   font-size: 19px;
   letter-spacing: 0.16em;
   color: #f4ecd6;
@@ -1245,6 +1247,7 @@ input.entry-code-box:focus {
   --font-display: 'Bevan', serif;
   --font-ui: 'Cabin', system-ui, sans-serif;
   --font-flavor: 'Crimson Pro', serif;
+  --font-code: ui-monospace, Menlo, Consolas, monospace;
 }
 
 .game {
