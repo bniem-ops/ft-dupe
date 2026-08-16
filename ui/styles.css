@@ -1715,7 +1715,7 @@ input.entry-code-box:focus {
 
 .loc-node {
   position: absolute;
-  width: 25.429cqw;
+  width: 20.343cqw;
   padding: 5px 10px;
   border-radius: 12px;
   background: rgba(56, 39, 27, 0.55);
@@ -1741,7 +1741,7 @@ input.entry-code-box:focus {
 
 .loc-name {
   font-family: var(--font-display);
-  font-size: 1.571cqw;
+  font-size: 1.257cqw;
   color: #f4ecd6;
   display: flex;
   align-items: center;
@@ -1751,9 +1751,9 @@ input.entry-code-box:focus {
 }
 
 .here-badge {
-  font-size: 1.214cqw;
+  font-size: 0.971cqw;
   letter-spacing: 0.08em;
-  padding: 0.429cqw 0.857cqw;
+  padding: 0.343cqw 0.686cqw;
   border-radius: 3px;
   background: var(--gs-ochre);
   color: #2b241c;
@@ -1773,9 +1773,9 @@ input.entry-code-box:focus {
 .loc-move-btn {
   display: block;
   text-align: center;
-  font-size: 1.5cqw;
+  font-size: 1.2cqw;
   font-weight: 700;
-  padding: 1cqw 0;
+  padding: 0.8cqw 0;
   border-radius: 5px;
   background: var(--gs-field);
   color: #f4ecd6;
@@ -1839,37 +1839,37 @@ input.entry-code-box:focus {
    noticeably more compact than a full detail card. */
 .board-slot .card-plate-art,
 .loc-node .card-plate-art {
-  padding: 0.286cqw 0;
+  padding: 0.229cqw 0;
 }
 
 .board-slot .monogram,
 .loc-node .monogram {
-  width: 3.143cqw;
-  height: 3.143cqw;
-  font-size: 1.286cqw;
+  width: 2.514cqw;
+  height: 2.514cqw;
+  font-size: 1.029cqw;
 }
 
 .loc-node .token {
-  width: 3cqw;
-  height: 3cqw;
-  line-height: 3cqw;
-  font-size: 1.5cqw;
+  width: 2.4cqw;
+  height: 2.4cqw;
+  line-height: 2.4cqw;
+  font-size: 1.2cqw;
 }
 
 .board-slot .card-plate-header,
 .loc-node .card-plate-header {
-  padding: 0.286cqw 0.857cqw;
-  font-size: 1.071cqw;
+  padding: 0.229cqw 0.686cqw;
+  font-size: 0.857cqw;
 }
 
 .board-slot .card-plate-body,
 .loc-node .card-plate-body {
-  padding: 0.286cqw 0.857cqw 0.429cqw;
+  padding: 0.229cqw 0.686cqw 0.343cqw;
 }
 
 .board-slot .card-plate-name,
 .loc-node .card-plate-name {
-  font-size: 1.143cqw;
+  font-size: 0.914cqw;
 }
 
 .board-slot .ref-text,
@@ -1893,7 +1893,7 @@ input.entry-code-box:focus {
 
 .card-plate-hp {
   font-family: var(--font-display);
-  font-size: 1.429cqw;
+  font-size: 1.143cqw;
   white-space: nowrap;
 }
 
@@ -1913,7 +1913,7 @@ input.entry-code-box:focus {
 }
 
 .health-bar {
-  height: 0.857cqw;
+  height: 0.686cqw;
   background: rgba(0, 0, 0, 0.35);
   border-radius: 3px;
   overflow: hidden;
@@ -1984,15 +1984,15 @@ input.entry-code-box:focus {
   color: #3c2b1c;
 }
 .card-plate-stripe {
-  height: 0.857cqw;
+  height: 0.686cqw;
   flex: none;
 }
 .card-plate.kind-weather .weather-name {
   font-family: var(--font-display);
-  font-size: 1.857cqw;
+  font-size: 1.486cqw;
 }
 .card-plate.kind-weather .weather-tag {
-  font: 600 1.143cqw ui-monospace, Menlo, monospace;
+  font: 600 0.914cqw ui-monospace, Menlo, monospace;
   letter-spacing: 0.08em;
   color: rgba(60, 43, 28, 0.6);
   margin: 2px 0 3px;
@@ -2010,12 +2010,12 @@ input.entry-code-box:focus {
 }
 .card-plate.kind-empty .ref-text {
   letter-spacing: 0.05em;
-  font-size: 1.286cqw;
+  font-size: 1.029cqw;
   -webkit-line-clamp: unset;
 }
 .card-plate-count {
   font-family: var(--font-display);
-  font-size: 1.857cqw;
+  font-size: 1.486cqw;
   margin-top: 2px;
 }
 

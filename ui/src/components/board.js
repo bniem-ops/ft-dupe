@@ -240,34 +240,34 @@ export function Board({ state, dispatch, pendingPick, setPendingPick, playerName
         )}
       </div>
 
-      <div class="board-slot" style=${{ ...anchorStyle(BOARD_ANCHORS.bonusDeck), width: '13.143cqw' }}>
+      <div class="board-slot" style=${{ ...anchorStyle(BOARD_ANCHORS.bonusDeck), width: '10.514cqw' }}>
         <div class="card-plate kind-bonus">
           <div class="card-plate-header"><span>BONUS</span></div>
           <div class="card-plate-art"><span class="monogram">${state.bonusDeck.drawPile.length}</span></div>
           <div class="card-plate-body"><div class="ref-text">face down</div></div>
         </div>
       </div>
-      <div class="board-slot" style=${{ ...anchorStyle(BOARD_ANCHORS.bonusDiscard), width: '12cqw' }}>
+      <div class="board-slot" style=${{ ...anchorStyle(BOARD_ANCHORS.bonusDiscard), width: '9.6cqw' }}>
         <div class="card-plate kind-empty">
           <div class="ref-text">DISCARD</div>
           <div class="card-plate-count">${state.bonusDeck.discard.length}</div>
         </div>
       </div>
-      <div class="board-slot" style=${{ ...anchorStyle(BOARD_ANCHORS.grubDiscard), width: '13.429cqw' }}>
+      <div class="board-slot" style=${{ ...anchorStyle(BOARD_ANCHORS.grubDiscard), width: '10.743cqw' }}>
         <div class="card-plate kind-empty">
           <div class="ref-text">GRUB DISCARD</div>
           <div class="card-plate-count">${grubDiscardCount}</div>
         </div>
       </div>
 
-      <div class="board-slot" style=${{ ...anchorStyle(BOARD_ANCHORS.grubsInside), width: '16.571cqw' }}>
+      <div class="board-slot" style=${{ ...anchorStyle(BOARD_ANCHORS.grubsInside), width: '13.257cqw' }}>
         <${GrubDeckBadge} side="inside" deckSide=${state.grubDecks.inside} state=${state} dispatch=${dispatch} pendingPick=${pendingPick} setPendingPick=${setPendingPick} />
       </div>
-      <div class="board-slot" style=${{ ...anchorStyle(BOARD_ANCHORS.grubsOutside), width: '16.571cqw' }}>
+      <div class="board-slot" style=${{ ...anchorStyle(BOARD_ANCHORS.grubsOutside), width: '13.257cqw' }}>
         <${GrubDeckBadge} side="outside" deckSide=${state.grubDecks.outside} state=${state} dispatch=${dispatch} pendingPick=${pendingPick} setPendingPick=${setPendingPick} />
       </div>
 
-      <div class="board-slot" style=${{ ...anchorStyle(BOARD_ANCHORS.weatherTrack), width: '24.286cqw' }}>
+      <div class="board-slot" style=${{ ...anchorStyle(BOARD_ANCHORS.weatherTrack), width: '19.429cqw' }}>
         <div class="card-plate kind-weather">
           <div class="card-plate-stripe" style=${{ background: SEASON_COLORS[state.season] ?? 'var(--gs-ochre)' }}></div>
           <div class="card-plate-body">
