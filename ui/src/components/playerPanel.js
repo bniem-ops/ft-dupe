@@ -37,10 +37,16 @@ function Hearts({ health, maxHealth }) {
 // resolveCardEffect switch, one flag per shape actually present.
 function cardInputShape(effect) {
   if (!effect) return null;
-  // "Reroll a teammate's die" / "Reroll any die" / Spotted Lanternfly can
-  // all legally target the caster too (actions.ts allows targetPlayerId
-  // === playerId for these), unlike teammateGain-style effects.
+  // "Reroll a teammate's die" / "Reroll any die" / Spotted Lanternfly, plus
+  // the plain resource-gain teammate effects, can all legally target the
+  // caster too (actions.ts never blocks targetPlayerId === playerId, and
+  // core_rules.md: "Solo mode: you count as your own teammate" — confirmed
+  // with the user this was a real UI gap, not intentional). Borrowing a
+  // teammate's ability or copying a teammate's held card stay
+  // teammate-only — targeting yourself for either is meaningless (you
+  // already have full access to your own ability/hand).
   const targetsAnyRoll = !!(effect.rerollTargetPlayerNextRoll || effect.pickTargetPlayerNextRollOutcome);
+  const targetsResourceGain = !!(effect.teammateGain || effect.teammateChoiceGain || (effect.drawBonusCards && effect.drawBonusCards.giveTeammate > 0));
   return {
     needsOption: !!(effect.choiceGain || effect.teammateChoiceGain || effect.eggOrWeatherImmune || effect.discardExtraForBonus),
     needsTeammate: !!(
@@ -51,7 +57,7 @@ function cardInputShape(effect) {
       effect.copiesTeammateBonusCardEffect ||
       targetsAnyRoll
     ),
-    allowSelfAsTarget: targetsAnyRoll,
+    allowSelfAsTarget: targetsAnyRoll || targetsResourceGain,
     needsAmount: !!(effect.teammateGain && effect.teammateGain.maxAmount > 1) || !!effect.pickTargetPlayerNextRollOutcome,
     maxAmount: effect.pickTargetPlayerNextRollOutcome ? 6 : (effect.teammateGain?.maxAmount ?? 1),
     needsEnemy: !!(effect.enemyDamage || effect.dodgeNextAttack),

@@ -1154,16 +1154,30 @@ function resolveCardEffect(state: GameState, playerId: string, effect: CardEffec
 
   if (effect.teammateGain) {
     if (!params.targetPlayerId) throw new Error('This card requires a teammate target');
-    const target = getPlayer(players, params.targetPlayerId);
     const amount = Math.max(0, Math.min(params.amount ?? effect.teammateGain.maxAmount, effect.teammateGain.maxAmount));
-    players = replacePlayer(players, applyResourceDelta(target, { [effect.teammateGain.resource]: amount }));
+    // Solo mode counts you as your own teammate (core_rules.md) — when
+    // self-targeted, apply to the local `player` instead of writing
+    // through `players`, which the unconditional `players =
+    // replacePlayer(players, player)` at the end of this function would
+    // otherwise clobber with the stale pre-effect snapshot. Same pattern
+    // the rerollTargetPlayerNextRoll branch below already uses.
+    if (params.targetPlayerId === playerId) {
+      player = applyResourceDelta(player, { [effect.teammateGain.resource]: amount });
+    } else {
+      const target = getPlayer(players, params.targetPlayerId);
+      players = replacePlayer(players, applyResourceDelta(target, { [effect.teammateGain.resource]: amount }));
+    }
   }
 
   if (effect.teammateChoiceGain) {
     if (!params.targetPlayerId) throw new Error('This card requires a teammate target');
     const choice = effect.teammateChoiceGain[(params.option ?? 1) - 1];
-    const target = getPlayer(players, params.targetPlayerId);
-    players = replacePlayer(players, applyResourceDelta(target, { [choice.resource]: choice.amount }));
+    if (params.targetPlayerId === playerId) {
+      player = applyResourceDelta(player, { [choice.resource]: choice.amount });
+    } else {
+      const target = getPlayer(players, params.targetPlayerId);
+      players = replacePlayer(players, applyResourceDelta(target, { [choice.resource]: choice.amount }));
+    }
   }
 
   if (effect.enemyDamage) {
@@ -1215,8 +1229,13 @@ function resolveCardEffect(state: GameState, playerId: string, effect: CardEffec
     player = giveBonusCards(player, kept);
     if (given.length > 0) {
       if (!params.targetPlayerId) throw new Error('This card requires a teammate to give a card to');
-      const target = getPlayer(players, params.targetPlayerId);
-      players = replacePlayer(players, giveBonusCards(target, given));
+      if (params.targetPlayerId === playerId) {
+        // Solo/self-target: same self-clobber hazard as teammateGain above.
+        player = giveBonusCards(player, given);
+      } else {
+        const target = getPlayer(players, params.targetPlayerId);
+        players = replacePlayer(players, giveBonusCards(target, given));
+      }
     }
     if (overflow.length > 0) bonusDeck = { ...bonusDeck, discard: [...bonusDeck.discard, ...overflow] };
   }

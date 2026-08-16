@@ -29,6 +29,25 @@ test('"-2 health -> -2 enemy health": self cost + direct damage to a chosen enem
   assert.equal(p1.bonusCardHand.length, 0);
 });
 
+test('"+1 to a Teammates food" (teammateGain): self-targeting in solo actually applies the gain', () => {
+  // Regression: resolveCardEffect's final `players = replacePlayer(players,
+  // player)` sync used to silently discard a self-targeted teammateGain,
+  // since the gain was written into `players` via a separate `target`
+  // variable that never touched the locally-tracked `player`.
+  const state = withBonusCard(withPlayer(createGame(baseConfig()), 'p1', { food: 0 }), 'p1', '+1 to a Teammates food');
+  const result = playBonusCard(state, 'p1', 0, { targetPlayerId: 'p1' });
+  const p1 = result.players.find((p) => p.id === 'p1')!;
+  assert.equal(p1.food, 1);
+  assert.equal(p1.bonusCardHand.length, 0);
+});
+
+test('"+1 to a Teammate\'s meals or health" (teammateChoiceGain): self-targeting applies the chosen option', () => {
+  const state = withBonusCard(withPlayer(createGame(baseConfig()), 'p1', { health: 2, maxHealth: 5 }), 'p1', "+1 to a Teammate's meals or health");
+  const result = playBonusCard(state, 'p1', 0, { targetPlayerId: 'p1', option: 2 }); // option 2 = health
+  const p1 = result.players.find((p) => p.id === 'p1')!;
+  assert.equal(p1.health, 3);
+});
+
 test('"+1 egg OR Immune to weather effects for one turn": option 1 gains an egg, option 2 sets pending immunity', () => {
   const state = withBonusCard(createGame(baseConfig()), 'p1', '+1 egg OR Immune to weather effects for one turn');
   const optionOne = playBonusCard(state, 'p1', 0, { option: 1 });

@@ -21,6 +21,14 @@ function withPlayer(state: GameState, playerId: string, patch: Partial<GameState
   return { ...state, players: state.players.map((p) => (p.id === playerId ? { ...p, ...patch } : p)) };
 }
 
+test('Dragonfly: self-targeting the "give a teammate a card" split in solo keeps all drawn cards (same self-clobber regression as teammateGain)', () => {
+  const state = withPlayer(withGrubReward(createGame(baseConfig()), 'p1', 'Dragonfly'), 'p1', { bonusCardHand: [] }); // draw 3, keep 2, give 1
+  const result = useGrubReward(state, 'p1', 0, { targetPlayerId: 'p1' });
+  const p1 = result.players.find((p) => p.id === 'p1')!;
+  assert.equal(p1.bonusCardHand.length, 3); // the 2 normally kept + the 1 that would've gone to a teammate
+  assert.equal(p1.grubHand.length, 0); // single-use reward, discarded
+});
+
 test('Scorpion: "for one attack, ignore all Predator roll effects" skips the roll-table branch only', () => {
   let state = withPlayer(withGrubReward(createGame(baseConfig()), 'p1', 'Scorpion'), 'p1', { food: 5, location: 'Hendred Acre Wood' });
   const played = useGrubReward(state, 'p1', 0);
