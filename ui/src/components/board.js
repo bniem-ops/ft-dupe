@@ -25,6 +25,12 @@ const BOARD_ANCHORS = {
   weatherTrack: { x: 52, y: 91 },
 };
 
+// Day track (design mockup turns 4a/4b — 7 cells, current day carries a
+// token) laid across open ground at the bottom of the board, clear of the
+// location ovals and weather slot above.
+const DAY_TRACK_Y = 98.4;
+const DAY_TRACK_XS = [32, 38, 44, 50, 56, 62, 68];
+
 const LOCATION_ANCHOR_KEY = {
   Coop: 'coop',
   'Golden Gables': 'goldenGables',
@@ -92,12 +98,12 @@ function PredatorCard({ predator, clickable, onSelect }) {
       onClick=${clickable ? onSelect : undefined}
     >
       <div class="card-plate-header">
-        <span>${predator.name} ${predator.isBoss ? '👑' : ''}</span>
+        <span>PREDATOR · STAGE ${predator.stage} ${predator.isBoss ? '👑' : ''}</span>
       </div>
       <div class="card-plate-art"><span class="monogram">${monogram(predator.name)}</span></div>
       <div class="card-plate-body">
         <div class="card-plate-title-row">
-          <span class="card-plate-name">${data.species} · Stage ${predator.stage}</span>
+          <span class="card-plate-name">${predator.name} · ${data.species}</span>
           <span class="card-plate-hp">♥ ${predator.health}/${predator.maxHealth}</span>
         </div>
         <div class="health-bar"><div class="health-fill" style=${{ width: `${(predator.health / predator.maxHealth) * 100}%` }}></div></div>
@@ -166,6 +172,20 @@ function LocationNode({ name, anchor, state, dispatch, pendingPick, setPendingPi
   `;
 }
 
+function DayTrack({ day }) {
+  return html`
+    <div class="day-track">
+      ${DAY_TRACK_XS.map(
+        (x, i) => html`
+          <div key=${i + 1} class=${`day-cell ${day === i + 1 ? 'is-current' : ''}`} style=${{ left: `${x}%`, top: `${DAY_TRACK_Y}%`, transform: 'translate(-50%,-50%)' }}>
+            ${day === i + 1 ? html`<span class="day-token">${i + 1}</span>` : html`<span class="day-num">${i + 1}</span>`}
+          </div>
+        `,
+      )}
+    </div>
+  `;
+}
+
 function GrubDeckBadge({ side, deckSide, state, dispatch, pendingPick, setPendingPick }) {
   const pickingAttackTarget =
     (pendingPick?.type === 'attack' || pendingPick?.type === 'attackWithCompanion') && pendingPick.step === 'target';
@@ -223,6 +243,8 @@ export function Board({ state, dispatch, pendingPick, setPendingPick, playerName
     <div class="board board-photo">
       <img class="board-img" src=${boardImageForDifficulty(state.config.difficulty)} alt="Flock Together board" />
       <div class="board-scrim"></div>
+
+      <${DayTrack} day=${state.day} />
 
       <div class="board-locations">
         ${locations.map(

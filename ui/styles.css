@@ -900,6 +900,10 @@ input.entry-code-box:focus {
   border-bottom: 2px solid var(--gs-wood-900);
 }
 
+.draft-topbar-spacer {
+  flex: 1;
+}
+
 .draft-title {
   font-family: var(--font-display);
   font-size: 16px;
@@ -933,7 +937,7 @@ input.entry-code-box:focus {
 .draft-predators-cards {
   flex: 1;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(4, 1fr);
   gap: 9px;
 }
 
@@ -980,20 +984,56 @@ input.entry-code-box:focus {
   padding: 13px 18px;
 }
 
-.draft-candidates-compare {
-  flex: 1;
-  min-width: 0;
+.draft-roost {
+  width: 236px;
+  flex: none;
   display: flex;
   flex-direction: column;
   gap: 7px;
+  min-height: 0;
 }
 
-.draft-candidates-grid {
+.draft-roost-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 9px;
+  background: rgba(244, 236, 214, 0.07);
+  border: 1.5px solid rgba(240, 227, 196, 0.2);
+  cursor: pointer;
+}
+
+.draft-roost-row.viewing {
+  background: rgba(201, 135, 63, 0.26);
+  border-color: var(--gs-ochre);
+  box-shadow: 0 0 0 3px rgba(201, 135, 63, 0.16);
+}
+
+.draft-roost-swatch {
+  width: 34px;
+  height: 44px;
+  flex: none;
+  border-radius: 5px;
+  border: 1.5px solid rgba(240, 227, 196, 0.5);
+  background: var(--gs-dusk);
+}
+
+.draft-roost-info {
+  min-width: 0;
   flex: 1;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+}
+
+.draft-roost-name {
+  font-family: var(--font-display);
+  font-size: 11.5px;
+  color: #f4ecd6;
+}
+
+.draft-roost-viewing {
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  color: #f0e3c4;
 }
 
 .draft-candidates-label,
@@ -1013,16 +1053,6 @@ input.entry-code-box:focus {
   border: 2px solid var(--gs-wood-900);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
   overflow: auto;
-  cursor: pointer;
-}
-
-.draft-detail:hover {
-  border-color: rgba(201, 135, 63, 0.6);
-}
-
-.draft-detail.selected {
-  border-color: var(--gs-ochre);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), 0 0 0 3px rgba(201, 135, 63, 0.25);
 }
 
 .draft-detail-head {
@@ -1058,24 +1088,6 @@ input.entry-code-box:focus {
   font-style: italic;
   font-size: 13px;
   color: rgba(240, 227, 196, 0.75);
-}
-
-.draft-detail-pick {
-  flex: none;
-  align-self: center;
-  padding: 8px 12px;
-  border-radius: 8px;
-  font-size: 11px;
-  font-weight: 600;
-  color: rgba(240, 227, 196, 0.7);
-  border: 1.5px solid rgba(240, 227, 196, 0.25);
-  white-space: nowrap;
-}
-
-.draft-detail-pick.is-selected {
-  background: var(--gs-ochre);
-  border-color: #f0e3c4;
-  color: var(--gs-wood-900);
 }
 
 .draft-stages {
@@ -1209,6 +1221,27 @@ input.entry-code-box:focus {
   color: #f4ecd6;
 }
 
+.draft-footer-preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.draft-footer-swatch {
+  width: 30px;
+  height: 40px;
+  flex: none;
+  border-radius: 5px;
+  border: 1.5px solid #f0e3c4;
+  background: var(--gs-dusk);
+}
+
+.draft-footer-name {
+  font-family: var(--font-display);
+  font-size: 13px;
+  color: #f4ecd6;
+}
+
 .draft-footer-spacer {
   flex: 1;
 }
@@ -1224,12 +1257,9 @@ input.entry-code-box:focus {
   }
 
   .roost-settings,
-  .draft-flock {
+  .draft-flock,
+  .draft-roost {
     width: auto;
-  }
-
-  .draft-candidates-grid {
-    grid-template-columns: 1fr;
   }
 }
 
@@ -1571,22 +1601,23 @@ input.entry-code-box:focus {
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.55);
 }
 
-/* --- Toasts + log history (mockup turn 4a/4b) — replaces the old
-   always-visible .gs-log panel on desktop. --- */
+/* --- Persistent on-board log + full-history overlay (mockup turns
+   4a/4b) — a stacked list bottom-left of the board, newest on top and
+   staying put rather than fading, plus a history chip for the full log. --- */
 
-.toast-stack {
+.board-log {
   position: absolute;
   left: 14px;
   bottom: 14px;
   z-index: 4;
   display: flex;
-  flex-direction: column;
+  flex-direction: column-reverse;
   gap: 6px;
   max-width: 320px;
   pointer-events: none;
 }
 
-.toast {
+.board-log-entry {
   font-size: 11px;
   padding: 8px 12px;
   border-radius: 8px;
@@ -1594,18 +1625,6 @@ input.entry-code-box:focus {
   border: 1px solid rgba(240, 227, 196, 0.2);
   color: rgba(240, 227, 196, 0.9);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
-  animation: toast-in 0.2s ease-out;
-}
-
-@keyframes toast-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 .log-history-btn {
@@ -1711,6 +1730,54 @@ input.entry-code-box:focus {
 .board-locations {
   position: absolute;
   inset: 0;
+}
+
+/* Day track (mockup turns 4a/4b) — seven cells across the bottom of the
+   board, the current day carrying a token like the physical weathervane
+   piece. Purely a read display, not interactive. */
+.day-track {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.day-cell {
+  position: absolute;
+  width: 3.5cqw;
+  height: 3.2cqw;
+  border-radius: 4px;
+  border: 1px solid rgba(74, 50, 26, 0.45);
+  background: rgba(255, 248, 232, 0.16);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.day-cell.is-current {
+  border: 2px solid var(--gs-ochre);
+  background: rgba(201, 135, 63, 0.18);
+}
+
+.day-num {
+  font-family: var(--font-display);
+  font-size: 1cqw;
+  color: rgba(240, 227, 196, 0.45);
+}
+
+.day-token {
+  width: 2.6cqw;
+  height: 2.6cqw;
+  border-radius: 50%;
+  background: var(--gs-ochre);
+  border: 1.5px solid #f4ecd6;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 1.1cqw;
+  color: #2b241c;
 }
 
 .loc-node {
@@ -2767,7 +2834,7 @@ input.entry-code-box:focus {
   .gs-side-panel,
   .avatar-strip,
   .opponent-expand-card,
-  .toast-stack,
+  .board-log,
   .log-history-btn,
   .table-view-toggle {
     display: none;

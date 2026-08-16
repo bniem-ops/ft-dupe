@@ -28,14 +28,30 @@ function PredatorsStrip({ predators }) {
   `;
 }
 
-// Full stat detail for one candidate, shown side by side with the other
-// candidate (there are always exactly 2 — dealChickenChoices always deals
-// a pair) so they can be compared directly instead of clicking back and
-// forth between a list and a single detail panel.
-function CandidateCard({ name, selected, onClick }) {
+// Compact row for the candidates list — click to preview in the detail
+// panel. Only ever 2 rows (dealChickenChoices always deals a pair), so this
+// is a small stand-in for the design mockup's scrollable 9-bird "roost"
+// list, without any "taken by" state — see the ChickenDraft comment below
+// for why that cross-player contention can't happen here.
+function CandidateRow({ name, viewing, onClick }) {
   const chicken = findChicken(name);
   return html`
-    <div class=${`draft-detail ${selected ? 'selected' : ''}`} onClick=${onClick}>
+    <div class=${`draft-roost-row ${viewing ? 'viewing' : ''}`} onClick=${onClick}>
+      <div class="draft-roost-swatch"></div>
+      <div class="draft-roost-info">
+        <div class="draft-roost-name">${name}</div>
+        <div class="ref-text">${chicken.breed}</div>
+      </div>
+      ${viewing && html`<span class="draft-roost-viewing">VIEWING</span>`}
+    </div>
+  `;
+}
+
+// Full stat detail for whichever candidate is currently highlighted.
+function CandidateDetail({ name }) {
+  const chicken = findChicken(name);
+  return html`
+    <div class="draft-detail">
       <div class="draft-detail-head">
         <div class="draft-detail-swatch"></div>
         <div class="draft-detail-headtext">
@@ -43,7 +59,6 @@ function CandidateCard({ name, selected, onClick }) {
           <div class="ref-text">${chicken.breed}</div>
           ${chicken.flavorQuote && html`<div class="draft-detail-quote">"${chicken.flavorQuote}"</div>`}
         </div>
-        <div class=${`draft-detail-pick ${selected ? 'is-selected' : ''}`}>${selected ? '✓ Picking this one' : 'Pick this one'}</div>
       </div>
       <div class="draft-stages">
         ${chicken.stages.map(
@@ -96,6 +111,12 @@ function FlockStatus({ seatIds, seats, chosenChicken, myPlayerId }) {
 export function ChickenDraft({ predators, candidates, lockedIn, seatIds, seats, chosenChicken, myPlayerId, onLockIn }) {
   const [highlighted, setHighlighted] = useState(candidates[0] ?? null);
   const waitingOn = seatIds.filter((id) => id !== myPlayerId && seats[id] && !chosenChicken[id]).map((id) => seats[id].name);
+  const filledSeats = seatIds.filter((id) => seats[id]);
+  const lockedCount = filledSeats.filter((id) => chosenChicken[id]).length;
+  const previewChicken = highlighted ? findChicken(highlighted) : null;
+  const previewTraits = previewChicken
+    ? [previewChicken.breed, ...previewChicken.stages.flatMap((s) => s.abilities.map((a) => a.name)).filter(Boolean)].join(' · ')
+    : '';
 
   return html`
     <div class="draft-screen">
@@ -105,34 +126,40 @@ export function ChickenDraft({ predators, candidates, lockedIn, seatIds, seats, 
         <div class="draft-topbar">
           <span class="draft-title">CHOOSE YOUR BIRD</span>
           <span class="ref-text">Pick from your own two candidates below.</span>
+          <div class="draft-topbar-spacer"></div>
+          <span class="ref-text">${lockedCount} of ${filledSeats.length} locked in</span>
         </div>
 
         <${PredatorsStrip} predators=${predators} />
 
         <div class="draft-main">
-          <div class="draft-candidates-compare">
-            <div class="draft-candidates-label">YOUR CANDIDATES — pick one</div>
-            <div class="draft-candidates-grid">
-              ${candidates.map(
-                (name) => html`<${CandidateCard} key=${name} name=${name} selected=${highlighted === name} onClick=${() => setHighlighted(name)} />`,
-              )}
-            </div>
+          <div class="draft-roost">
+            <div class="draft-candidates-label">YOUR CANDIDATES</div>
+            ${candidates.map(
+              (name) => html`<${CandidateRow} key=${name} name=${name} viewing=${highlighted === name} onClick=${() => setHighlighted(name)} />`,
+            )}
           </div>
+
+          ${highlighted && html`<${CandidateDetail} name=${highlighted} />`}
 
           <${FlockStatus} seatIds=${seatIds} seats=${seats} chosenChicken=${chosenChicken} myPlayerId=${myPlayerId} />
         </div>
 
         <div class="draft-footer">
+          ${previewChicken &&
+          html`<div class="draft-footer-preview">
+            <div class="draft-footer-swatch"></div>
+            <div>
+              <div class="draft-footer-name">${highlighted}</div>
+              <div class="ref-text">${previewTraits}</div>
+            </div>
+          </div>`}
+          <div class="draft-footer-spacer"></div>
           ${lockedIn
-            ? html`
-                <div class="draft-footer-text">You locked in <b>${lockedIn}</b>.</div>
-                <div class="draft-footer-spacer"></div>
-                <div class="ref-text">
-                  ${waitingOn.length > 0 ? `Waiting on: ${waitingOn.join(', ')}` : "Everyone's ready — starting the game…"}
-                </div>
-              `
+            ? html`<div class="ref-text">
+                You locked in <b>${lockedIn}</b>. ${waitingOn.length > 0 ? `Waiting on: ${waitingOn.join(', ')}` : "Everyone's ready — starting the game…"}
+              </div>`
             : html`
-                <div class="draft-footer-spacer"></div>
                 ${waitingOn.length > 0 && html`<div class="ref-text">${waitingOn.join(', ')} still choosing</div>`}
                 <button type="button" class="draft-lockin-btn" disabled=${!highlighted} onClick=${() => onLockIn(highlighted)}>
                   ${highlighted ? `LOCK IN ${highlighted.toUpperCase()}` : 'LOCK IN'}

@@ -103,10 +103,7 @@ function App() {
   // Desktop-only UI state (≥901px — see styles.css's .gs-side-panel/
   // .avatar-strip). Purely local presentation state, not synced.
   const [tableView, setTableView] = useState(false);
-  const [toasts, setToasts] = useState([]);
   const [showLogHistory, setShowLogHistory] = useState(false);
-  const lastLogLengthRef = useRef(0);
-  const toastIdRef = useRef(0);
 
   // Session state — every game is a session now, no local hotseat mode.
   const [sessionCode, setSessionCode] = useState(null);
@@ -130,8 +127,6 @@ function App() {
   // finalizingRef below, same rapid-double-snapshot concern).
   const soloStartingRef = useRef(false);
 
-  // Computed early (not just where it's first used below) so both the
-  // toast-queue effect and the render can share it without duplicating.
   const playerNames = Object.fromEntries(Object.entries(seats).map(([id, s]) => [id, s.name]));
 
   // Guards the host's "everyone's locked in, call createGame() and
@@ -229,31 +224,6 @@ function App() {
       finalizingRef.current = false; // allow a retry if this was transient
     }
   }, [isHost, predators, dealtChickens, hostConfig, seats, chosenChicken, sessionCode]);
-
-  // Fading toast notifications (desktop only — see .toast-stack in
-  // styles.css) for whatever actions just got appended to the shared log,
-  // reusing the same formatLogEntry text the history overlay shows. Each
-  // toast removes itself after ~6s; toasts already shown are never
-  // re-queued since lastLogLengthRef only looks at growth.
-  useEffect(() => {
-    if (!gameState) return;
-    const entries = gameState.actionLog;
-    const prevLength = lastLogLengthRef.current;
-    if (entries.length > prevLength) {
-      // formatLogEntry returns null for entries superseded by another entry
-      // from the same dispatch (resolveProductionReveal's raw action, see
-      // its case above) — filtered here so no blank toast flashes.
-      const newToasts = entries
-        .slice(prevLength)
-        .map((a) => ({ id: ++toastIdRef.current, text: formatLogEntry(a, playerNames) }))
-        .filter((t) => t.text);
-      setToasts((cur) => [...cur, ...newToasts]);
-      newToasts.forEach((t) => {
-        setTimeout(() => setToasts((cur) => cur.filter((x) => x.id !== t.id)), 6000);
-      });
-    }
-    lastLogLengthRef.current = entries.length;
-  }, [gameState]);
 
   // Every path that can produce a new GameState routes through this so a
   // gameOver result (win via a killing blow, loss via end-of-turn weather
@@ -558,7 +528,9 @@ function App() {
             myPlayerId=${myPlayerId}
             playerNames=${playerNames}
           />`}
-          <div class="toast-stack">${toasts.map((t) => html`<div key=${t.id} class="toast">${t.text}</div>`)}</div>
+          <div class="board-log">
+            ${recentLog.slice(0, 6).map((a, i) => html`<div key=${i} class="board-log-entry" style=${{ opacity: 1 - i * 0.13 }}>${formatLogEntry(a, playerNames)}</div>`)}
+          </div>
           <button type="button" class="log-history-btn" title="Log" onClick=${() => setShowLogHistory(true)}>🕘</button>
         </div>
       </div>
