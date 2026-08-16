@@ -602,6 +602,275 @@ details {
   justify-content: center;
 }
 
+/* --- Desktop side panel (mockup turn 4a/4b) — the player's own board,
+   moved from a bottom dock to a left column so .gs-board gets the vertical
+   space back. Hidden on mobile (see the max-width:900px block below); the
+   mobile bottom sheet still renders the same PlayerPanel/ActionBar inline
+   via dockPanel(false)/actionBar() in app.js. --- */
+
+.gs-side-panel {
+  width: 278px;
+  flex: none;
+  background: linear-gradient(180deg, var(--gs-wood-600), var(--gs-wood-500));
+  border-right: 2px solid var(--gs-wood-500);
+  padding: 11px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+}
+
+.gs-side-panel .player-panel.dock {
+  flex: none;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gs-side-panel .dock-vitals {
+  flex: none;
+}
+
+.gs-side-panel .dock-charcard {
+  width: auto;
+}
+
+.gs-side-panel .action-bar {
+  flex: 1;
+}
+
+.gs-side-panel .end-turn {
+  align-self: stretch;
+  text-align: center;
+}
+
+.notebook-open-btn {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(240, 227, 196, 0.1);
+  border: 1px solid rgba(240, 227, 196, 0.25);
+  color: var(--gs-parchment);
+  text-align: center;
+  cursor: pointer;
+}
+
+.notebook-slideover-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 20;
+  display: flex;
+}
+
+.notebook-slideover-backdrop .dock-notebook {
+  width: 340px;
+  max-width: 88vw;
+  height: 100%;
+  border-radius: 0 9px 9px 0;
+  box-shadow: 8px 0 24px rgba(0, 0, 0, 0.5);
+}
+
+.dock-tab-close {
+  flex: none;
+  padding: 6px 10px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: var(--gs-notebook-text);
+  background: #d8c69f;
+  border: none;
+  cursor: pointer;
+}
+
+/* --- Presence-driven flock rail: absent solo, 56px avatar strip with a
+   hover/click-expand card otherwise. Both are absolutely positioned over
+   .gs-board (already position:relative), not a layout sibling. --- */
+
+.avatar-strip {
+  position: absolute;
+  right: 14px;
+  top: 14px;
+  bottom: 14px;
+  width: 56px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  background: linear-gradient(180deg, var(--gs-wood-800), #2f2117);
+  border: 1px solid rgba(240, 227, 196, 0.14);
+  border-radius: 10px;
+  overflow-y: auto;
+}
+
+.avatar-strip-title {
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  color: rgba(240, 227, 196, 0.45);
+  writing-mode: vertical-rl;
+}
+
+.avatar-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--gs-parchment);
+  font-family: var(--font-ui);
+}
+
+.avatar-chip-circle {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--chip-color, var(--gs-field));
+  border: 1.5px solid rgba(240, 227, 196, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #f4ecd6;
+}
+
+.avatar-chip.current .avatar-chip-circle,
+.avatar-chip.active .avatar-chip-circle {
+  border-color: var(--gs-ochre);
+  box-shadow: 0 0 0 2px rgba(201, 135, 63, 0.4);
+}
+
+.avatar-chip.dead {
+  opacity: 0.4;
+}
+
+.avatar-chip-hp {
+  font-size: 9px;
+  color: #e08a83;
+  line-height: 1;
+}
+
+.avatar-chip-stat {
+  font-size: 8.5px;
+  color: rgba(240, 227, 196, 0.6);
+  line-height: 1;
+}
+
+.opponent-expand-card {
+  position: absolute;
+  right: 78px;
+  top: 14px;
+  width: 260px;
+  z-index: 6;
+}
+
+.opponent-expand-card .player-panel.rail {
+  background: rgba(30, 25, 19, 0.96);
+  border-color: var(--gs-ochre);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.55);
+}
+
+/* --- Toasts + log history (mockup turn 4a/4b) — replaces the old
+   always-visible .gs-log panel on desktop. --- */
+
+.toast-stack {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 320px;
+  pointer-events: none;
+}
+
+.toast {
+  font-size: 11px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(43, 36, 28, 0.92);
+  border: 1px solid rgba(240, 227, 196, 0.2);
+  color: rgba(240, 227, 196, 0.9);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+  animation: toast-in 0.2s ease-out;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.log-history-btn {
+  position: absolute;
+  left: 14px;
+  top: 14px;
+  z-index: 4;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(43, 36, 28, 0.82);
+  border: 1px solid rgba(240, 227, 196, 0.28);
+  color: var(--gs-parchment);
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.log-history-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.log-history-panel {
+  width: 360px;
+  max-width: 90vw;
+  max-height: 70vh;
+  overflow-y: auto;
+  background: linear-gradient(180deg, var(--gs-wood-800), #2f2117);
+  border: 1px solid rgba(240, 227, 196, 0.2);
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.log-history-panel button {
+  margin-top: 10px;
+  font-family: var(--font-ui);
+  padding: 7px 14px;
+  border-radius: 6px;
+  background: var(--gs-ochre);
+  color: #2b241c;
+  border: none;
+  font-weight: 700;
+}
+
+.table-view-toggle {
+  font-family: var(--font-ui);
+  font-size: 10.5px;
+  padding: 6px 11px;
+  border-radius: 5px;
+  background: rgba(240, 227, 196, 0.1);
+  border: 1px solid rgba(240, 227, 196, 0.25);
+  color: var(--gs-parchment);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
 /* Real board scan as the surface (design mockup turn 2): one <img> at its
    native aspect ratio, everything else positioned in percentages inside the
    same box — nothing re-measures on resize, and swapping in a higher-res
@@ -617,6 +886,12 @@ details {
   overflow: hidden;
   border: 1px solid rgba(240, 227, 196, 0.12);
   background: linear-gradient(170deg, #a97b6a 0%, #c99a63 22%, #d9b45c 46%, #c9a24a 68%, #8f7a3e 100%);
+  /* Card/label text on the board scales with the board's own rendered
+     size (cqw units below) rather than a fixed px — the board is no
+     longer a fixed proportion of a fixed-width column (side panel can
+     hide via Table view, freeing much more width), so its rendered size
+     varies more than before. */
+  container-type: size;
 }
 
 .board-img {
@@ -644,7 +919,7 @@ details {
 
 .loc-node {
   position: absolute;
-  width: 178px;
+  width: 25.429cqw;
   padding: 5px 10px;
   border-radius: 12px;
   background: rgba(56, 39, 27, 0.55);
@@ -670,7 +945,7 @@ details {
 
 .loc-name {
   font-family: var(--font-display);
-  font-size: 11px;
+  font-size: 1.571cqw;
   color: #f4ecd6;
   display: flex;
   align-items: center;
@@ -680,9 +955,9 @@ details {
 }
 
 .here-badge {
-  font-size: 8.5px;
+  font-size: 1.214cqw;
   letter-spacing: 0.08em;
-  padding: 3px 6px;
+  padding: 0.429cqw 0.857cqw;
   border-radius: 3px;
   background: var(--gs-ochre);
   color: #2b241c;
@@ -702,9 +977,9 @@ details {
 .loc-move-btn {
   display: block;
   text-align: center;
-  font-size: 10.5px;
+  font-size: 1.5cqw;
   font-weight: 700;
-  padding: 7px 0;
+  padding: 1cqw 0;
   border-radius: 5px;
   background: var(--gs-field);
   color: #f4ecd6;
@@ -768,36 +1043,37 @@ details {
    noticeably more compact than a full detail card. */
 .board-slot .card-plate-art,
 .loc-node .card-plate-art {
-  padding: 2px 0;
+  padding: 0.286cqw 0;
 }
 
 .board-slot .monogram,
 .loc-node .monogram {
-  width: 22px;
-  height: 22px;
-  font-size: 9px;
+  width: 3.143cqw;
+  height: 3.143cqw;
+  font-size: 1.286cqw;
 }
 
 .loc-node .token {
-  width: 1.5em;
-  height: 1.5em;
-  line-height: 1.5em;
+  width: 3cqw;
+  height: 3cqw;
+  line-height: 3cqw;
+  font-size: 1.5cqw;
 }
 
 .board-slot .card-plate-header,
 .loc-node .card-plate-header {
-  padding: 2px 6px;
-  font-size: 7.5px;
+  padding: 0.286cqw 0.857cqw;
+  font-size: 1.071cqw;
 }
 
 .board-slot .card-plate-body,
 .loc-node .card-plate-body {
-  padding: 2px 6px 3px;
+  padding: 0.286cqw 0.857cqw 0.429cqw;
 }
 
 .board-slot .card-plate-name,
 .loc-node .card-plate-name {
-  font-size: 8px;
+  font-size: 1.143cqw;
 }
 
 .board-slot .ref-text,
@@ -821,7 +1097,7 @@ details {
 
 .card-plate-hp {
   font-family: var(--font-display);
-  font-size: 10px;
+  font-size: 1.429cqw;
   white-space: nowrap;
 }
 
@@ -841,7 +1117,7 @@ details {
 }
 
 .health-bar {
-  height: 6px;
+  height: 0.857cqw;
   background: rgba(0, 0, 0, 0.35);
   border-radius: 3px;
   overflow: hidden;
@@ -912,15 +1188,15 @@ details {
   color: #3c2b1c;
 }
 .card-plate-stripe {
-  height: 6px;
+  height: 0.857cqw;
   flex: none;
 }
 .card-plate.kind-weather .weather-name {
   font-family: var(--font-display);
-  font-size: 13px;
+  font-size: 1.857cqw;
 }
 .card-plate.kind-weather .weather-tag {
-  font: 600 8px ui-monospace, Menlo, monospace;
+  font: 600 1.143cqw ui-monospace, Menlo, monospace;
   letter-spacing: 0.08em;
   color: rgba(60, 43, 28, 0.6);
   margin: 2px 0 3px;
@@ -938,12 +1214,12 @@ details {
 }
 .card-plate.kind-empty .ref-text {
   letter-spacing: 0.05em;
-  font-size: 9px;
+  font-size: 1.286cqw;
   -webkit-line-clamp: unset;
 }
 .card-plate-count {
   font-family: var(--font-display);
-  font-size: 13px;
+  font-size: 1.857cqw;
   margin-top: 2px;
 }
 
@@ -1605,9 +1881,12 @@ details {
   .gs-title {
     font-size: 13px;
   }
-  .gs-rail,
-  .gs-dock,
-  .gs-dock-dayend {
+  .gs-side-panel,
+  .avatar-strip,
+  .opponent-expand-card,
+  .toast-stack,
+  .log-history-btn,
+  .table-view-toggle {
     display: none;
   }
   .gs-board {

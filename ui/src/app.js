@@ -20,7 +20,7 @@ import { Lobby } from './components/lobby.js';
 import { ChickenDraft } from './components/chickenDraft.js';
 import { remoteSession, fromSyncedDoc } from './remoteSession.js';
 import { Board, playerColor } from './components/board.js';
-import { PlayerPanel } from './components/playerPanel.js';
+import { PlayerPanel, AvatarStrip } from './components/playerPanel.js';
 import { ActionBar } from './components/actionBar.js';
 import { TurnControls } from './components/turnControls.js';
 
@@ -89,6 +89,13 @@ function App() {
   // Purely local presentation state, not synced.
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   const [mobileTab, setMobileTab] = useState('board');
+  // Desktop-only UI state (≥901px — see styles.css's .gs-side-panel/
+  // .avatar-strip). Purely local presentation state, not synced.
+  const [tableView, setTableView] = useState(false);
+  const [toasts, setToasts] = useState([]);
+  const [showLogHistory, setShowLogHistory] = useState(false);
+  const lastLogLengthRef = useRef(0);
+  const toastIdRef = useRef(0);
 
   // Session state — every game is a session now, no local hotseat mode.
   const [sessionCode, setSessionCode] = useState(null);
@@ -99,6 +106,10 @@ function App() {
   const [dealtChickens, setDealtChickens] = useState(null);
   const [chosenChicken, setChosenChicken] = useState({});
   const [myPlayerId, setMyPlayerId] = useState(null);
+
+  // Computed early (not just where it's first used below) so both the
+  // toast-queue effect and the render can share it without duplicating.
+  const playerNames = Object.fromEntries(Object.entries(seats).map(([id, s]) => [id, s.name]));
 
   // Guards the host's "everyone's locked in, call createGame() and
   // publish it" step against firing twice from two rapid snapshot events.
@@ -178,6 +189,25 @@ function App() {
       finalizingRef.current = false; // allow a retry if this was transient
     }
   }, [isHost, predators, dealtChickens, hostConfig, seats, chosenChicken, sessionCode]);
+
+  // Fading toast notifications (desktop only — see .toast-stack in
+  // styles.css) for whatever actions just got appended to the shared log,
+  // reusing the same formatLogEntry text the history overlay shows. Each
+  // toast removes itself after ~6s; toasts already shown are never
+  // re-queued since lastLogLengthRef only looks at growth.
+  useEffect(() => {
+    if (!gameState) return;
+    const entries = gameState.actionLog;
+    const prevLength = lastLogLengthRef.current;
+    if (entries.length > prevLength) {
+      const newToasts = entries.slice(prevLength).map((a) => ({ id: ++toastIdRef.current, text: formatLogEntry(a, playerNames) }));
+      setToasts((cur) => [...cur, ...newToasts]);
+      newToasts.forEach((t) => {
+        setTimeout(() => setToasts((cur) => cur.filter((x) => x.id !== t.id)), 6000);
+      });
+    }
+    lastLogLengthRef.current = entries.length;
+  }, [gameState]);
 
   // Every path that can produce a new GameState routes through this so a
   // gameOver result (win via a killing blow, loss via end-of-turn weather
@@ -351,14 +381,15 @@ function App() {
 
   const currentPlayerId = gameState.turnOrder[gameState.currentPlayerIndex];
   const currentPlayer = gameState.players.find((p) => p.id === currentPlayerId);
-  const playerNames = Object.fromEntries(Object.entries(seats).map(([id, s]) => [id, s.name]));
   const opponents = gameState.players.filter((p) => p.id !== currentPlayerId);
   const recentLog = gameState.actionLog.slice(-12).reverse();
 
   // Functions, not hoisted vnodes — the dock is rendered in two places at
-  // once (desktop .gs-dock, CSS-hidden on mobile; mobile sheet, CSS-hidden
+  // once (desktop side panel, CSS-hidden on mobile; mobile sheet, CSS-hidden
   // on desktop), and Preact can't render the same vnode instance twice.
-  const dockPanel = () => html`<${PlayerPanel}
+  // `slideOver` is only true for the desktop side panel — the mobile sheet
+  // keeps the notebook inline like before.
+  const dockPanel = (slideOver = false) => html`<${PlayerPanel}
     variant="dock"
     player=${currentPlayer}
     isCurrent=${true}
@@ -369,6 +400,7 @@ function App() {
     myPlayerId=${myPlayerId}
     displayName=${playerNames[currentPlayer.id] ?? currentPlayer.id}
     playerNames=${playerNames}
+    slideOverNotebook=${slideOver}
   />`;
 
   const actionBar = () => html`<${ActionBar}
@@ -383,29 +415,6 @@ function App() {
     displayName=${playerNames[currentPlayer.id] ?? currentPlayer.id}
     playerNames=${playerNames}
   />`;
-
-  const rail = html`
-    <div class="gs-rail-title">FLOCK</div>
-    ${opponents.map(
-      (p) => html`<${PlayerPanel}
-        key=${p.id}
-        variant="rail"
-        player=${p}
-        isCurrent=${p.id === currentPlayerId}
-        state=${gameState}
-        dispatch=${dispatch}
-        pendingPick=${pendingPick}
-        setPendingPick=${setPendingPick}
-        myPlayerId=${myPlayerId}
-        displayName=${playerNames[p.id] ?? p.id}
-        playerNames=${playerNames}
-      />`,
-    )}
-    <div class="gs-log">
-      <div class="gs-log-title">LOG</div>
-      ${recentLog.map((a, i) => html`<div key=${i} class="gs-log-entry">${formatLogEntry(a, playerNames)}</div>`)}
-    </div>
-  `;
 
   return html`
     <div class="game">
@@ -434,9 +443,18 @@ function App() {
           )}
         </div>
         <div class="gs-spacer"></div>
+        <button type="button" class="table-view-toggle" onClick=${() => setTableView((v) => !v)}>
+          ⤢ ${tableView ? 'Exit table view' : 'Table view'}
+        </button>
       </div>
 
       <div class="gs-mid">
+        ${!tableView &&
+        html`<div class="gs-side-panel">
+          ${dayEndPending
+            ? html`<${TurnControls} state=${gameState} onSubmitDayEnd=${handleDayEndSubmit} myPlayerId=${myPlayerId} playerNames=${playerNames} />`
+            : html`${dockPanel(true)}${actionBar()}`}
+        </div>`}
         <div class="gs-board">
           <${Board}
             state=${gameState}
@@ -446,15 +464,31 @@ function App() {
             playerNames=${playerNames}
             hereLocation=${currentPlayer.location}
           />
+          ${!tableView &&
+          opponents.length > 0 &&
+          html`<${AvatarStrip}
+            opponents=${opponents}
+            currentPlayerId=${currentPlayerId}
+            state=${gameState}
+            dispatch=${dispatch}
+            pendingPick=${pendingPick}
+            setPendingPick=${setPendingPick}
+            myPlayerId=${myPlayerId}
+            playerNames=${playerNames}
+          />`}
+          <div class="toast-stack">${toasts.map((t) => html`<div key=${t.id} class="toast">${t.text}</div>`)}</div>
+          <button type="button" class="log-history-btn" title="Log" onClick=${() => setShowLogHistory(true)}>🕘</button>
         </div>
-        <div class="gs-rail">${rail}</div>
       </div>
 
-      ${dayEndPending
-        ? html`<div class="gs-dock-dayend">
-            <${TurnControls} state=${gameState} onSubmitDayEnd=${handleDayEndSubmit} myPlayerId=${myPlayerId} playerNames=${playerNames} />
-          </div>`
-        : html`<div class="gs-dock">${dockPanel()}${actionBar()}</div>`}
+      ${showLogHistory &&
+      html`<div class="log-history-overlay" onClick=${() => setShowLogHistory(false)}>
+        <div class="log-history-panel" onClick=${(e) => e.stopPropagation()}>
+          <div class="gs-log-title">LOG</div>
+          ${recentLog.map((a, i) => html`<div key=${i} class="gs-log-entry">${formatLogEntry(a, playerNames)}</div>`)}
+          <button type="button" onClick=${() => setShowLogHistory(false)}>Close</button>
+        </div>
+      </div>`}
 
       <div class="gs-mobile-dock">
         ${!mobileSheetOpen

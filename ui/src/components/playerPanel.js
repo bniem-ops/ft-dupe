@@ -13,6 +13,7 @@ import {
   seasonCardList,
 } from '../engine.js';
 import { monogram } from '../cardVisuals.js';
+import { playerColor } from './board.js';
 
 // A card's identity in hand — same "card anatomy" language as the board's
 // full card plates (board.js), just collapsed to a monogram chip since a
@@ -283,7 +284,19 @@ function MealCounterStrip({ mealCounter, mealsToNext }) {
   `;
 }
 
-export function PlayerPanel({ player, isCurrent, state, dispatch, pendingPick, setPendingPick, myPlayerId, displayName, playerNames, variant = 'rail' }) {
+export function PlayerPanel({
+  player,
+  isCurrent,
+  state,
+  dispatch,
+  pendingPick,
+  setPendingPick,
+  myPlayerId,
+  displayName,
+  playerNames,
+  variant = 'rail',
+  slideOverNotebook = false,
+}) {
   const chicken = findChicken(player.chickenName);
   const stageData = chicken.stages.find((s) => s.stage === player.stage);
   const otherPlayers = state.players.filter((p) => p.id !== player.id && p.alive);
@@ -307,6 +320,9 @@ export function PlayerPanel({ player, isCurrent, state, dispatch, pendingPick, s
   const overBonusCardHandLimit = !player.permanentNoBonusCardHandLimit && player.bonusCardHand.length > player.bonusCardHandLimit;
 
   const [dockTab, setDockTab] = useState('traits');
+  // Desktop side-panel only (slideOverNotebook=true) — mobile's bottom-sheet
+  // "My board" tab keeps the notebook inline, unaffected by this.
+  const [slideOverOpen, setSlideOverOpen] = useState(false);
 
   const hasUrgentPending =
     !!player.pendingRevivalChoices ||
@@ -548,6 +564,17 @@ export function PlayerPanel({ player, isCurrent, state, dispatch, pendingPick, s
   `;
 
   if (variant === 'dock') {
+    const notebook = html`
+      <div class="dock-notebook">
+        <div class="dock-tabs">
+          <button type="button" class=${`dock-tab ${dockTab === 'traits' ? 'active' : ''}`} onClick=${() => setDockTab('traits')}>Traits</button>
+          <button type="button" class=${`dock-tab ${dockTab === 'cards' ? 'active' : ''}`} onClick=${() => setDockTab('cards')}>Cards</button>
+          ${slideOverNotebook &&
+          html`<button type="button" class="dock-tab-close" onClick=${() => setSlideOverOpen(false)}>✕</button>`}
+        </div>
+        <div class="dock-notebook-body">${dockTab === 'traits' ? traitsTab : cardsTab}</div>
+      </div>
+    `;
     return html`
       <div class="player-panel dock">
         ${pendingBlock}
@@ -559,13 +586,15 @@ export function PlayerPanel({ player, isCurrent, state, dispatch, pendingPick, s
             <span class="chip">${player.attackStrength} claw</span>
           </div>
         </div>
-        <div class="dock-notebook">
-          <div class="dock-tabs">
-            <button type="button" class=${`dock-tab ${dockTab === 'traits' ? 'active' : ''}`} onClick=${() => setDockTab('traits')}>Traits</button>
-            <button type="button" class=${`dock-tab ${dockTab === 'cards' ? 'active' : ''}`} onClick=${() => setDockTab('cards')}>Cards</button>
-          </div>
-          <div class="dock-notebook-body">${dockTab === 'traits' ? traitsTab : cardsTab}</div>
-        </div>
+        ${slideOverNotebook
+          ? html`
+              <button type="button" class="notebook-open-btn" onClick=${() => setSlideOverOpen(true)}>Traits & Cards ▸</button>
+              ${slideOverOpen &&
+              html`<div class="notebook-slideover-backdrop" onClick=${() => setSlideOverOpen(false)}>
+                <div onClick=${(e) => e.stopPropagation()}>${notebook}</div>
+              </div>`}
+            `
+          : notebook}
         <div class="dock-vitals">
           <div class="stats-row">
             <${Hearts} health=${player.health} maxHealth=${player.maxHealth} />
@@ -595,5 +624,55 @@ export function PlayerPanel({ player, isCurrent, state, dispatch, pendingPick, s
         ${cardsTab}
       </details>
     </div>
+  `;
+}
+
+// Presence-driven opponent rail (mockup turn 4b) — a 56px strip of compact
+// circles instead of always-visible full cards; hovering/clicking one
+// expands it into the same content the old always-visible rail card showed
+// (reuses PlayerPanel's own 'rail' variant rather than forking the markup).
+export function AvatarStrip({ opponents, currentPlayerId, state, dispatch, pendingPick, setPendingPick, myPlayerId, playerNames }) {
+  const [expandedId, setExpandedId] = useState(null);
+  const expanded = opponents.find((p) => p.id === expandedId) ?? null;
+
+  return html`
+    <div class="avatar-strip">
+      <span class="avatar-strip-title">FLOCK</span>
+      ${opponents.map((p) => {
+        const label = playerNames?.[p.id] ?? p.id;
+        return html`
+          <button
+            key=${p.id}
+            type="button"
+            class=${`avatar-chip ${p.id === currentPlayerId ? 'current' : ''} ${p.id === expandedId ? 'active' : ''} ${!p.alive ? 'dead' : ''}`}
+            style=${{ '--chip-color': playerColor(state, p.id) }}
+            onMouseEnter=${() => setExpandedId(p.id)}
+            onFocus=${() => setExpandedId(p.id)}
+            onClick=${() => setExpandedId((cur) => (cur === p.id ? null : p.id))}
+          >
+            <span class="avatar-chip-circle">${label.slice(0, 2)}</span>
+            <span class="avatar-chip-hp">♥${p.health}</span>
+            <span class="avatar-chip-stat">${p.food}·${p.eggs}</span>
+          </button>
+        `;
+      })}
+    </div>
+    ${expanded &&
+    html`
+      <div class="opponent-expand-card" onMouseLeave=${() => setExpandedId(null)}>
+        <${PlayerPanel}
+          variant="rail"
+          player=${expanded}
+          isCurrent=${expanded.id === currentPlayerId}
+          state=${state}
+          dispatch=${dispatch}
+          pendingPick=${pendingPick}
+          setPendingPick=${setPendingPick}
+          myPlayerId=${myPlayerId}
+          displayName=${playerNames?.[expanded.id] ?? expanded.id}
+          playerNames=${playerNames}
+        />
+      </div>
+    `}
   `;
 }
