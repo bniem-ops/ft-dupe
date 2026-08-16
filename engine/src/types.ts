@@ -193,6 +193,16 @@ export interface PlayerState {
   // check isn't a roll either) or raw rng() calls that aren't a 1-6 die
   // roll in the first place (shuffles, random-pick-among-several).
   pendingRollIntercept: { mode: 'adjustBy' | 'reroll' | 'forceValue'; value?: number } | null;
+  // Set by startTurn instead of committing the production roll immediately,
+  // when the player holds Strategem/Deus Eggs Machina, has an egg to spend,
+  // and hasn't already pre-committed a pendingRollIntercept/pendingRerollNextRoll
+  // — lets them see the raw roll and react (keep/reroll/adjust) before it's
+  // finalized, instead of blindly pre-committing before rolling like the
+  // pendingRollIntercept flow above. Resolved by the resolveProductionReveal
+  // action. Scope note: only the single-roll case pauses — a player who also
+  // stacks an extra-roll ability (High Producer) still auto-resolves as
+  // before, documented simplification rather than a silent bug.
+  pendingProductionReveal: { roll: number; threshold: number; eggAmount: number; gained: boolean } | null;
   // Phase 11i: "For 1 Turn, borrow an unlocked ability from a teammate" —
   // a reference (chicken name + stage), not the ability object itself
   // (which can hold functions and wouldn't survive Firestore sync), looked
@@ -308,7 +318,11 @@ export interface GameState {
   weather: WeatherState;
   gameOver: boolean; // see engine/src/gameStatus.ts for real evaluation (phase 9)
   won: boolean; // only meaningful once gameOver is true
-  actionLog: Action[];
+  // ProductionRollLogEntry entries are appended directly by turn.ts/actions.ts
+  // (never dispatched, so reducer.ts's switch never needs a case for them) —
+  // every stage 2/3 player's production roll, visible in the UI's toast/log
+  // for trust, whether or not it paused for a reveal decision.
+  actionLog: (Action | ProductionRollLogEntry)[];
   // Phase 11j: board-placed eggs anyone at that location can collect
   // (Bacaw!, Dedication) — a shared resource on the map, not a per-player one.
   boardEggs: Partial<Record<Location, number>>;
@@ -435,7 +449,24 @@ export type Action =
   | { type: 'discardBonusCard'; playerId: string; cardHandIndex: number }
   // Weasma and Clawnk: resolves a pending forced relocation with the
   // mover's own choice of destination.
-  | { type: 'completeForcedRelocation'; playerId: string; destination: Location };
+  | { type: 'completeForcedRelocation'; playerId: string; destination: Location }
+  // Resolves a paused pendingProductionReveal (see PlayerState's doc
+  // comment) — 'keep' commits the already-computed roll as-is; 'reroll'
+  // (Deus Eggs Machina, 1 egg) rolls fresh; 'adjust' (Strategem, N eggs)
+  // shifts the stored roll by direction*eggsToSpend.
+  | { type: 'resolveProductionReveal'; playerId: string; choice: 'keep' | 'reroll' | 'adjust'; eggsToSpend?: number; direction?: 1 | -1 };
+
+// Not part of the dispatchable Action union above — appended directly to
+// GameState.actionLog by turn.ts/actions.ts, never through reducer.ts.
+export interface ProductionRollLogEntry {
+  type: 'productionRoll';
+  playerId: string;
+  roll: number;
+  threshold: number;
+  eggAmount: number;
+  gained: boolean;
+  method?: 'rerolled' | 'adjusted';
+}
 
 export function rollDie(rng: RNG): number {
   return Math.floor(rng() * 6) + 1;

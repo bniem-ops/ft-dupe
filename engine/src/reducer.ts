@@ -116,6 +116,9 @@ export function applyAction(state: GameState, action: Action): GameState {
     case 'useDeusEggsMachina':
       next = actions.useDeusEggsMachina(state, action.playerId, action.targetPlayerId);
       break;
+    case 'resolveProductionReveal':
+      next = actions.resolveProductionReveal(state, action.playerId, action.choice, action.eggsToSpend, action.direction);
+      break;
     case 'useWhereverAnyWeather':
       next = actions.useWhereverAnyWeather(state, action.playerId);
       break;

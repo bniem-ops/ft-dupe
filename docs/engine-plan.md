@@ -741,6 +741,20 @@ own rather than only valuable once everything else is done.
 - **Mistake correction:** physical play lets you informally fudge a
   misplay. Should the engine allow reversing recent actions, or lock in
   each action like a strict digital implementation?
+- **Weasma and Clawnk S3 solo house rule:** `core_rules.md`'s "Solo mode:
+  you count as your own teammate" means Weasma and Clawnk's Stage 3
+  predator effect is 100% unhittable via a plain Attack when playing solo
+  (every roll 1-6 forces the lone attacker to move, dealing no damage —
+  see `abilities/predators.ts`'s `'Weasma and Clawnk'` stage-3 `custom`
+  hook). This matches the documented physical rule, not a bug, but the
+  user has flagged it as a real design concern for solo games that don't
+  happen to include Cleopoultra (Arrow Pack) or draw a direct-damage
+  Bonus Card. Possible house-rule toggle: in solo, treat the 1-3
+  "teammate moves" outcome as a miss with no effect (fight proceeds
+  normally) instead of falling back to moving the attacker — would need a
+  `GameConfig` flag (default off, matching the real rule) rather than
+  changing the base behavior outright. Not implemented — flagged for a
+  future decision only.
 
 ## Non-goals for now
 

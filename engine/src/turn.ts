@@ -9,7 +9,13 @@ import { getPlayer, replacePlayer } from './helpers.js';
 import { dealFaceUp, discardFaceUp, maybeReshuffleGrubDecks } from './grubs.js';
 import { levelUpPredators, applyDamageAndMaybeDeath } from './combat.js';
 import { activeWeatherEffect, activeWeatherName, drawNextWeatherCard } from './abilities/weather.js';
-import { getActiveChickenAbilities, isImmuneToWeather, nearbyAuraTeammateRollBonus, applyRollIntercept } from './abilities/chickens.js';
+import {
+  getActiveChickenAbilities,
+  getOwnAndBorrowedAbilities,
+  isImmuneToWeather,
+  nearbyAuraTeammateRollBonus,
+  applyRollIntercept,
+} from './abilities/chickens.js';
 import { addMeals } from './leveling.js';
 import { evaluateGameStatus } from './gameStatus.js';
 
@@ -32,20 +38,40 @@ export function isPhaseBoundaryDay(day: number, season: Season): boolean {
 
 // --- Production (turn start) -------------------------------------------
 
+export interface ProductionRollInfo {
+  roll: number;
+  threshold: number;
+  eggAmount: number;
+  gained: boolean;
+}
+
 // `state` is needed (not just `player`/`rng`) for phase 6's weather
 // threshold override (Daylight Savings) and chicken-ability modifiers
 // (High Producer's extra roll, Payback/Shake it Off's on-miss trigger).
-export function resolveProduction(state: GameState, player: PlayerState, rng: RNG): PlayerState {
+//
+// Returns `pausable: true` (player left untouched, roll not yet applied)
+// when this is the plain single-roll case, nothing is already
+// pre-committed (pendingRollIntercept/pendingRerollNextRoll), and the
+// player holds Strategem/Deus Eggs Machina with an egg to spend — lets the
+// caller (startTurn) show the raw roll and let them react instead of
+// committing it blind. High Producer's extra-roll stacking always
+// auto-resolves (documented simplification, not covered by the reveal
+// flow this pass — see docs/engine-plan.md).
+export function computeProductionRoll(
+  state: GameState,
+  player: PlayerState,
+  rng: RNG,
+): { player: PlayerState; rollInfo: ProductionRollInfo | null; pausable: boolean } {
   if (player.stage === 1) {
     // Chick production is universally "+1 food" (confirmed in every
     // chicken's data, per chickens_template.txt's instructions) — no
     // roll at all, so nothing here for weather/ability rolls to modify.
-    return { ...player, food: player.food + 1 };
+    return { player: { ...player, food: player.food + 1 }, rollInfo: null, pausable: false };
   }
   const stageData = chickenStage(player.chickenName, player.stage);
   const production = stageData.production ?? '';
   const match = production.match(/Roll \d+ die:\s*(\d+)-6\s*=\s*\+(\d+)\s*egg/i);
-  if (!match) return player;
+  if (!match) return { player, rollInfo: null, pausable: false };
   const eggAmount = parseInt(match[2], 10);
 
   const weather = activeWeatherEffect(state, player.id);
@@ -54,11 +80,28 @@ export function resolveProduction(state: GameState, player: PlayerState, rng: RN
   const abilities = getActiveChickenAbilities(player.chickenName, player.stage);
   const totalRolls = 1 + abilities.reduce((sum, a) => sum + (a.extraProductionRolls ?? 0), 0);
   const battleCryBonus = nearbyAuraTeammateRollBonus(state, player.id); // Battle Cry
+  const hadPreCommit = !!player.pendingRollIntercept || player.pendingRerollNextRoll;
+
+  if (
+    totalRolls === 1 &&
+    !hadPreCommit &&
+    player.eggs >= 1 &&
+    getOwnAndBorrowedAbilities(player).some((a) => a.canAdjustAnyRollForEggs || a.canRerollAnyRollForEgg)
+  ) {
+    // rollInfo.roll is the raw d6 (what a physical die would show) — bonuses
+    // are folded in only for the gained comparison, not the displayed/
+    // adjustable value, so Strategem's clamp-to-1-6 and the reveal UI both
+    // stay honest to an actual die.
+    const baseRoll = rollDie(rng);
+    const gained = baseRoll + player.permanentEggProductionBonus + battleCryBonus >= threshold;
+    return { player, rollInfo: { roll: baseRoll, threshold, eggAmount, gained }, pausable: true };
+  }
 
   let updated = player;
   let anyHit = false;
   let rerollAvailable = player.pendingRerollNextRoll;
   let interceptAvailable = !!player.pendingRollIntercept;
+  let firstRoll = 0;
   for (let i = 0; i < totalRolls; i++) {
     let baseRoll = rollDie(rng);
     if (rerollAvailable) {
@@ -73,6 +116,7 @@ export function resolveProduction(state: GameState, player: PlayerState, rng: RN
       interceptAvailable = false;
     }
     const roll = baseRoll + player.permanentEggProductionBonus + battleCryBonus;
+    if (i === 0) firstRoll = baseRoll;
     if (roll >= threshold) {
       updated = { ...updated, eggs: updated.eggs + eggAmount };
       anyHit = true;
@@ -89,7 +133,35 @@ export function resolveProduction(state: GameState, player: PlayerState, rng: RN
     }
   }
 
+  return { player: updated, rollInfo: { roll: firstRoll, threshold, eggAmount, gained: anyHit }, pausable: false };
+}
+
+// Finalizes a paused pendingProductionReveal once the player responds
+// (keep/reroll/adjust) — same single-roll apply-or-miss semantics as
+// computeProductionRoll's non-paused branch above, factored out since
+// actions.ts's resolveProductionReveal needs it too.
+export function applyProductionOutcome(state: GameState, player: PlayerState, gained: boolean, eggAmount: number): PlayerState {
+  if (gained) return { ...player, eggs: player.eggs + eggAmount };
+  let updated = player;
+  const abilities = getActiveChickenAbilities(player.chickenName, player.stage);
+  for (const ability of abilities) {
+    if (!ability.onProductionMiss) continue;
+    const result = ability.onProductionMiss({ state, playerId: player.id });
+    if (result.food) updated = { ...updated, food: updated.food + result.food };
+    if (result.meals) updated = addMeals(updated, result.meals);
+    if (result.heal) updated = { ...updated, health: Math.min(updated.maxHealth, updated.health + result.heal) };
+  }
   return updated;
+}
+
+// Back-compat wrapper — many existing tests/callers expect the old
+// signature (resolves fully, no pause). startTurn uses
+// computeProductionRoll/applyProductionOutcome directly instead, to
+// implement the reveal-then-react pause.
+export function resolveProduction(state: GameState, player: PlayerState, rng: RNG): PlayerState {
+  const { player: computed, rollInfo, pausable } = computeProductionRoll(state, player, rng);
+  if (!pausable || !rollInfo) return computed;
+  return applyProductionOutcome(state, computed, rollInfo.gained, rollInfo.eggAmount);
 }
 
 function discardAndRedrawOneBonusCard(state: GameState, playerId: string): GameState {
@@ -156,8 +228,19 @@ export function startTurn(state: GameState): GameState {
     }
   }
 
-  const withProduction = resolveProduction(next, getPlayer(next.players, playerId), next.config.rng);
-  next = { ...next, players: replacePlayer(next.players, withProduction) };
+  const { player: withProduction, rollInfo, pausable } = computeProductionRoll(next, getPlayer(next.players, playerId), next.config.rng);
+  if (pausable && rollInfo) {
+    // Leave the roll unapplied — the player reacts via resolveProductionReveal.
+    next = { ...next, players: replacePlayer(next.players, { ...withProduction, pendingProductionReveal: { ...rollInfo } }) };
+  } else {
+    next = { ...next, players: replacePlayer(next.players, withProduction) };
+    if (rollInfo) {
+      next = {
+        ...next,
+        actionLog: [...next.actionLog, { type: 'productionRoll', playerId, roll: rollInfo.roll, threshold: rollInfo.threshold, eggAmount: rollInfo.eggAmount, gained: rollInfo.gained }],
+      };
+    }
+  }
 
   return { ...next, actionsRemainingThisTurn: Math.max(0, 2 + actionsDelta) };
 }

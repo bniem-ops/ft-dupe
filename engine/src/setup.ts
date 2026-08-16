@@ -340,6 +340,7 @@ function createPlayer(id: string, chickenName: string, startingLocation: Locatio
     pendingIgnorePredatorRoll: false,
     pendingReflectReturnAttack: false,
     pendingRollIntercept: null,
+    pendingProductionReveal: null,
     permanentEggProductionBonus: 0,
     permanentReturnAttackReductionRoll: null,
     permanentNoBonusCardHandLimit: false,

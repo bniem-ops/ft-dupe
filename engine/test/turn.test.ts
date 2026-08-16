@@ -5,6 +5,7 @@ import {
   seasonPhaseForDay,
   isPhaseBoundaryDay,
   resolveProduction,
+  computeProductionRoll,
   startTurn,
   endTurn,
   isLastPlayerOfDay,
@@ -12,8 +13,13 @@ import {
   applyEggExchange,
   advanceDay,
 } from '../src/turn.js';
+import { resolveProductionReveal } from '../src/actions.js';
 import { GameState } from '../src/types.js';
 import { baseConfig, constantRng } from './testHelpers.js';
+
+function withPlayer(state: GameState, playerId: string, patch: Partial<GameState['players'][number]>): GameState {
+  return { ...state, players: state.players.map((p) => (p.id === playerId ? { ...p, ...patch } : p)) };
+}
 
 test('seasonPhaseForDay matches the confirmed 2/3/2 split', () => {
   assert.equal(seasonPhaseForDay(1), 1);
@@ -48,6 +54,183 @@ test('resolveProduction: leveled-up chicken gains an egg only on a high enough r
   assert.equal(missed.eggs, leveled.eggs);
   const hit = resolveProduction(state, leveled, constantRng(0.999)); // roll 6 -> meets threshold
   assert.equal(hit.eggs, leveled.eggs + 1);
+});
+
+test('computeProductionRoll: no reroll ability auto-resolves and reports the roll', () => {
+  const state = createGame(baseConfig());
+  const leveled = { ...state.players[0], stage: 2 as const }; // Shellock Holmes S2: 3-6 = +1 egg
+  const { player, rollInfo, pausable } = computeProductionRoll(state, leveled, constantRng(0.999)); // roll 6, hits
+  assert.equal(pausable, false);
+  assert.equal(player.eggs, leveled.eggs + 1);
+  assert.deepEqual(rollInfo, { roll: 6, threshold: 3, eggAmount: 1, gained: true });
+});
+
+test('startTurn appends a productionRoll log entry for the common (no-ability) case', () => {
+  const config = baseConfig({ players: [{ id: 'p1', chickenName: 'Shellock Holmes' }, { id: 'p2', chickenName: 'Wingston Coophill' }] });
+  let state = createGame(config);
+  state = withPlayer(state, 'p1', { stage: 2 });
+  state = { ...state, weather: { seasonDecks: { Spring: [], Summer: [], Fall: [] }, active: null }, config: { ...state.config, rng: constantRng(0.999) } };
+  const started = startTurn(state);
+  const entry = started.actionLog.at(-1) as any;
+  assert.equal(entry.type, 'productionRoll');
+  assert.equal(entry.playerId, 'p1');
+  assert.equal(entry.gained, true);
+  assert.equal(started.players.find((p) => p.id === 'p1')!.eggs, 1);
+});
+
+test('computeProductionRoll pauses when the player holds Strategem, has eggs, and nothing is pre-committed', () => {
+  const config = baseConfig({ players: [{ id: 'p1', chickenName: 'General Tso' }, { id: 'p2', chickenName: 'Shellock Holmes' }] });
+  const state = createGame(config);
+  const p1 = withPlayer(state, 'p1', { stage: 3, eggs: 2 }).players.find((p) => p.id === 'p1')!; // General Tso S3: 2-6 = +1 egg
+  const { player, rollInfo, pausable } = computeProductionRoll(state, p1, constantRng(0)); // roll 1
+  assert.equal(pausable, true);
+  assert.deepEqual(rollInfo, { roll: 1, threshold: 2, eggAmount: 1, gained: false });
+  assert.equal(player.eggs, 2); // untouched — not committed yet
+});
+
+test('computeProductionRoll does not pause with 0 eggs, even holding the ability', () => {
+  const config = baseConfig({ players: [{ id: 'p1', chickenName: 'General Tso' }, { id: 'p2', chickenName: 'Shellock Holmes' }] });
+  const state = createGame(config);
+  const p1 = withPlayer(state, 'p1', { stage: 3, eggs: 0 }).players.find((p) => p.id === 'p1')!;
+  const { pausable } = computeProductionRoll(state, p1, constantRng(0));
+  assert.equal(pausable, false);
+});
+
+test('computeProductionRoll does not pause when a roll is already pre-committed — honors it instead', () => {
+  const config = baseConfig({ players: [{ id: 'p1', chickenName: 'General Tso' }, { id: 'p2', chickenName: 'Shellock Holmes' }] });
+  const state = createGame(config);
+  const p1 = withPlayer(state, 'p1', {
+    stage: 3,
+    eggs: 2,
+    pendingRollIntercept: { mode: 'forceValue', value: 6 },
+  }).players.find((p) => p.id === 'p1')!;
+  const { player, pausable } = computeProductionRoll(state, p1, constantRng(0)); // roll 1, forced to 6
+  assert.equal(pausable, false);
+  assert.equal(player.eggs, 3); // 2 + 1 gained (threshold 2, forced roll 6 hits)
+  assert.equal(player.pendingRollIntercept, null);
+});
+
+test('computeProductionRoll never pauses when stacked with an extra-roll ability, even with a borrowed adjust ability', () => {
+  // Annie Yolkley S3 = High Producer (extraProductionRolls: 1) — own ability
+  // forces totalRolls to 2, which the reveal flow explicitly doesn't cover
+  // (documented simplification), regardless of a borrowed Strategem.
+  const config = baseConfig({ players: [{ id: 'p1', chickenName: 'Annie Yolkley' }, { id: 'p2', chickenName: 'Shellock Holmes' }] });
+  const state = createGame(config);
+  const p1 = withPlayer(state, 'p1', {
+    stage: 3,
+    eggs: 2,
+    pendingBorrowedAbility: { chickenName: 'General Tso', stage: 3 },
+  }).players.find((p) => p.id === 'p1')!;
+  const { pausable } = computeProductionRoll(state, p1, constantRng(0));
+  assert.equal(pausable, false);
+});
+
+test('resolveProductionReveal "keep" commits the paused roll as-is and logs it', () => {
+  const config = baseConfig({ players: [{ id: 'p1', chickenName: 'General Tso' }, { id: 'p2', chickenName: 'Shellock Holmes' }] });
+  const state = withPlayer(createGame(config), 'p1', {
+    stage: 3,
+    eggs: 2,
+    pendingProductionReveal: { roll: 5, threshold: 2, eggAmount: 1, gained: true },
+  });
+  const result = resolveProductionReveal(state, 'p1', 'keep');
+  const p1 = result.players.find((p) => p.id === 'p1')!;
+  assert.equal(p1.eggs, 3);
+  assert.equal(p1.pendingProductionReveal, null);
+  const entry = result.actionLog.at(-1) as any;
+  assert.equal(entry.type, 'productionRoll');
+  assert.equal(entry.roll, 5);
+  assert.equal(entry.gained, true);
+  assert.equal(entry.method, undefined);
+});
+
+test('resolveProductionReveal "keep" on a miss runs onProductionMiss instead of gaining an egg', () => {
+  // Chickira S3 = Shake it Off — heal 1 on a miss.
+  const config = baseConfig({ players: [{ id: 'p1', chickenName: 'Chickira' }, { id: 'p2', chickenName: 'Shellock Holmes' }] });
+  const state = withPlayer(createGame(config), 'p1', {
+    stage: 3,
+    eggs: 0,
+    health: 2,
+    maxHealth: 6,
+    pendingProductionReveal: { roll: 1, threshold: 3, eggAmount: 1, gained: false },
+  });
+  const result = resolveProductionReveal(state, 'p1', 'keep');
+  const p1 = result.players.find((p) => p.id === 'p1')!;
+  assert.equal(p1.eggs, 0);
+  assert.equal(p1.health, 3); // Shake it Off healed 1
+});
+
+test('resolveProductionReveal "reroll" (Deus Eggs Machina) spends 1 egg and rolls fresh', () => {
+  const config = baseConfig({ players: [{ id: 'p1', chickenName: 'J.R.R. Yolkien' }, { id: 'p2', chickenName: 'Shellock Holmes' }] });
+  let state = withPlayer(createGame(config), 'p1', {
+    stage: 3,
+    eggs: 1,
+    pendingProductionReveal: { roll: 1, threshold: 3, eggAmount: 1, gained: false },
+  });
+  state = { ...state, config: { ...state.config, rng: constantRng(0.999) } }; // fresh roll -> 6
+  const result = resolveProductionReveal(state, 'p1', 'reroll');
+  const p1 = result.players.find((p) => p.id === 'p1')!;
+  assert.equal(p1.eggs, 1); // spent the 1 egg on the reroll, then gained 1 back for the hit
+  assert.equal(p1.pendingProductionReveal, null);
+  const entry = result.actionLog.at(-1) as any;
+  assert.equal(entry.roll, 6);
+  assert.equal(entry.method, 'rerolled');
+  assert.equal(entry.gained, true);
+});
+
+test('resolveProductionReveal "reroll" throws without the ability or without an egg', () => {
+  const config = baseConfig({ players: [{ id: 'p1', chickenName: 'Shellock Holmes' }, { id: 'p2', chickenName: 'Wingston Coophill' }] });
+  const noAbility = withPlayer(createGame(config), 'p1', {
+    stage: 2,
+    pendingProductionReveal: { roll: 1, threshold: 3, eggAmount: 1, gained: false },
+  });
+  assert.throws(() => resolveProductionReveal(noAbility, 'p1', 'reroll'));
+
+  const config2 = baseConfig({ players: [{ id: 'p1', chickenName: 'J.R.R. Yolkien' }, { id: 'p2', chickenName: 'Shellock Holmes' }] });
+  const noEggs = withPlayer(createGame(config2), 'p1', {
+    stage: 3,
+    eggs: 0,
+    pendingProductionReveal: { roll: 1, threshold: 3, eggAmount: 1, gained: false },
+  });
+  assert.throws(() => resolveProductionReveal(noEggs, 'p1', 'reroll'));
+});
+
+test('resolveProductionReveal "adjust" (Strategem) spends eggs and clamps the roll to 1-6', () => {
+  const config = baseConfig({ players: [{ id: 'p1', chickenName: 'General Tso' }, { id: 'p2', chickenName: 'Shellock Holmes' }] });
+  const state = withPlayer(createGame(config), 'p1', {
+    stage: 3,
+    eggs: 5,
+    pendingProductionReveal: { roll: 5, threshold: 2, eggAmount: 1, gained: true },
+  });
+  const result = resolveProductionReveal(state, 'p1', 'adjust', 5, -1); // 5 - 5 = 0, clamped to 1
+  const p1 = result.players.find((p) => p.id === 'p1')!;
+  assert.equal(p1.eggs, 0); // spent all 5; the clamped roll (1) misses threshold 2, no egg gained
+  const entry = result.actionLog.at(-1) as any;
+  assert.equal(entry.roll, 1);
+  assert.equal(entry.method, 'adjusted');
+  assert.equal(entry.gained, false);
+});
+
+test('resolveProductionReveal "adjust" throws without enough eggs or without the ability', () => {
+  const config = baseConfig({ players: [{ id: 'p1', chickenName: 'General Tso' }, { id: 'p2', chickenName: 'Shellock Holmes' }] });
+  const shortOnEggs = withPlayer(createGame(config), 'p1', {
+    stage: 3,
+    eggs: 1,
+    pendingProductionReveal: { roll: 1, threshold: 2, eggAmount: 1, gained: false },
+  });
+  assert.throws(() => resolveProductionReveal(shortOnEggs, 'p1', 'adjust', 2, 1));
+
+  const config2 = baseConfig({ players: [{ id: 'p1', chickenName: 'Shellock Holmes' }, { id: 'p2', chickenName: 'Wingston Coophill' }] });
+  const noAbility = withPlayer(createGame(config2), 'p1', {
+    stage: 2,
+    eggs: 5,
+    pendingProductionReveal: { roll: 1, threshold: 3, eggAmount: 1, gained: false },
+  });
+  assert.throws(() => resolveProductionReveal(noAbility, 'p1', 'adjust', 1, 1));
+});
+
+test('resolveProductionReveal throws when nothing is pending', () => {
+  const state = createGame(baseConfig());
+  assert.throws(() => resolveProductionReveal(state, 'p1', 'keep'));
 });
 
 test('startTurn applies production and grants 2 actions', () => {

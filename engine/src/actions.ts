@@ -5,7 +5,7 @@ import { getPlayer, replacePlayer } from './helpers.js';
 import { addMeals } from './leveling.js';
 import { resolveCombat, applyDamageAndMaybeDeath, applyDirectPredatorDamage, applyDirectGrubDamage } from './combat.js';
 import { activeWeatherEffect, activeWeatherName, redrawWeatherCard } from './abilities/weather.js';
-import { applyEggExchange } from './turn.js';
+import { applyEggExchange, applyProductionOutcome } from './turn.js';
 import {
   getOwnAndBorrowedAbilities,
   isImmuneToWeather,
@@ -661,6 +661,65 @@ export function useDeusEggsMachina(state: GameState, playerId: string, targetPla
   const target = getPlayer(state.players, targetPlayerId);
   const players = replacePlayer(replacePlayer(state.players, spentCaster), { ...target, pendingRollIntercept: intercept });
   return { ...state, players };
+}
+
+// Resolves a paused pendingProductionReveal (turn.ts's computeProductionRoll)
+// — the player has now SEEN the raw roll and decides. 'keep' commits it
+// as-is; 'reroll' (Deus Eggs Machina) rolls a fresh die; 'adjust'
+// (Strategem) shifts the stored roll by direction*eggsToSpend, clamped to
+// a real die's 1-6 range same as abilities/chickens.ts's applyRollIntercept
+// does for its own adjustBy mode. All three commit the egg gain (or run
+// onProductionMiss, on a final miss) via turn.ts's applyProductionOutcome,
+// and append a productionRoll log entry — same shape the auto-resolve path
+// appends, so the toast/log formatting doesn't need to know which path ran.
+export function resolveProductionReveal(
+  state: GameState,
+  playerId: string,
+  choice: 'keep' | 'reroll' | 'adjust',
+  eggsToSpend?: number,
+  direction?: 1 | -1,
+): GameState {
+  if (state.turnOrder[state.currentPlayerIndex] !== playerId) {
+    throw new Error(`It is not ${playerId}'s turn`);
+  }
+  const player = requireAlive(state, playerId);
+  const pending = player.pendingProductionReveal;
+  if (!pending) throw new Error(`${playerId} has no production roll pending`);
+
+  const battleCryBonus = nearbyAuraTeammateRollBonus(state, playerId);
+  let roll = pending.roll;
+  let spentPlayer = player;
+  let method: 'rerolled' | 'adjusted' | undefined;
+
+  if (choice === 'reroll') {
+    const hasAbility = getOwnAndBorrowedAbilities(player).some((a) => a.canRerollAnyRollForEgg);
+    if (!hasAbility) throw new Error(`${playerId}'s chicken has no such ability`);
+    if (player.eggs < 1) throw new Error(`${playerId} does not have an egg to spend`);
+    spentPlayer = { ...player, eggs: player.eggs - 1 };
+    roll = rollDie(state.config.rng);
+    method = 'rerolled';
+  } else if (choice === 'adjust') {
+    const hasAbility = getOwnAndBorrowedAbilities(player).some((a) => a.canAdjustAnyRollForEggs);
+    if (!hasAbility) throw new Error(`${playerId}'s chicken has no such ability`);
+    if (!eggsToSpend || eggsToSpend < 1) throw new Error('Spend at least 1 egg to adjust the roll');
+    if (player.eggs < eggsToSpend) throw new Error(`${playerId} does not have ${eggsToSpend} eggs to spend`);
+    spentPlayer = { ...player, eggs: player.eggs - eggsToSpend };
+    roll = Math.min(6, Math.max(1, pending.roll + (direction ?? 1) * eggsToSpend));
+    method = 'adjusted';
+  }
+
+  const gained = roll + player.permanentEggProductionBonus + battleCryBonus >= pending.threshold;
+  const cleared = { ...spentPlayer, pendingProductionReveal: null };
+  const resolvedPlayer = applyProductionOutcome(state, cleared, gained, pending.eggAmount);
+  const afterPlayer: GameState = { ...state, players: replacePlayer(state.players, resolvedPlayer) };
+
+  return {
+    ...afterPlayer,
+    actionLog: [
+      ...afterPlayer.actionLog,
+      { type: 'productionRoll', playerId, roll, threshold: pending.threshold, eggAmount: pending.eggAmount, gained, method },
+    ],
+  };
 }
 
 // Wherever, any Weather (Chickira S2): "Free action: Once per turn, you

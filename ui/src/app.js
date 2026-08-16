@@ -21,6 +21,7 @@ import { Board, playerColor } from './components/board.js';
 import { PlayerPanel, AvatarStrip } from './components/playerPanel.js';
 import { ActionBar } from './components/actionBar.js';
 import { TurnControls } from './components/turnControls.js';
+import { ProductionReveal } from './components/productionReveal.js';
 
 const SEASON_ORDER = ['Spring', 'Summer', 'Fall'];
 
@@ -53,6 +54,18 @@ function formatLogEntry(action, playerNames) {
       return html`${name(action.playerId)} played a <b>Bonus Card</b>.`;
     case 'useGrubReward':
       return html`${name(action.playerId)} used a <b>Grub Reward</b>.`;
+    case 'productionRoll': {
+      const methodNote = action.method === 'rerolled' ? ' (rerolled via Deus Eggs Machina)' : action.method === 'adjusted' ? ' (adjusted via Strategem)' : '';
+      return action.gained
+        ? html`${name(action.playerId)} rolled a <b>${action.roll}</b> for production (needed ${action.threshold}+)${methodNote} — gained ${action.eggAmount} egg${action.eggAmount > 1 ? 's' : ''}.`
+        : html`${name(action.playerId)} rolled a <b>${action.roll}</b> for production (needed ${action.threshold}+)${methodNote} — no egg this time.`;
+    }
+    // Superseded by the productionRoll entry the same dispatch also
+    // appends (actions.ts's resolveProductionReveal) — the raw action
+    // object has no roll value to show, so it'd just be a duplicate,
+    // less-informative line. Filtered out wherever actionLog is rendered.
+    case 'resolveProductionReveal':
+      return null;
     default:
       return html`${name(action.playerId)} — ${action.type}.`;
   }
@@ -227,7 +240,13 @@ function App() {
     const entries = gameState.actionLog;
     const prevLength = lastLogLengthRef.current;
     if (entries.length > prevLength) {
-      const newToasts = entries.slice(prevLength).map((a) => ({ id: ++toastIdRef.current, text: formatLogEntry(a, playerNames) }));
+      // formatLogEntry returns null for entries superseded by another entry
+      // from the same dispatch (resolveProductionReveal's raw action, see
+      // its case above) — filtered here so no blank toast flashes.
+      const newToasts = entries
+        .slice(prevLength)
+        .map((a) => ({ id: ++toastIdRef.current, text: formatLogEntry(a, playerNames) }))
+        .filter((t) => t.text);
       setToasts((cur) => [...cur, ...newToasts]);
       newToasts.forEach((t) => {
         setTimeout(() => setToasts((cur) => cur.filter((x) => x.id !== t.id)), 6000);
@@ -440,7 +459,10 @@ function App() {
   const currentPlayerId = gameState.turnOrder[gameState.currentPlayerIndex];
   const currentPlayer = gameState.players.find((p) => p.id === currentPlayerId);
   const opponents = gameState.players.filter((p) => p.id !== currentPlayerId);
-  const recentLog = gameState.actionLog.slice(-12).reverse();
+  // Filter before slicing so a superseded entry (resolveProductionReveal's
+  // raw action, see formatLogEntry's case above) doesn't crowd out a real
+  // one from the last-12 window.
+  const recentLog = gameState.actionLog.filter((a) => formatLogEntry(a, playerNames)).slice(-12).reverse();
 
   // Functions, not hoisted vnodes — the dock is rendered in two places at
   // once (desktop side panel, CSS-hidden on mobile; mobile sheet, CSS-hidden
@@ -511,7 +533,9 @@ function App() {
         html`<div class="gs-side-panel">
           ${dayEndPending
             ? html`<${TurnControls} state=${gameState} onSubmitDayEnd=${handleDayEndSubmit} myPlayerId=${myPlayerId} playerNames=${playerNames} />`
-            : html`${dockPanel(true)}${actionBar()}`}
+            : currentPlayer.pendingProductionReveal
+              ? html`${dockPanel(true)}<${ProductionReveal} player=${currentPlayer} dispatch=${dispatch} myPlayerId=${myPlayerId} />`
+              : html`${dockPanel(true)}${actionBar()}`}
         </div>`}
         <div class="gs-board">
           <${Board}
@@ -573,7 +597,9 @@ function App() {
                 <div class="mobile-tab-body">
                   ${mobileTab === 'board' && (dayEndPending
                     ? html`<${TurnControls} state=${gameState} onSubmitDayEnd=${handleDayEndSubmit} myPlayerId=${myPlayerId} playerNames=${playerNames} />`
-                    : html`${dockPanel()}${actionBar()}`)}
+                    : currentPlayer.pendingProductionReveal
+                      ? html`${dockPanel()}<${ProductionReveal} player=${currentPlayer} dispatch=${dispatch} myPlayerId=${myPlayerId} />`
+                      : html`${dockPanel()}${actionBar()}`)}
                   ${mobileTab === 'flock' &&
                   opponents.map(
                     (p) => html`<${PlayerPanel}
