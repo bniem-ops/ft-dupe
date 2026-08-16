@@ -119,6 +119,24 @@ async function lockInChicken(code, playerId, chickenName) {
   await updateDoc(doc(database, 'sessions', code), { [`chosenChicken.${playerId}`]: chickenName });
 }
 
+// Host-only, called live as they adjust flock size/Eggspansion/difficulty in
+// the lobby (phase 5b) — hostConfig is no longer write-once at creation.
+// Last-write-wins like everything else here; only the host ever writes it,
+// so there's nothing to race against.
+async function updateHostConfig(code, hostConfig) {
+  const database = getDb();
+  if (!database) throw new Error('Firebase not configured');
+  await setDoc(doc(database, 'sessions', code), { hostConfig }, { merge: true });
+}
+
+// Advisory only (never gates Start Game) — each player only ever writes
+// their own key, same non-racing reasoning as lockInChicken.
+async function setReady(code, playerId, ready) {
+  const database = getDb();
+  if (!database) throw new Error('Firebase not configured');
+  await updateDoc(doc(database, 'sessions', code), { [`seats.${playerId}.ready`]: ready });
+}
+
 // dayEndPending rides alongside `state` rather than being derived from it —
 // it's transient UI-flow state (has this device finished the day's last
 // player's turn and is now waiting on the Egg Exchange/Grub-discard
@@ -151,6 +169,8 @@ export const remoteSession = {
   createSession,
   getSession,
   joinAndClaimSeat,
+  updateHostConfig,
+  setReady,
   startDraft,
   lockInChicken,
   pushState,

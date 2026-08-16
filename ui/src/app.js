@@ -12,10 +12,8 @@ import {
   randomizePredatorSelection,
   dealChickenChoices,
 } from './engine.js';
-import { Landing } from './components/landing.js';
-import { CreateGame } from './components/createGame.js';
-import { JoinGame } from './components/joinGame.js';
-import { NameEntry } from './components/nameEntry.js';
+import { Entry } from './components/entry.js';
+import { SoloSetup } from './components/soloSetup.js';
 import { Lobby } from './components/lobby.js';
 import { ChickenDraft } from './components/chickenDraft.js';
 import { remoteSession, fromSyncedDoc } from './remoteSession.js';
@@ -80,7 +78,7 @@ function advanceToNextActor(state) {
 }
 
 function App() {
-  const [screen, setScreen] = useState('landing');
+  const [screen, setScreen] = useState('entry');
   const [gameState, setGameState] = useState(null);
   const [error, setError] = useState(null);
   const [dayEndPending, setDayEndPending] = useState(false);
@@ -106,6 +104,13 @@ function App() {
   const [dealtChickens, setDealtChickens] = useState(null);
   const [chosenChicken, setChosenChicken] = useState({});
   const [myPlayerId, setMyPlayerId] = useState(null);
+  // Carries the name from the entry screen into soloSetup — solo needs a
+  // difficulty/Eggspansion step in between, so the name can't be used to
+  // create+claim a seat until that step submits.
+  const [pendingName, setPendingName] = useState(null);
+  // Guards the solo auto-start effect against firing twice (mirrors
+  // finalizingRef below, same rapid-double-snapshot concern).
+  const soloStartingRef = useRef(false);
 
   // Computed early (not just where it's first used below) so both the
   // toast-queue effect and the render can share it without duplicating.
@@ -140,16 +145,30 @@ function App() {
       // myPlayerId (React state) can lag one tick behind a join that just
       // succeeded — the doc's snapshot can arrive before this device's own
       // setMyPlayerId call runs. Falling back to the synchronous localStorage
-      // read (already written by handleSubmitName before setMyPlayerId)
-      // avoids a spurious flash back to nameEntry — and the "already full"
-      // error that flash could otherwise trigger via a re-submit.
+      // read (already written by the Host/Join/Solo handler before
+      // setMyPlayerId) avoids a spurious flash back to the entry screen.
       const savedSeat = myPlayerId ?? remoteSession.getMySeat(sessionCode);
       if (!savedSeat) {
-        setScreen('nameEntry');
+        // Shouldn't normally happen now that a seat is claimed as part of
+        // the Host/Join/Solo submission itself — still the safest fallback.
+        setScreen('entry');
         return;
       }
       if (!myPlayerId) setMyPlayerId(savedSeat);
-      setScreen(doc.predators ? 'chickenDraft' : 'lobby');
+
+      if (!doc.predators) {
+        // Solo skips the waiting-room lobby entirely — its one seat is
+        // already filled the moment it's claimed, so jump straight to the
+        // draft instead of rendering a lobby nobody else will ever join.
+        if (doc.hostConfig?.playerCount === 1 && !soloStartingRef.current) {
+          soloStartingRef.current = true;
+          startDraftFor(sessionCode, doc.hostConfig);
+          return;
+        }
+        setScreen('lobby');
+        return;
+      }
+      setScreen('chickenDraft');
     });
     return unsubscribe;
   }, [sessionCode, myPlayerId]);
@@ -270,23 +289,16 @@ function App() {
     }
   }
 
-  async function handleCreateLobby(formHostConfig) {
+  // Host and Join both claim a seat as part of the same tap now — there's
+  // no separate nameEntry screen anymore, so this does what
+  // handleCreateLobby + handleSubmitName used to do together.
+  async function handleHost(name) {
     try {
-      const code = await remoteSession.createSession(formHostConfig);
+      const code = await remoteSession.createSession({ playerCount: 4, eggspansion: false, difficulty: 4 });
       setIsHost(true);
-      setSessionCode(code);
-      setError(null);
-    } catch (e) {
-      setError(e.message);
-    }
-  }
-
-  async function handleJoinByCode(code) {
-    try {
-      await remoteSession.getSession(code); // validates the code exists before committing to it
-      setIsHost(false);
-      const savedSeat = remoteSession.getMySeat(code);
-      if (savedSeat) setMyPlayerId(savedSeat);
+      const seatId = await remoteSession.joinAndClaimSeat(code, name);
+      remoteSession.setMySeat(code, seatId);
+      setMyPlayerId(seatId);
       setSessionCode(code); // the subscribe effect above takes it from here
       setError(null);
     } catch (e) {
@@ -294,20 +306,62 @@ function App() {
     }
   }
 
-  async function handleSubmitName(name) {
+  async function handleJoinByCode(name, code) {
     try {
-      // Already seated (e.g. a stray re-submit) — reuse it instead of
-      // attempting a fresh claim, which would fail with "session is full"
-      // once every seat (including this device's own) is taken.
-      const existingSeat = remoteSession.getMySeat(sessionCode);
-      if (existingSeat) {
-        setMyPlayerId(existingSeat);
-        setError(null);
-        return;
-      }
-      const seatId = await remoteSession.joinAndClaimSeat(sessionCode, name);
-      remoteSession.setMySeat(sessionCode, seatId);
+      await remoteSession.getSession(code); // validates the code exists before committing to it
+      setIsHost(false);
+      const existingSeat = remoteSession.getMySeat(code);
+      const seatId = existingSeat ?? (await remoteSession.joinAndClaimSeat(code, name));
+      if (!existingSeat) remoteSession.setMySeat(code, seatId);
       setMyPlayerId(seatId);
+      setSessionCode(code);
+      setError(null);
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  // Just remembers the name and moves to the difficulty/Eggspansion step —
+  // the seat isn't claimed until that step submits (handleStartSolo).
+  function handleGoToSoloSetup(name) {
+    setPendingName(name);
+    setScreen('soloSetup');
+  }
+
+  async function handleStartSolo(soloConfig) {
+    try {
+      const code = await remoteSession.createSession({ playerCount: 1, ...soloConfig });
+      setIsHost(true);
+      const seatId = await remoteSession.joinAndClaimSeat(code, pendingName);
+      remoteSession.setMySeat(code, seatId);
+      setMyPlayerId(seatId);
+      setSessionCode(code);
+      setError(null);
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  function handleUpdateHostConfig(partial) {
+    const next = { ...hostConfig, ...partial };
+    setHostConfig(next); // optimistic, same pattern as applyStateUpdate below
+    remoteSession.updateHostConfig(sessionCode, next).catch((e) => setError(e.message));
+  }
+
+  function handleToggleReady(ready) {
+    remoteSession.setReady(sessionCode, myPlayerId, ready).catch((e) => setError(e.message));
+  }
+
+  // Parametrized so the solo auto-start path (inside the subscribe
+  // callback, before hostConfig state has necessarily caught up) and the
+  // multiplayer host's explicit Start Game tap can share it.
+  function startDraftFor(code, cfg) {
+    try {
+      const seatIds = Array.from({ length: cfg.playerCount }, (_, i) => `p${i + 1}`);
+      const rng = () => Math.random();
+      const predatorSelection = randomizePredatorSelection(cfg.difficulty, cfg.eggspansion, rng);
+      const dealt = dealChickenChoices(seatIds, cfg.eggspansion, rng);
+      remoteSession.startDraft(code, predatorSelection, dealt).catch((e) => setError(e.message));
       setError(null);
     } catch (e) {
       setError(e.message);
@@ -315,51 +369,46 @@ function App() {
   }
 
   function handleStartDraft() {
-    try {
-      const seatIds = Array.from({ length: hostConfig.playerCount }, (_, i) => `p${i + 1}`);
-      const rng = () => Math.random();
-      const predatorSelection = randomizePredatorSelection(hostConfig.difficulty, hostConfig.eggspansion, rng);
-      const dealt = dealChickenChoices(seatIds, hostConfig.eggspansion, rng);
-      remoteSession.startDraft(sessionCode, predatorSelection, dealt).catch((e) => setError(e.message));
-      setError(null);
-    } catch (e) {
-      setError(e.message);
-    }
+    startDraftFor(sessionCode, hostConfig);
   }
 
   function handleLockIn(chickenName) {
     remoteSession.lockInChicken(sessionCode, myPlayerId, chickenName).catch((e) => setError(e.message));
   }
 
-  if (screen === 'landing') {
-    return html`<${Landing} onCreateGame=${() => setScreen('createGame')} onJoinGame=${() => setScreen('joinGame')} />`;
+  if (screen === 'entry') {
+    return html`<${Entry} onHost=${handleHost} onJoin=${handleJoinByCode} onSolo=${handleGoToSoloSetup} error=${error} />`;
   }
 
-  if (screen === 'createGame') {
-    return html`<${CreateGame} onCreateLobby=${handleCreateLobby} error=${error} />`;
-  }
-
-  if (screen === 'joinGame') {
-    return html`<${JoinGame} onJoinByCode=${handleJoinByCode} error=${error} />`;
-  }
-
-  if (screen === 'nameEntry') {
-    return html`<${NameEntry} code=${sessionCode} onSubmitName=${handleSubmitName} error=${error} />`;
+  if (screen === 'soloSetup') {
+    return html`<${SoloSetup} onStart=${handleStartSolo} error=${error} />`;
   }
 
   if (screen === 'lobby') {
-    return html`<${Lobby} code=${sessionCode} hostConfig=${hostConfig} seats=${seats} isHost=${isHost} onStart=${handleStartDraft} error=${error} />`;
+    return html`<${Lobby}
+      role=${isHost ? 'host' : 'guest'}
+      code=${sessionCode}
+      hostConfig=${hostConfig}
+      seats=${seats}
+      myPlayerId=${myPlayerId}
+      onUpdateHostConfig=${handleUpdateHostConfig}
+      onStart=${handleStartDraft}
+      onToggleReady=${handleToggleReady}
+      error=${error}
+    />`;
   }
 
   if (screen === 'chickenDraft') {
-    const seatIds = Object.keys(seats);
-    const waitingOn = seatIds.filter((id) => id !== myPlayerId && !chosenChicken[id]).map((id) => seats[id]?.name ?? id);
+    const seatIds = Array.from({ length: hostConfig.playerCount }, (_, i) => `p${i + 1}`);
     return html`<${ChickenDraft}
       predators=${predators}
       candidates=${dealtChickens[myPlayerId]}
       lockedIn=${chosenChicken[myPlayerId] ?? null}
+      seatIds=${seatIds}
+      seats=${seats}
+      chosenChicken=${chosenChicken}
+      myPlayerId=${myPlayerId}
       onLockIn=${handleLockIn}
-      waitingOn=${waitingOn}
     />`;
   }
 

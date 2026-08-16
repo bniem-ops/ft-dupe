@@ -1,5 +1,4 @@
 import { html } from 'htm/preact';
-import { useState } from 'preact/hooks';
 import {
   bossPool,
   allFourPool,
@@ -11,8 +10,10 @@ import {
 
 // Generated straight from the engine's own difficulty-modifier functions
 // (setup.ts) so this text can never drift from what the game actually
-// does — no hand-copied rules summary to keep in sync.
-function difficultyBlurb(difficulty, eggspansion) {
+// does — no hand-copied rules summary to keep in sync. Exported so both
+// the lobby's host settings column and the guest's read-only summary can
+// show the same text.
+export function difficultyBlurb(difficulty, eggspansion) {
   const parts = [];
   if (grantsRandomLootDrop(difficulty)) parts.push('Every player starts with a random Loot Drop.');
   if (bossHealthBonus(difficulty) === 0) parts.push('No Boss health bonus.');
@@ -26,74 +27,35 @@ function difficultyBlurb(difficulty, eggspansion) {
   return parts.length ? parts.join(' ') : 'No modifiers.';
 }
 
-export function CreateGame({ onCreateLobby, error }) {
-  const [playerCount, setPlayerCount] = useState(1);
-  const [eggspansion, setEggspansion] = useState(false);
-  const [difficulty, setDifficulty] = useState(4);
-
-  const maxPlayers = eggspansion ? 6 : 5;
-
-  function toggleEggspansion(value) {
-    setEggspansion(value);
-    if (!value && playerCount > 5) setPlayerCount(5);
-  }
-
-  function handleSubmit(e) {
-    e.preventDefault();
-    onCreateLobby({ playerCount, difficulty, eggspansion });
-  }
-
+// Eggspansion + Difficulty pickers only — no player count (the lobby's
+// flock-size grid handles that, with its own min/max-perch locking logic;
+// solo has no player count at all). Shared by soloSetup.js and lobby.js's
+// host settings column so this rules-facing UI only exists once.
+export function DifficultySettings({ eggspansion, difficulty, onChangeEggspansion, onChangeDifficulty }) {
   return html`
-    <div class="setup">
-      <h1>Create Game</h1>
-      ${error && html`<div class="error-banner">${error}</div>`}
-      <form onSubmit=${handleSubmit}>
-        <div class="field">
-          <label>Players</label>
-          <div class="pill-group">
-            ${[1, 2, 3, 4, 5, 6].map((n) => {
-              const locked = n > maxPlayers;
-              return html`<button
-                key=${n}
-                type="button"
-                class=${`pill ${playerCount === n ? 'selected' : ''}`}
-                disabled=${locked}
-                onClick=${() => setPlayerCount(n)}
-              >
-                ${n}${locked ? ' 🔒' : ''}
-              </button>`;
-            })}
-          </div>
-          ${!eggspansion && html`<span class="ref-text">6 players requires Eggspansion.</span>`}
-        </div>
+    <div class="field">
+      <label>Eggspansion pack?</label>
+      <div class="pill-group">
+        <button type="button" class=${`pill ${!eggspansion ? 'selected' : ''}`} onClick=${() => onChangeEggspansion(false)}>No</button>
+        <button type="button" class=${`pill ${eggspansion ? 'selected' : ''}`} onClick=${() => onChangeEggspansion(true)}>Yes</button>
+      </div>
+    </div>
 
-        <div class="field">
-          <label>Eggspansion pack?</label>
-          <div class="pill-group">
-            <button type="button" class=${`pill ${!eggspansion ? 'selected' : ''}`} onClick=${() => toggleEggspansion(false)}>No</button>
-            <button type="button" class=${`pill ${eggspansion ? 'selected' : ''}`} onClick=${() => toggleEggspansion(true)}>Yes</button>
-          </div>
-        </div>
-
-        <div class="field">
-          <label>Difficulty (4 = Normal; 1-3 are easier, 5-8 are harder)</label>
-          <div class="pill-group">
-            ${[1, 2, 3, 4, 5, 6, 7, 8].map(
-              (d) => html`<button
-                key=${d}
-                type="button"
-                class=${`pill ${difficulty === d ? 'selected' : ''}`}
-                onClick=${() => setDifficulty(d)}
-              >
-                ${d}${d === 4 ? ' (Normal)' : ''}
-              </button>`,
-            )}
-          </div>
-          <span class="ref-text difficulty-blurb">${difficultyBlurb(difficulty, eggspansion)}</span>
-        </div>
-
-        <button type="submit">Create Lobby</button>
-      </form>
+    <div class="field">
+      <label>Difficulty (4 = Normal; 1-3 are easier, 5-8 are harder)</label>
+      <div class="pill-group">
+        ${[1, 2, 3, 4, 5, 6, 7, 8].map(
+          (d) => html`<button
+            key=${d}
+            type="button"
+            class=${`pill ${difficulty === d ? 'selected' : ''}`}
+            onClick=${() => onChangeDifficulty(d)}
+          >
+            ${d}${d === 4 ? html`<span class="pill-suffix"> (Normal)</span>` : ''}
+          </button>`,
+        )}
+      </div>
+      <span class="ref-text difficulty-blurb">${difficultyBlurb(difficulty, eggspansion)}</span>
     </div>
   `;
 }
