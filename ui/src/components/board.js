@@ -22,7 +22,7 @@ const BOARD_ANCHORS = {
   bonusDiscard: { x: 15.65, y: 10 },
   grubDiscard: { x: 95.2, y: 9.9 },
   goldenGables: { x: 22, y: 47, w: 15.5, h: 8.5 },
-  badlands: { x: 61.35, y: 31, w: 15.5, h: 8.5 },
+  badlands: { x: 65, y: 31, w: 15.5, h: 8.5 },
   grubsOutside: { x: 85.8, y: 42 },
   grubsInside: { x: 63.3, y: 50.2 },
   coop: { x: 59.7, y: 66.5, w: 17.5, h: 8 },
@@ -40,7 +40,7 @@ const BANNER_ANCHORS = {
   goldenGables: { x: 22, y: 50.5 },
   hendredAcreWood: { x: 11, y: 90.5 },
   gritStones: { x: 88, y: 87.5 },
-  badlands: { x: 61.35, y: 34.5 },
+  badlands: { x: 65, y: 34.5 },
 };
 
 // Each predator-bearing location gets its own card slot, floating above
@@ -52,7 +52,7 @@ const PREDATOR_ANCHORS = {
   'Golden Gables': { x: 22, y: 30.9, w: 12 },
   'Hendred Acre Wood': { x: 11, y: 71, w: 11.7 },
   'Grit Stones': { x: 88, y: 68, w: 11.7 },
-  Badlands: { x: 61.35, y: 14.9, w: 11.7 },
+  Badlands: { x: 65, y: 14.9, w: 11.7 },
 };
 
 // Width for each board-slot card, in cqw (percent of the board box's own
