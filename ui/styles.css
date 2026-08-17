@@ -1828,6 +1828,45 @@ input.entry-code-box:focus {
   color: #2b241c;
 }
 
+/* Season key (mockup 4a/4b) — a stacked SPRING/SUMMER/FALL legend right of
+   the day track, sharing its row. The design shows all three at full
+   strength; the current season is additionally highlighted here since a
+   static mockup can't show that distinction but a live board should. */
+.season-key {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15cqw;
+}
+
+.season-key-pill {
+  font-family: var(--font-display);
+  font-size: 0.717cqw;
+  letter-spacing: 0.08em;
+  padding: 0.15cqw 0.5cqw;
+  border-radius: 2px;
+  color: #f4ecd6;
+  opacity: 0.55;
+}
+
+.season-key-pill.season-spring {
+  background: var(--gs-field);
+}
+
+.season-key-pill.season-summer {
+  background: var(--gs-ochre);
+  color: #3c2b1c;
+}
+
+.season-key-pill.season-fall {
+  background: var(--gs-dusk);
+}
+
+.season-key-pill.is-active {
+  opacity: 1;
+  box-shadow: 0 0 0 1.5px rgba(240, 227, 196, 0.7);
+}
+
 /* The painted oval (design mockup 4a/4b) — transparent by default so the
    board art shows through, with the state conveyed by border style alone
    (solid ochre = current location, dashed ochre = legal move target),

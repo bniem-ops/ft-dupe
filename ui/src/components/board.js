@@ -72,11 +72,17 @@ const BOARD_CARD_WIDTHS = {
   weatherTrack: 10.4,
 };
 
-// Day track — 7 cells, current day carries a token — laid across open
-// ground at the bottom of the board, clear of the weather slot (which now
-// sits to the left, matching 4a/4b's actual weatherTrack position above).
+// Day track — 7 cells, current day carries the weathervane token — laid
+// across open ground at the bottom of the board, clear of the weather slot
+// (which now sits to the left, matching 4a/4b's actual weatherTrack
+// position above).
 const DAY_TRACK_Y = 94.15;
 const DAY_TRACK_XS = [36.0, 41.38, 46.76, 52.14, 57.52, 62.9, 68.28];
+
+// Season key — a stacked SPRING/SUMMER/FALL legend just past the day
+// track's last cell, same row (4a/4b).
+const SEASON_KEY_ANCHOR = { x: 75.5, y: 94.15 };
+const SEASON_ORDER = ['Spring', 'Summer', 'Fall'];
 
 const LOCATION_ANCHOR_KEY = {
   Coop: 'coop',
@@ -256,6 +262,17 @@ function DayTrack({ day }) {
   `;
 }
 
+function SeasonKey({ season }) {
+  return html`
+    <div class="season-key" style=${anchorStyle(SEASON_KEY_ANCHOR)}>
+      ${SEASON_ORDER.map(
+        (s) =>
+          html`<span key=${s} class=${`season-key-pill season-${s.toLowerCase()} ${s === season ? 'is-active' : ''}`}>${s.toUpperCase()}</span>`,
+      )}
+    </div>
+  `;
+}
+
 function GrubDeckBadge({ side, deckSide, state, dispatch, pendingPick, setPendingPick }) {
   const pickingAttackTarget =
     (pendingPick?.type === 'attack' || pendingPick?.type === 'attackWithCompanion') && pendingPick.step === 'target';
@@ -315,6 +332,7 @@ export function Board({ state, dispatch, pendingPick, setPendingPick, playerName
       <div class="board-scrim"></div>
 
       <${DayTrack} day=${state.day} />
+      <${SeasonKey} season=${state.season} />
 
       <div class="board-locations">
         ${locations.map(
