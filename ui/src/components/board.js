@@ -14,18 +14,33 @@ export const PLAYER_COLORS = ['#c0392b', '#2980b9', '#27ae60', '#8e44ad', '#e67e
 // with left:x%; top:y%; transform:translate(-50%,-50%) — nothing
 // re-measures on resize, and swapping in a higher-res scan of the same
 // composition changes nothing but the image file.
+// The five outer-plus-Coop entries carry w/h too — these are the painted
+// ovals themselves (where player tokens land and the Move target you click
+// sits), sized and positioned to match 4a/4b exactly.
 const BOARD_ANCHORS = {
   bonusDeck: { x: 5, y: 10 },
   bonusDiscard: { x: 15.65, y: 10 },
   grubDiscard: { x: 95.2, y: 9.9 },
-  goldenGables: { x: 22, y: 47 },
-  badlands: { x: 69, y: 31 },
+  goldenGables: { x: 22, y: 47, w: 15.5, h: 8.5 },
+  badlands: { x: 69, y: 31, w: 15.5, h: 8.5 },
   grubsOutside: { x: 85.8, y: 42 },
   grubsInside: { x: 63.3, y: 50.2 },
-  coop: { x: 59.7, y: 66.5 },
-  hendredAcreWood: { x: 11, y: 87 },
-  gritStones: { x: 88, y: 84 },
+  coop: { x: 59.7, y: 66.5, w: 17.5, h: 8 },
+  hendredAcreWood: { x: 11, y: 87, w: 15.5, h: 8.5 },
+  gritStones: { x: 88, y: 84, w: 15.5, h: 8.5 },
   weatherTrack: { x: 27.2, y: 89.9 },
+};
+
+// The location NAME banner is a separately-positioned small tag, not part
+// of the oval — matching 4a/4b, where the two are independent elements
+// (the oval sits over open ground; the banner sits just below/past its
+// edge so it never covers the oval's own "dead space").
+const BANNER_ANCHORS = {
+  coop: { x: 59.7, y: 71.5 },
+  goldenGables: { x: 22, y: 50.5 },
+  hendredAcreWood: { x: 11, y: 90.5 },
+  gritStones: { x: 88, y: 87.5 },
+  badlands: { x: 69, y: 34.5 },
 };
 
 // Each predator-bearing location gets its own card slot, floating above
@@ -150,9 +165,12 @@ function PredatorCard({ predator, clickable, onSelect }) {
   `;
 }
 
-function LocationNode({ name, anchor, state, dispatch, pendingPick, setPendingPick, playerNames, hereLocation }) {
-  const isCoop = name === 'Coop';
+// The painted oval itself — where tokens sit and what you click to move
+// there. Shape and position are independent of the name banner (see
+// LocationBanner below), matching 4a/4b's structure.
+function LocationOval({ name, anchor, state, dispatch, pendingPick, setPendingPick, playerNames, hereLocation }) {
   const pickingMove = pendingPick?.type === 'move';
+  const isHere = hereLocation === name;
 
   function move() {
     dispatch({ type: 'move', playerId: pendingPick.playerId, destination: name });
@@ -161,16 +179,21 @@ function LocationNode({ name, anchor, state, dispatch, pendingPick, setPendingPi
 
   return html`
     <div
-      class=${`loc-node ${isCoop ? 'coop' : ''} ${pickingMove ? 'pickable' : ''}`}
-      style=${anchorStyle(anchor)}
+      class=${`loc-oval ${isHere ? 'is-here' : ''} ${pickingMove ? 'is-target' : ''}`}
+      style=${{ ...anchorStyle(anchor), width: `${anchor.w}%`, height: `${anchor.h}%` }}
       onClick=${pickingMove ? move : undefined}
     >
-      <div class="loc-name">
-        <span>${name}</span>
-        ${hereLocation === name && html`<span class="here-badge">YOU ARE HERE</span>`}
-      </div>
       <${PlayerTokens} state=${state} location=${name} playerNames=${playerNames} />
-      ${pickingMove && html`<span class="loc-move-btn">Move here</span>`}
+    </div>
+  `;
+}
+
+// A small read-only name tag, positioned near (not on top of) its oval.
+function LocationBanner({ name, anchor, hereLocation }) {
+  return html`
+    <div class="loc-banner" style=${anchorStyle(anchor)}>
+      <span>${name}</span>
+      ${hereLocation === name && html`<span class="here-badge">YOU ARE HERE</span>`}
     </div>
   `;
 }
@@ -296,7 +319,7 @@ export function Board({ state, dispatch, pendingPick, setPendingPick, playerName
       <div class="board-locations">
         ${locations.map(
           (loc) =>
-            html`<${LocationNode}
+            html`<${LocationOval}
               key=${loc}
               name=${loc}
               anchor=${BOARD_ANCHORS[LOCATION_ANCHOR_KEY[loc]]}
@@ -307,6 +330,10 @@ export function Board({ state, dispatch, pendingPick, setPendingPick, playerName
               playerNames=${playerNames}
               hereLocation=${hereLocation}
             />`,
+        )}
+        ${locations.map(
+          (loc) =>
+            html`<${LocationBanner} key=${loc} name=${loc} anchor=${BANNER_ANCHORS[LOCATION_ANCHOR_KEY[loc]]} hereLocation=${hereLocation} />`,
         )}
       </div>
 

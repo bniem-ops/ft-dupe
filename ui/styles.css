@@ -207,6 +207,22 @@ fieldset {
   font-size: 0.75em;
 }
 
+/* Tokens sitting inside a board oval (see .loc-oval below) scale with the
+   board itself rather than the surrounding em-based default above. */
+.loc-oval .tokens {
+  margin-top: 0;
+  gap: 0.4cqw;
+  flex-wrap: nowrap;
+}
+
+.loc-oval .token {
+  width: 2.049cqw;
+  height: 2.049cqw;
+  line-height: 2.049cqw;
+  font-size: 0.82cqw;
+  flex: none;
+}
+
 .grub-face {
   background: #fff;
   border: 1px solid var(--border);
@@ -1812,72 +1828,59 @@ input.entry-code-box:focus {
   color: #2b241c;
 }
 
-.loc-node {
+/* The painted oval (design mockup 4a/4b) — transparent by default so the
+   board art shows through, with the state conveyed by border style alone
+   (solid ochre = current location, dashed ochre = legal move target),
+   matching the design rather than a filled/opaque box. */
+.loc-oval {
   position: absolute;
-  width: 20.343cqw;
-  padding: 5px 10px;
-  border-radius: 12px;
-  background: rgba(56, 39, 27, 0.55);
-  border: 1.5px solid rgba(240, 227, 196, 0.5);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
-  color: var(--gs-parchment);
-  font-family: var(--font-ui);
-}
-
-.loc-node.coop {
-  border-width: 2px;
-  border-color: #f0e3c4;
-  box-shadow:
-    0 0 0 4px rgba(240, 227, 196, 0.16),
-    0 10px 24px rgba(0, 0, 0, 0.35);
-}
-
-.loc-node.pickable {
-  cursor: pointer;
-  border-color: var(--gs-ochre);
-  box-shadow: 0 0 0 3px rgba(201, 135, 63, 0.5);
-}
-
-.loc-name {
-  font-family: var(--font-display);
-  font-size: 1.257cqw;
-  color: #f4ecd6;
+  box-sizing: border-box;
+  border-radius: 50%;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
+  gap: 5px;
+  border: 1px dashed rgba(240, 227, 196, 0.22);
+}
+
+.loc-oval.is-here {
+  border: 2px solid var(--gs-ochre);
+  background: rgba(201, 135, 63, 0.12);
+}
+
+.loc-oval.is-target {
+  cursor: pointer;
+  border: 2px dashed rgba(201, 135, 63, 0.9);
+  background: rgba(201, 135, 63, 0.14);
+}
+
+/* The name tag — a small independently-positioned pill, not sized to the
+   oval and never overlapping it (see BANNER_ANCHORS in board.js). */
+.loc-banner {
+  position: absolute;
+  padding: 0.343cqw 0.686cqw;
+  border-radius: 2px;
+  background: rgba(74, 53, 39, 0.85);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
   gap: 6px;
-  margin-bottom: 4px;
+  font-family: var(--font-display);
+  font-size: 0.9cqw;
+  letter-spacing: 0.06em;
+  color: #f0e3c4;
 }
 
 .here-badge {
-  font-size: 0.971cqw;
+  font-size: 0.8cqw;
   letter-spacing: 0.08em;
-  padding: 0.343cqw 0.686cqw;
+  padding: 0.229cqw 0.457cqw;
   border-radius: 3px;
   background: var(--gs-ochre);
   color: #2b241c;
   font-weight: 700;
   white-space: nowrap;
-}
-
-.loc-node .card-plate {
-  margin-bottom: 4px;
-}
-
-.loc-node .tokens {
-  margin-top: 0;
-  margin-bottom: 0;
-}
-
-.loc-move-btn {
-  display: block;
-  text-align: center;
-  font-size: 1.2cqw;
-  font-weight: 700;
-  padding: 0.8cqw 0;
-  border-radius: 5px;
-  background: var(--gs-field);
-  color: #f4ecd6;
 }
 
 /* --- Card anatomy (design mockup turn 3): one frame, one optional art
@@ -1936,48 +1939,34 @@ input.entry-code-box:focus {
 /* Cards pinned directly to the board (as opposed to a hand-list row) sit in
    a tight anchor grid calibrated to the real board scan's printed slots —
    noticeably more compact than a full detail card. */
-.board-slot .card-plate-art,
-.loc-node .card-plate-art {
+.board-slot .card-plate-art {
   padding: 0.229cqw 0;
 }
 
-.board-slot .monogram,
-.loc-node .monogram {
+.board-slot .monogram {
   width: 3.893cqw;
   height: 3.893cqw;
   font-size: 1.537cqw;
 }
 
-.loc-node .token {
-  width: 2.4cqw;
-  height: 2.4cqw;
-  line-height: 2.4cqw;
-  font-size: 1.2cqw;
-}
-
-.board-slot .card-plate-header,
-.loc-node .card-plate-header {
+.board-slot .card-plate-header {
   padding: 0.229cqw 0.686cqw;
   font-size: 0.717cqw;
 }
 
-.board-slot .card-plate-body,
-.loc-node .card-plate-body {
+.board-slot .card-plate-body {
   padding: 0.229cqw 0.686cqw 0.343cqw;
 }
 
-.board-slot .card-plate-name,
-.loc-node .card-plate-name {
+.board-slot .card-plate-name {
   font-size: 0.871cqw;
 }
 
-.board-slot .card-plate-hp,
-.loc-node .card-plate-hp {
+.board-slot .card-plate-hp {
   font-size: 1.025cqw;
 }
 
-.board-slot .ref-text,
-.loc-node .ref-text {
+.board-slot .ref-text {
   font-size: 0.768cqw;
   -webkit-line-clamp: 1;
 }
