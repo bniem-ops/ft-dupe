@@ -64,7 +64,7 @@ function CandidateCard({ name, selected, onClick }) {
               <div class="draft-stage-stats">
                 <div class="draft-stat stat-health"><span class="ref-text">HEALTH</span><${StatValue} text=${s.health ?? '?'} /></div>
                 <div class="draft-stat"><span class="ref-text">ATTACK</span><${StatValue} text=${s.attackStrength ?? '?'} /></div>
-                <div class=${`draft-stat stat-produce ${!s.mealsToNext ? 'draft-stat-wide' : ''}`}><span class="ref-text">PRODUCE</span><${StatValue} text=${s.production ?? '?'} /></div>
+                <div class=${`draft-stat stat-produce ${!s.mealsToNext ? 'draft-stat-wide' : ''}`}><span class="ref-text">PRODUCTION</span><${StatValue} text=${s.production ?? '?'} /></div>
                 ${s.mealsToNext && html`<div class="draft-stat"><span class="ref-text">TO GROW</span><${StatValue} text=${s.mealsToNext} /></div>`}
               </div>
               ${s.abilities.map(

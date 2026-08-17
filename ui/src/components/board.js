@@ -5,16 +5,19 @@ import { monogram, SEASON_COLORS } from '../cardVisuals.js';
 export const PLAYER_COLORS = ['#c0392b', '#2980b9', '#27ae60', '#8e44ad', '#e67e22', '#16a085'];
 
 // Percentage anchors on the board art (native ~1155x912, same layout across
-// all three difficulty-tier scans below), matching the design mockup's own
-// coordinate table ("2b — how the anchors work"). Every on-board element is
-// one `{ id, x, y }` positioned with left:x%; top:y%;
-// transform:translate(-50%,-50%) — nothing re-measures on resize, and
-// swapping in a higher-res scan of the same composition changes nothing but
-// the image file.
+// all three difficulty-tier scans below). Pulled directly from the design
+// mockup's current 4a/4b turns — NOT from turn 2b's "anchor coordinate
+// table", which documents an earlier pass that 4a/4b were hand-tweaked past
+// without updating 2b back (bonusDeck/bonusDiscard/grubDiscard/weatherTrack
+// all drifted; the day track and the four predator slots below don't exist
+// in 2b's table at all). Every on-board element is one `{ x, y }` positioned
+// with left:x%; top:y%; transform:translate(-50%,-50%) — nothing
+// re-measures on resize, and swapping in a higher-res scan of the same
+// composition changes nothing but the image file.
 const BOARD_ANCHORS = {
-  bonusDeck: { x: 7.5, y: 11.5 },
-  bonusDiscard: { x: 19, y: 11.5 },
-  grubDiscard: { x: 92.5, y: 10.5 },
+  bonusDeck: { x: 5, y: 10 },
+  bonusDiscard: { x: 15.65, y: 10 },
+  grubDiscard: { x: 95.2, y: 9.9 },
   goldenGables: { x: 22, y: 47 },
   badlands: { x: 69, y: 31 },
   grubsOutside: { x: 85.8, y: 42 },
@@ -22,14 +25,25 @@ const BOARD_ANCHORS = {
   coop: { x: 59.7, y: 66.5 },
   hendredAcreWood: { x: 11, y: 87 },
   gritStones: { x: 88, y: 84 },
-  weatherTrack: { x: 52, y: 91 },
+  weatherTrack: { x: 27.2, y: 89.9 },
 };
 
-// Day track (design mockup turns 4a/4b — 7 cells, current day carries a
-// token) laid across open ground at the bottom of the board, clear of the
-// location ovals and weather slot above.
-const DAY_TRACK_Y = 98.4;
-const DAY_TRACK_XS = [32, 38, 44, 50, 56, 62, 68];
+// Each predator-bearing location gets its own card slot, floating above
+// (not nested inside) the location oval — matching 4a/4b, where the
+// predator "book" card and the location marker are two separately
+// positioned elements. Coop never hosts a predator, so it has no entry.
+const PREDATOR_ANCHORS = {
+  'Golden Gables': { x: 22, y: 30.9 },
+  'Hendred Acre Wood': { x: 11, y: 71 },
+  'Grit Stones': { x: 88, y: 68 },
+  Badlands: { x: 69, y: 14.9 },
+};
+
+// Day track — 7 cells, current day carries a token — laid across open
+// ground at the bottom of the board, clear of the weather slot (which now
+// sits to the left, matching 4a/4b's actual weatherTrack position above).
+const DAY_TRACK_Y = 94.15;
+const DAY_TRACK_XS = [36.0, 41.38, 46.76, 52.14, 57.52, 62.9, 68.28];
 
 const LOCATION_ANCHOR_KEY = {
   Coop: 'coop',
@@ -116,8 +130,36 @@ function PredatorCard({ predator, clickable, onSelect }) {
 
 function LocationNode({ name, anchor, state, dispatch, pendingPick, setPendingPick, playerNames, hereLocation }) {
   const isCoop = name === 'Coop';
-  const predator = state.predators.find((p) => p.location === name);
   const pickingMove = pendingPick?.type === 'move';
+
+  function move() {
+    dispatch({ type: 'move', playerId: pendingPick.playerId, destination: name });
+    setPendingPick(null);
+  }
+
+  return html`
+    <div
+      class=${`loc-node ${isCoop ? 'coop' : ''} ${pickingMove ? 'pickable' : ''}`}
+      style=${anchorStyle(anchor)}
+      onClick=${pickingMove ? move : undefined}
+    >
+      <div class="loc-name">
+        <span>${name}</span>
+        ${hereLocation === name && html`<span class="here-badge">YOU ARE HERE</span>`}
+      </div>
+      <${PlayerTokens} state=${state} location=${name} playerNames=${playerNames} />
+      ${pickingMove && html`<span class="loc-move-btn">Move here</span>`}
+    </div>
+  `;
+}
+
+// A predator's card floats above its location's oval as its own
+// independently-anchored slot (design mockup turns 4a/4b), rather than
+// nesting inside the location box — see PREDATOR_ANCHORS above.
+function PredatorSlot({ location, anchor, state, dispatch, pendingPick, setPendingPick }) {
+  const predator = state.predators.find((p) => p.location === location);
+  if (!predator) return null;
+
   const pickingAttackTarget =
     (pendingPick?.type === 'attack' || pendingPick?.type === 'attackWithCompanion') && pendingPick.step === 'target';
   const pickingCardTarget = pendingPick?.type === 'cardTarget' && pendingPick.step === 'target';
@@ -126,8 +168,7 @@ function LocationNode({ name, anchor, state, dispatch, pendingPick, setPendingPi
   // uses the separate cardTarget flow) requires being at the Predator's
   // location — mirrors actions.ts's own check, so the board never
   // highlights a target the engine would then reject.
-  const attackTargetReachable =
-    !pickingAttackTarget || (predator != null && predator.location === actingPlayer?.location && !predator.cannotBeAttackedToday);
+  const attackTargetReachable = !pickingAttackTarget || (predator.location === actingPlayer?.location && !predator.cannotBeAttackedToday);
 
   function selectPredator() {
     if (pickingCardTarget) {
@@ -145,29 +186,13 @@ function LocationNode({ name, anchor, state, dispatch, pendingPick, setPendingPi
     }
   }
 
-  function move() {
-    dispatch({ type: 'move', playerId: pendingPick.playerId, destination: name });
-    setPendingPick(null);
-  }
-
   return html`
-    <div
-      class=${`loc-node ${isCoop ? 'coop' : ''} ${pickingMove ? 'pickable' : ''}`}
-      style=${anchorStyle(anchor)}
-      onClick=${pickingMove ? move : undefined}
-    >
-      <div class="loc-name">
-        <span>${name}</span>
-        ${hereLocation === name && html`<span class="here-badge">YOU ARE HERE</span>`}
-      </div>
-      ${predator &&
-      html`<${PredatorCard}
+    <div class="board-slot" style=${{ ...anchorStyle(anchor), width: '15cqw' }}>
+      <${PredatorCard}
         predator=${predator}
         clickable=${((pickingAttackTarget && attackTargetReachable) || pickingCardTarget) && predator.revealed && !predator.defeated}
         onSelect=${selectPredator}
-      />`}
-      <${PlayerTokens} state=${state} location=${name} playerNames=${playerNames} />
-      ${pickingMove && html`<span class="loc-move-btn">Move here</span>`}
+      />
     </div>
   `;
 }
@@ -262,6 +287,19 @@ export function Board({ state, dispatch, pendingPick, setPendingPick, playerName
             />`,
         )}
       </div>
+
+      ${Object.keys(PREDATOR_ANCHORS).map(
+        (loc) =>
+          html`<${PredatorSlot}
+            key=${loc}
+            location=${loc}
+            anchor=${PREDATOR_ANCHORS[loc]}
+            state=${state}
+            dispatch=${dispatch}
+            pendingPick=${pendingPick}
+            setPendingPick=${setPendingPick}
+          />`,
+      )}
 
       <div class="board-slot" style=${{ ...anchorStyle(BOARD_ANCHORS.bonusDeck), width: '10.514cqw' }}>
         <div class="card-plate kind-bonus">
