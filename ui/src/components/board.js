@@ -375,16 +375,14 @@ export function Board({ state, dispatch, pendingPick, setPendingPick, playerName
           <div class="card-plate-body"><div class="ref-text">face down</div></div>
         </div>
       </div>
-      <div class="board-slot" style=${slotStyle('bonusDiscard')}>
+      <div class="board-slot" style=${slotStyle('bonusDiscard')} title="Bonus discard pile">
         <div class="card-plate kind-empty">
-          <div class="ref-text">DISCARD</div>
-          <div class="card-plate-count">${state.bonusDeck.discard.length}</div>
+          <span class="card-plate-count">${state.bonusDeck.discard.length}</span>
         </div>
       </div>
-      <div class="board-slot" style=${slotStyle('grubDiscard')}>
-        <div class="card-plate kind-empty">
-          <div class="ref-text">GRUB DISCARD</div>
-          <div class="card-plate-count">${grubDiscardCount}</div>
+      <div class="board-slot" style=${slotStyle('grubDiscard')} title="Grub discard pile">
+        <div class="card-plate kind-empty kind-grub-empty">
+          <span class="card-plate-count">${grubDiscardCount}</span>
         </div>
       </div>
 
