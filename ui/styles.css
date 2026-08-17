@@ -1889,8 +1889,8 @@ input.entry-code-box:focus {
 
 .loc-oval.is-target {
   cursor: pointer;
-  border: 2px dashed rgba(201, 135, 63, 0.9);
-  background: rgba(201, 135, 63, 0.14);
+  border: 2px dashed rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.3);
 }
 
 /* The name tag — a small independently-positioned pill, not sized to the
