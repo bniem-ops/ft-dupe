@@ -59,10 +59,7 @@ const PREDATOR_ANCHORS = {
 // width — .board.board-photo is container-type:size, so this is directly
 // comparable to the design's own width% on the same box). Copied straight
 // from the design's printed-slot widths, not guessed — this is what was
-// making the on-board cards too wide before. Height is left to the card's
-// own content (unlike the design's placeholder text, real predator/weather
-// text here can run to 2 lines, and the design's fixed slot heights clip
-// it) — see the ref-text line-clamp rules in styles.css.
+// making the on-board cards too wide before.
 const BOARD_CARD_WIDTHS = {
   bonusDeck: 9.3,
   bonusDiscard: 9.3,
@@ -70,6 +67,18 @@ const BOARD_CARD_WIDTHS = {
   grubsInside: 10.4,
   grubsOutside: 10.4,
   weatherTrack: 10.4,
+};
+
+// Fixed height (cqh) for the small deck/pile slots — bonus deck, both
+// discard piles, and both grub piles all sit at the same height as each
+// other, per request, rather than sizing to content. weatherTrack stays
+// content-driven since its effect text length varies a lot more.
+const BOARD_CARD_HEIGHTS = {
+  bonusDeck: 20.9,
+  bonusDiscard: 20.9,
+  grubDiscard: 20.9,
+  grubsInside: 20.9,
+  grubsOutside: 20.9,
 };
 
 // Day track — 7 cells, current day carries the weathervane token — laid
@@ -97,7 +106,12 @@ function anchorStyle(anchor) {
 }
 
 function slotStyle(anchorKey) {
-  return { ...anchorStyle(BOARD_ANCHORS[anchorKey]), width: `${BOARD_CARD_WIDTHS[anchorKey]}cqw` };
+  const height = BOARD_CARD_HEIGHTS[anchorKey];
+  return {
+    ...anchorStyle(BOARD_ANCHORS[anchorKey]),
+    width: `${BOARD_CARD_WIDTHS[anchorKey]}cqw`,
+    ...(height != null ? { height: `${height}cqh` } : {}),
+  };
 }
 
 // Difficulty 1-3 → lighthearted, 4-6 → normal, 7-8 → dark and gloomy. Same

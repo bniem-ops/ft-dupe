@@ -1775,6 +1775,14 @@ input.entry-code-box:focus {
   position: absolute;
 }
 
+/* Only takes effect where the slot itself has an explicit inline height
+   (BOARD_CARD_HEIGHTS in board.js) — percentage height against an
+   auto-height parent just resolves to auto, so slots without a fixed
+   height (weather, predator cards) are unaffected. */
+.board-slot > .card-plate {
+  height: 100%;
+}
+
 .board-locations {
   position: absolute;
   inset: 0;
@@ -1980,6 +1988,8 @@ input.entry-code-box:focus {
    noticeably more compact than a full detail card. */
 .board-slot .card-plate-art {
   padding: 0.229cqw 0;
+  flex: 1;
+  min-height: 0;
 }
 
 .board-slot .monogram {
