@@ -1943,9 +1943,9 @@ input.entry-code-box:focus {
 
 .board-slot .monogram,
 .loc-node .monogram {
-  width: 2.514cqw;
-  height: 2.514cqw;
-  font-size: 1.029cqw;
+  width: 3.893cqw;
+  height: 3.893cqw;
+  font-size: 1.537cqw;
 }
 
 .loc-node .token {
@@ -1958,7 +1958,7 @@ input.entry-code-box:focus {
 .board-slot .card-plate-header,
 .loc-node .card-plate-header {
   padding: 0.229cqw 0.686cqw;
-  font-size: 0.857cqw;
+  font-size: 0.717cqw;
 }
 
 .board-slot .card-plate-body,
@@ -1968,12 +1968,17 @@ input.entry-code-box:focus {
 
 .board-slot .card-plate-name,
 .loc-node .card-plate-name {
-  font-size: 0.914cqw;
+  font-size: 0.871cqw;
+}
+
+.board-slot .card-plate-hp,
+.loc-node .card-plate-hp {
+  font-size: 1.025cqw;
 }
 
 .board-slot .ref-text,
 .loc-node .ref-text {
-  font-size: 0.78em;
+  font-size: 0.768cqw;
   -webkit-line-clamp: 1;
 }
 
@@ -1981,7 +1986,8 @@ input.entry-code-box:focus {
    what a player reads to decide whether to fight a Grub) — the extra
    class-selector segment outweighs the plain .ref-text rule regardless of
    source order. */
-.board-slot .grub-reward-text {
+.board-slot .grub-reward-text,
+.board-slot .card-effect-text {
   -webkit-line-clamp: 2;
 }
 

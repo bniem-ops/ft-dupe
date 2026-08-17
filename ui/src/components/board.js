@@ -32,11 +32,29 @@ const BOARD_ANCHORS = {
 // (not nested inside) the location oval — matching 4a/4b, where the
 // predator "book" card and the location marker are two separately
 // positioned elements. Coop never hosts a predator, so it has no entry.
+// w is the slot's own width (design's printed-slot width), not just x/y.
 const PREDATOR_ANCHORS = {
-  'Golden Gables': { x: 22, y: 30.9 },
-  'Hendred Acre Wood': { x: 11, y: 71 },
-  'Grit Stones': { x: 88, y: 68 },
-  Badlands: { x: 69, y: 14.9 },
+  'Golden Gables': { x: 22, y: 30.9, w: 12 },
+  'Hendred Acre Wood': { x: 11, y: 71, w: 11.7 },
+  'Grit Stones': { x: 88, y: 68, w: 11.7 },
+  Badlands: { x: 69, y: 14.9, w: 11.7 },
+};
+
+// Width for each board-slot card, in cqw (percent of the board box's own
+// width — .board.board-photo is container-type:size, so this is directly
+// comparable to the design's own width% on the same box). Copied straight
+// from the design's printed-slot widths, not guessed — this is what was
+// making the on-board cards too wide before. Height is left to the card's
+// own content (unlike the design's placeholder text, real predator/weather
+// text here can run to 2 lines, and the design's fixed slot heights clip
+// it) — see the ref-text line-clamp rules in styles.css.
+const BOARD_CARD_WIDTHS = {
+  bonusDeck: 9.3,
+  bonusDiscard: 9.3,
+  grubDiscard: 8.7,
+  grubsInside: 10.4,
+  grubsOutside: 10.4,
+  weatherTrack: 10.4,
 };
 
 // Day track — 7 cells, current day carries a token — laid across open
@@ -55,6 +73,10 @@ const LOCATION_ANCHOR_KEY = {
 
 function anchorStyle(anchor) {
   return { left: `${anchor.x}%`, top: `${anchor.y}%`, transform: 'translate(-50%,-50%)' };
+}
+
+function slotStyle(anchorKey) {
+  return { ...anchorStyle(BOARD_ANCHORS[anchorKey]), width: `${BOARD_CARD_WIDTHS[anchorKey]}cqw` };
 }
 
 // Difficulty 1-3 → lighthearted, 4-6 → normal, 7-8 → dark and gloomy. Same
@@ -121,7 +143,7 @@ function PredatorCard({ predator, clickable, onSelect }) {
           <span class="card-plate-hp">♥ ${predator.health}/${predator.maxHealth}</span>
         </div>
         <div class="health-bar"><div class="health-fill" style=${{ width: `${(predator.health / predator.maxHealth) * 100}%` }}></div></div>
-        ${!predator.defeated && html`<div class="ref-text">Return attack: ${stageData?.returnAttack ?? '?'} — ${stageData?.effect ?? ''}</div>`}
+        ${!predator.defeated && html`<div class="ref-text card-effect-text">Return attack: ${stageData?.returnAttack ?? '?'} — ${stageData?.effect ?? ''}</div>`}
         ${predator.defeated && html`<div class="ref-text loot">Loot: ${data.lootDrop ?? '—'}</div>`}
       </div>
     </div>
@@ -187,7 +209,7 @@ function PredatorSlot({ location, anchor, state, dispatch, pendingPick, setPendi
   }
 
   return html`
-    <div class="board-slot" style=${{ ...anchorStyle(anchor), width: '15cqw' }}>
+    <div class="board-slot" style=${{ ...anchorStyle(anchor), width: `${anchor.w}cqw` }}>
       <${PredatorCard}
         predator=${predator}
         clickable=${((pickingAttackTarget && attackTargetReachable) || pickingCardTarget) && predator.revealed && !predator.defeated}
@@ -301,34 +323,34 @@ export function Board({ state, dispatch, pendingPick, setPendingPick, playerName
           />`,
       )}
 
-      <div class="board-slot" style=${{ ...anchorStyle(BOARD_ANCHORS.bonusDeck), width: '10.514cqw' }}>
+      <div class="board-slot" style=${slotStyle('bonusDeck')}>
         <div class="card-plate kind-bonus">
           <div class="card-plate-header"><span>BONUS</span></div>
           <div class="card-plate-art"><span class="monogram">${state.bonusDeck.drawPile.length}</span></div>
           <div class="card-plate-body"><div class="ref-text">face down</div></div>
         </div>
       </div>
-      <div class="board-slot" style=${{ ...anchorStyle(BOARD_ANCHORS.bonusDiscard), width: '9.6cqw' }}>
+      <div class="board-slot" style=${slotStyle('bonusDiscard')}>
         <div class="card-plate kind-empty">
           <div class="ref-text">DISCARD</div>
           <div class="card-plate-count">${state.bonusDeck.discard.length}</div>
         </div>
       </div>
-      <div class="board-slot" style=${{ ...anchorStyle(BOARD_ANCHORS.grubDiscard), width: '10.743cqw' }}>
+      <div class="board-slot" style=${slotStyle('grubDiscard')}>
         <div class="card-plate kind-empty">
           <div class="ref-text">GRUB DISCARD</div>
           <div class="card-plate-count">${grubDiscardCount}</div>
         </div>
       </div>
 
-      <div class="board-slot" style=${{ ...anchorStyle(BOARD_ANCHORS.grubsInside), width: '13.257cqw' }}>
+      <div class="board-slot" style=${slotStyle('grubsInside')}>
         <${GrubDeckBadge} side="inside" deckSide=${state.grubDecks.inside} state=${state} dispatch=${dispatch} pendingPick=${pendingPick} setPendingPick=${setPendingPick} />
       </div>
-      <div class="board-slot" style=${{ ...anchorStyle(BOARD_ANCHORS.grubsOutside), width: '13.257cqw' }}>
+      <div class="board-slot" style=${slotStyle('grubsOutside')}>
         <${GrubDeckBadge} side="outside" deckSide=${state.grubDecks.outside} state=${state} dispatch=${dispatch} pendingPick=${pendingPick} setPendingPick=${setPendingPick} />
       </div>
 
-      <div class="board-slot" style=${{ ...anchorStyle(BOARD_ANCHORS.weatherTrack), width: '19.429cqw' }}>
+      <div class="board-slot" style=${slotStyle('weatherTrack')}>
         <div class="card-plate kind-weather">
           <div class="card-plate-stripe" style=${{ background: SEASON_COLORS[state.season] ?? 'var(--gs-ochre)' }}></div>
           <div class="card-plate-body">
@@ -336,7 +358,7 @@ export function Board({ state, dispatch, pendingPick, setPendingPick, playerName
               ? html`
                   <div class="weather-name">${(weatherCard.name ?? 'Unnamed weather').toUpperCase()}</div>
                   <div class="weather-tag">${state.season.toUpperCase()} · DAY ${state.day}</div>
-                  <div class="ref-text">${weatherCard.effect ?? ''}</div>
+                  <div class="ref-text card-effect-text">${weatherCard.effect ?? ''}</div>
                 `
               : html`
                   <div class="weather-name">NO WEATHER</div>
