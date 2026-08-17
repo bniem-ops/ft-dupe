@@ -2095,6 +2095,9 @@ input.entry-code-box:focus {
 .card-plate.kind-bonus .monogram {
   color: #d5dcf0;
   border-radius: 9px;
+  width: 3.484cqw;
+  height: 3.484cqw;
+  font-size: 1.434cqw;
 }
 
 .card-plate.kind-predator {
@@ -2130,7 +2133,7 @@ input.entry-code-box:focus {
 }
 .card-plate.kind-weather .weather-name {
   font-family: var(--font-display);
-  font-size: 1.486cqw;
+  font-size: 1.127cqw;
 }
 .card-plate.kind-weather .weather-tag {
   font: 600 0.914cqw ui-monospace, Menlo, monospace;
@@ -2140,6 +2143,7 @@ input.entry-code-box:focus {
 }
 .card-plate.kind-weather .ref-text {
   color: rgba(60, 43, 28, 0.8);
+  font-size: 0.871cqw;
 }
 
 .card-plate.kind-empty {
@@ -2156,7 +2160,7 @@ input.entry-code-box:focus {
 }
 .card-plate-count {
   font-family: var(--font-display);
-  font-size: 1.486cqw;
+  font-size: 1.639cqw;
   margin-top: 2px;
 }
 
