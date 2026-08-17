@@ -2675,10 +2675,14 @@ input.entry-code-box:focus {
   font-weight: 700;
 }
 
+/* Action buttons (mockup 4a/4b) — a fixed 2-column grid of single-tone
+   cards (name + short cost/effect line), not the header/body two-tone
+   split this used to have. Colors are the design's exact per-action
+   backgrounds. */
 .actions-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
-  gap: 7px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
 }
 
 .action-btn {
@@ -2686,63 +2690,50 @@ input.entry-code-box:focus {
   flex-direction: column;
   width: 100%;
   border-radius: 7px;
-  overflow: hidden;
   border: 1.5px solid #f0e3c4;
   background: var(--gs-wood-700);
   box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
   color: var(--gs-parchment);
   font-family: var(--font-ui);
   text-align: left;
-  padding: 0;
+  padding: 6px 7px;
   cursor: pointer;
 }
 
-.action-btn-head {
-  padding: 5px 7px;
-  background: var(--gs-wood-500);
+.action-btn-label {
   font-family: var(--font-display);
-  font-size: 10px;
+  font-size: 9.5px;
+  line-height: 1.1;
   color: #f4ecd6;
+  text-transform: uppercase;
 }
 
-.action-btn-body {
-  padding: 6px 7px 8px;
-  font-size: 9.5px;
-  color: rgba(240, 227, 196, 0.8);
-  line-height: 1.3;
+.action-btn-hint {
+  font-size: 9px;
+  color: rgba(240, 227, 196, 0.75);
+  margin-top: 2px;
 }
 
 .action-btn.field {
   background: var(--gs-field);
-  box-shadow:
-    0 3px 0 rgba(0, 0, 0, 0.35),
-    0 0 0 3px rgba(201, 135, 63, 0.35);
-}
-.action-btn.field .action-btn-head {
-  background: #4f6d40;
 }
 
 .action-btn.dusk {
-  background: #5b4a63;
-}
-.action-btn.dusk .action-btn-head {
   background: var(--gs-dusk);
 }
 
-.action-btn.blood .action-btn-head {
+.action-btn.blood {
   background: var(--gs-blood);
 }
 
 .action-btn.teal {
   background: #3f5a63;
 }
-.action-btn.teal .action-btn-head {
-  background: var(--gs-teal);
-}
 
 .action-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  border-color: rgba(240, 227, 196, 0.3);
 }
 
 .action-with-amount {
