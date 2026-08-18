@@ -69,11 +69,14 @@ const BOARD_CARD_WIDTHS = {
   weatherTrack: 10.4,
 };
 
-// Fixed height (cqh) for the small deck/pile slots — bonus deck, both
-// discard piles, and both grub piles all sit at the same height as each
-// other, per request, rather than sizing to content. weatherTrack stays
-// content-driven since its effect text length varies a lot more.
-const BOARD_CARD_HEIGHTS = {
+// Minimum height (cqh) for the small deck/pile slots — bonus deck, both
+// discard piles, and both grub piles all start at the same height as each
+// other (matching how tall they currently look) but this is a floor, not a
+// fixed height: content-driven "auto" sizing still applies on top of it, so
+// a card never gets forced shorter than its content needs, and the min
+// itself shrinks proportionally as the board does since cqh is relative to
+// the board's own rendered height, not a fixed pixel value.
+const BOARD_CARD_MIN_HEIGHTS = {
   bonusDeck: 20.9,
   bonusDiscard: 20.9,
   grubDiscard: 20.9,
@@ -106,11 +109,11 @@ function anchorStyle(anchor) {
 }
 
 function slotStyle(anchorKey) {
-  const height = BOARD_CARD_HEIGHTS[anchorKey];
+  const minHeight = BOARD_CARD_MIN_HEIGHTS[anchorKey];
   return {
     ...anchorStyle(BOARD_ANCHORS[anchorKey]),
     width: `${BOARD_CARD_WIDTHS[anchorKey]}cqw`,
-    ...(height != null ? { height: `${height}cqh` } : {}),
+    ...(minHeight != null ? { minHeight: `${minHeight}cqh` } : {}),
   };
 }
 

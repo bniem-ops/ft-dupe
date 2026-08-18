@@ -1775,12 +1775,14 @@ input.entry-code-box:focus {
   position: absolute;
 }
 
-/* Only takes effect where the slot itself has an explicit inline height
-   (BOARD_CARD_HEIGHTS in board.js) — percentage height against an
-   auto-height parent just resolves to auto, so slots without a fixed
-   height (weather, predator cards) are unaffected. */
+/* `inherit` copies the parent's already-resolved min-height (BOARD_CARD_MIN_HEIGHTS
+   in board.js, cqh so it scales with the board) directly onto the visible
+   card — a percentage here wouldn't work, since .board-slot itself has no
+   definite height (only min-height, so it just hugs .card-plate's actual
+   size). Slots with no inline min-height (weather, predator cards) inherit
+   nothing and stay purely content-driven. */
 .board-slot > .card-plate {
-  height: 100%;
+  min-height: inherit;
 }
 
 .board-locations {
