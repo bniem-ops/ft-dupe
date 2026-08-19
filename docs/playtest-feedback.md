@@ -60,3 +60,24 @@ Format per entry:
 - Card/rule involved: Bonus Card rules
 - Triage: bug, confirmed — core_rules.md never spells out a discard rule at all (just "hand limit 2"); the engine's actual bug was blocking every card-gaining action outright once at the limit (Draw Card, Cave Hoard, Quick Claws, "take a card from discard," multi-draw effects), with no way to ever discard. Clarified with the table: discarding is only possible once your hand is actually over the limit (never proactively), it's free, and you choose which card. Gains are no longer blocked; a new discardBonusCard action (button in playerPanel.js, only shown once actually over) fixes it.
 - Status: fixed (2026-08-08 UI-wiring session, docs/engine-plan.md phase 11 closing note)
+
+## 2026-08-18 — Shere Corn return attack damage solo game/only chicken at location
+- What happened: I attacked Shere Corn in a solo game at level 1 (3 health and 2 return attack) and received 3 damage to my chicken
+- Expected: 2 damage should have been applied to my character
+- Card/rule involved: splash damage for Nearby Teammate logic improperly assigned
+- Triage: bug, confirmed — `combat.ts`'s `resolveCombat` was applying Shere Corn's "4-6: All nearby players take 1 splash damage" to *every* alive player at the location, attacker included (a deliberate choice from Phase 11e, tested that way at the time). But the attacker already has their own dedicated Return Attack line (2) — stacking splash on top double-counted them, invisible in the original multiplayer test since a second player's splash instance masked it. In solo there's no one else to splash, so the extra 1 damage was the whole discrepancy.
+- Status: fixed — `resolveCombat` now excludes the attacker (`p.id !== playerId`) from splash; only other nearby players take it. Updated/added assertions in `abilities-multiTargetCombat.test.ts` covering attacker-excluded, nearby-teammate-still-hit, elsewhere-untouched, and solo (no one to splash) cases.
+
+## 2026-08-18 — Nighttime action
+- What happened: I was not forced to take 1 fewer action in the Night time weather
+- Expected: I would be forced to take 1 fewer action in my last turn on that phase if I haven't already
+- Card/rule involved: Nighttime weather card
+- Triage: bug, confirmed — the 2026-08-07 fix made the once-per-phase adjustment fully opt-in (a button, player picks which turn), correctly per "the player chooses which turn," but never added a backstop: a player who simply never clicked it kept full actions all phase, even though the printed text ("you must perform 1 less action") reads as mandatory, not skippable.
+- Status: fixed — `startTurn` (`turn.ts`) now force-applies the adjustment on the last day of the current phase (day 2/5/7) if the player hasn't used it by then, same immunity checks as the opt-in path. Added 4 new tests in `abilities-weather.test.ts` (Nighttime + Sunny forced on last day, not re-forced if already used, immune players still exempt).
+
+## 2026-08-18 — Toasts / Roll outcomes
+- What happened: I do not see toasts or roll outcomes from the game
+- Expected: I thought code was added to show roll outcomes to validate the game engine and have player trust. Could the toasts and persistent log be added to the right side where teammates are shown? I believe it's a toggleable rail
+- Card/rule involved: N/A
+- Triage: not a regression — the persistent log (with roll outcomes) was there, just easy to miss: a small stack bottom-left of the board, competing with the location/predator/grub cards already cluttering that area.
+- Status: fixed — moved to a toggleable rail on the right edge of the board (a 🕘 tab, opens a scrollable panel), stacked below the flock/avatar strip when opponents exist, alone (still visible) in solo. Replaces both the old bottom-left toast stack and the separate centered-modal log-history button.
