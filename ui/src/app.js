@@ -22,6 +22,7 @@ import { PlayerPanel, AvatarStrip } from './components/playerPanel.js';
 import { ActionBar } from './components/actionBar.js';
 import { TurnControls } from './components/turnControls.js';
 import { ProductionReveal } from './components/productionReveal.js';
+import { PredatorDossier } from './components/predatorDossier.js';
 
 const SEASON_ORDER = ['Spring', 'Summer', 'Fall'];
 
@@ -104,6 +105,10 @@ function App() {
   // .avatar-strip). Purely local presentation state, not synced.
   const [tableView, setTableView] = useState(false);
   const [logRailOpen, setLogRailOpen] = useState(false);
+  // A Predator inspected read-only (no attack armed) — design mockup 6a's
+  // dossier doubling as a reference card. Separate from pendingPick since
+  // it's a non-committal peek, not part of the action state machine.
+  const [inspectingPredatorName, setInspectingPredatorName] = useState(null);
 
   // Session state — every game is a session now, no local hotseat mode.
   const [sessionCode, setSessionCode] = useState(null);
@@ -466,9 +471,28 @@ function App() {
     playerNames=${playerNames}
   />`;
 
+  // Predator dossier (design mockup 6a): either committing (Attack armed,
+  // a target was just clicked — the dossier is itself the confirm step)
+  // or a read-only inspect (nothing armed, just peeking at a reference
+  // card). At most one of these is ever true.
+  const dossierCommitting = pendingPick?.type === 'attack' && pendingPick.step === 'dossier' && pendingPick.targetType === 'predator';
+  const dossierPredatorName = dossierCommitting ? pendingPick.targetId : inspectingPredatorName;
+
   return html`
     <div class="game">
       ${error && html`<div class="error-banner">${error}</div>`}
+      ${dossierPredatorName &&
+      html`<${PredatorDossier}
+        key=${dossierPredatorName}
+        state=${gameState}
+        dispatch=${dispatch}
+        pendingPick=${pendingPick}
+        setPendingPick=${setPendingPick}
+        myPlayerId=${myPlayerId}
+        predatorName=${dossierPredatorName}
+        committing=${dossierCommitting}
+        onClose=${() => (dossierCommitting ? setPendingPick(null) : setInspectingPredatorName(null))}
+      />`}
 
       <div class="gs-topbar">
         <span class="gs-title">FLOCK TOGETHER</span>
@@ -515,6 +539,7 @@ function App() {
             setPendingPick=${setPendingPick}
             playerNames=${playerNames}
             hereLocation=${currentPlayer.location}
+            onInspectPredator=${setInspectingPredatorName}
           />
           ${!tableView &&
           html`<div class="right-rail">

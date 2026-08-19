@@ -227,7 +227,7 @@ function LocationBanner({ name, anchor, hereLocation }) {
 // A predator's card floats above its location's oval as its own
 // independently-anchored slot (design mockup turns 4a/4b), rather than
 // nesting inside the location box — see PREDATOR_ANCHORS above.
-function PredatorSlot({ location, anchor, state, dispatch, pendingPick, setPendingPick }) {
+function PredatorSlot({ location, anchor, state, dispatch, pendingPick, setPendingPick, onInspectPredator }) {
   const predator = state.predators.find((p) => p.location === location);
   if (!predator) return null;
 
@@ -252,18 +252,24 @@ function PredatorSlot({ location, anchor, state, dispatch, pendingPick, setPendi
         targetId: predator.name,
       });
       setPendingPick(null);
-    } else {
-      setPendingPick({ ...pendingPick, step: 'strength', targetType: 'predator', targetId: predator.name });
+      return;
     }
+    // A plain Attack opens the dossier (design mockup 6a) — it's the
+    // confirm step itself, no separate strength screen after it.
+    // attackWithCompanion keeps the existing inline strength picker
+    // (actionBar.js), out of scope for the dossier this pass. Either way,
+    // an unreachable target (wrong location) falls through to a read-only
+    // inspect instead of arming something the engine would reject.
+    if (pickingAttackTarget && attackTargetReachable) {
+      setPendingPick({ ...pendingPick, step: pendingPick.type === 'attack' ? 'dossier' : 'strength', targetType: 'predator', targetId: predator.name });
+      return;
+    }
+    onInspectPredator(predator.name);
   }
 
   return html`
     <div class="board-slot" style=${{ ...anchorStyle(anchor), width: `${anchor.w}cqw` }}>
-      <${PredatorCard}
-        predator=${predator}
-        clickable=${((pickingAttackTarget && attackTargetReachable) || pickingCardTarget) && predator.revealed && !predator.defeated}
-        onSelect=${selectPredator}
-      />
+      <${PredatorCard} predator=${predator} clickable=${predator.revealed && !predator.defeated} onSelect=${selectPredator} />
     </div>
   `;
 }
@@ -341,7 +347,7 @@ function GrubDeckBadge({ side, deckSide, state, dispatch, pendingPick, setPendin
   `;
 }
 
-export function Board({ state, dispatch, pendingPick, setPendingPick, playerNames, hereLocation }) {
+export function Board({ state, dispatch, pendingPick, setPendingPick, playerNames, hereLocation, onInspectPredator }) {
   const weatherCard = activeWeatherCard(state);
   const locations = ['Coop', ...OUTSIDE_LOCATIONS];
   const grubDiscardCount = state.grubDecks.inside.discard.length + state.grubDecks.outside.discard.length;
@@ -385,6 +391,7 @@ export function Board({ state, dispatch, pendingPick, setPendingPick, playerName
             dispatch=${dispatch}
             pendingPick=${pendingPick}
             setPendingPick=${setPendingPick}
+            onInspectPredator=${onInspectPredator}
           />`,
       )}
 

@@ -1557,6 +1557,354 @@ input.entry-code-box:focus {
   cursor: pointer;
 }
 
+/* --- Predator dossier (design mockup 6a): the app's first true modal —
+   position:fixed over the whole viewport (not just .gs-board), since it
+   needs to sit above the side panel and right rail too, not just the
+   board itself. --- */
+
+.dossier-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(20, 13, 6, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.dossier-panel {
+  width: 100%;
+  max-width: 900px;
+  max-height: 100%;
+  overflow-y: auto;
+  border-radius: 16px;
+  background: linear-gradient(180deg, var(--gs-wood-600), var(--gs-wood-500));
+  border: 2px solid var(--gs-wood-900);
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.6);
+  color: var(--gs-parchment);
+  display: flex;
+  flex-direction: column;
+}
+
+.dossier-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 15px 22px;
+  background: linear-gradient(180deg, #5a3129, #43221c);
+  border-bottom: 2px solid var(--gs-wood-900);
+  flex: none;
+}
+
+.dossier-eyebrow {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--gs-parchment-dim);
+}
+
+.dossier-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  color: #f4ecd6;
+}
+
+.dossier-subtitle {
+  font-family: var(--font-flavor);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--gs-parchment-dim);
+}
+
+.dossier-spacer {
+  flex: 1;
+}
+
+.dossier-close {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1.5px solid rgba(240, 227, 196, 0.28);
+  background: transparent;
+  color: var(--gs-parchment-dim);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.dossier-body {
+  display: flex;
+  align-items: stretch;
+}
+
+.dossier-portrait-col {
+  width: 260px;
+  flex: none;
+  padding: 20px;
+  box-sizing: border-box;
+  background: rgba(24, 16, 8, 0.35);
+  border-right: 1.5px solid rgba(240, 227, 196, 0.14);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.dossier-portrait-plate {
+  border-radius: 11px;
+  border: 1.5px solid #d99a92;
+  background: #3a1f1d;
+  overflow: hidden;
+}
+
+.dossier-portrait-art {
+  height: 150px;
+  background: repeating-linear-gradient(135deg, #4a2523, #4a2523 5px, #402020 5px, #402020 10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dossier-portrait-art .monogram {
+  font-family: var(--font-display);
+  font-size: 40px;
+  color: #f7ddd8;
+}
+
+.dossier-portrait-label {
+  padding: 9px 11px;
+  background: #8c3b34;
+  font-family: var(--font-display);
+  font-size: 12px;
+  line-height: 1.2;
+  color: #f7ddd8;
+}
+
+.dossier-health-card {
+  padding: 12px 13px;
+  border-radius: 10px;
+  background: rgba(140, 59, 52, 0.28);
+  border: 1.5px solid rgba(196, 96, 86, 0.55);
+}
+
+.dossier-health-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.dossier-health-number {
+  font-family: var(--font-display);
+  font-size: 26px;
+  line-height: 1;
+  color: #f4ecd6;
+}
+
+.dossier-health-row .hearts {
+  display: flex;
+  gap: 3px;
+  margin: 0;
+}
+
+.dossier-health-row .heart.full {
+  color: #e8635a;
+  font-size: 15px;
+}
+
+.dossier-health-row .heart.empty {
+  color: rgba(240, 227, 196, 0.22);
+  font-size: 15px;
+}
+
+.dossier-flavor {
+  font-family: var(--font-flavor);
+  font-size: 12px;
+  color: var(--gs-parchment-dim);
+  margin-top: 5px;
+}
+
+.dossier-stat-row {
+  display: flex;
+  gap: 9px;
+}
+
+.dossier-stat {
+  flex: 1;
+  padding: 10px 11px;
+  border-radius: 9px;
+  background: rgba(240, 227, 196, 0.07);
+  border: 1px solid rgba(240, 227, 196, 0.2);
+}
+
+.dossier-stat-value {
+  font-family: var(--font-display);
+  font-size: 19px;
+  color: #e8a49c;
+}
+
+.dossier-label {
+  font-size: 9.5px;
+  letter-spacing: 0.13em;
+  color: var(--gs-parchment-dim);
+  margin-bottom: 6px;
+}
+
+.dossier-detail-col {
+  flex: 1;
+  min-width: 0;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dossier-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dossier-section-title {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--gs-ochre);
+}
+
+.dossier-flavor-text {
+  font-family: var(--font-flavor);
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: rgba(240, 227, 196, 0.85);
+}
+
+.dossier-effect-card {
+  padding: 11px 13px;
+  border-radius: 9px;
+  background: rgba(244, 236, 214, 0.06);
+  border: 1px solid rgba(240, 227, 196, 0.16);
+}
+
+.dossier-divider {
+  height: 1px;
+  background: rgba(240, 227, 196, 0.14);
+}
+
+.dossier-strength-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.dossier-strength-row {
+  display: flex;
+  gap: 6px;
+}
+
+.dossier-strength-box {
+  flex: 1;
+  height: 52px;
+  border-radius: 8px;
+  border: 1.5px solid rgba(240, 227, 196, 0.24);
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  color: rgba(240, 227, 196, 0.65);
+  cursor: pointer;
+}
+
+.dossier-strength-number {
+  font-family: var(--font-display);
+  font-size: 16px;
+}
+
+.dossier-strength-box.selected {
+  background: var(--gs-ochre);
+  border-color: #f0e3c4;
+  box-shadow: 0 0 0 3px rgba(201, 135, 63, 0.22);
+  color: #241a12;
+}
+
+.dossier-strength-box.free {
+  border-color: rgba(157, 186, 108, 0.45);
+  background: rgba(125, 156, 79, 0.14);
+  color: rgba(240, 227, 196, 0.8);
+}
+
+.dossier-strength-box.free.selected {
+  background: var(--gs-ochre);
+  color: #241a12;
+}
+
+.dossier-strength-tag {
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: #9dba6c;
+}
+
+.dossier-strength-box.selected .dossier-strength-tag {
+  color: #241a12;
+}
+
+.dossier-footer {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 15px 22px;
+  background: rgba(24, 16, 8, 0.5);
+  border-top: 2px solid var(--gs-wood-900);
+  flex: none;
+}
+
+.dossier-footer-note {
+  font-size: 12px;
+  color: var(--gs-parchment-dim);
+}
+
+.dossier-btn-secondary {
+  font-size: 12.5px;
+  color: var(--gs-parchment-dim);
+  padding: 12px 18px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.dossier-btn-confirm {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 28px;
+  border-radius: 10px;
+  background: var(--gs-blood);
+  border: 1.5px solid #e8a49c;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.4);
+  color: #f4ecd6;
+  font-family: var(--font-display);
+  font-size: 14px;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+}
+
+.dossier-btn-confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 900px) {
+  .dossier-body {
+    flex-direction: column;
+  }
+  .dossier-portrait-col {
+    width: auto;
+    border-right: none;
+    border-bottom: 1.5px solid rgba(240, 227, 196, 0.14);
+  }
+}
+
 /* --- Right rail: one absolutely-positioned column over .gs-board (already
    position:relative) holding the presence-driven flock strip (absent solo,
    56px avatar strip with a hover/click-expand card otherwise) stacked above

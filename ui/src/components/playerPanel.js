@@ -24,7 +24,7 @@ function CardChip({ kind, name }) {
 
 const ALL_LOCATIONS = ['Coop', ...OUTSIDE_LOCATIONS];
 
-function Hearts({ health, maxHealth }) {
+export function Hearts({ health, maxHealth }) {
   return html`
     <div class="hearts">
       ${Array.from({ length: maxHealth }, (_, i) => html`<span key=${i} class=${i < health ? 'heart full' : 'heart empty'}>❤</span>`)}
