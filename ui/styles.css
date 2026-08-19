@@ -3003,11 +3003,68 @@ input.entry-code-box:focus {
   position: static;
 }
 
+/* Compact header (design mockup 4a/4b): "ACTIONS ●● N left … +1 token"
+   replaces the old "<Name>'s turn — N action(s) left" line — who's
+   acting is already shown by the turnorder avatars in .gs-topbar and the
+   player's own dock panel above this, so it doesn't need repeating here. */
+.actions-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.actions-header-label {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gs-parchment-dim);
+}
+
+.actions-dots {
+  display: flex;
+  gap: 3px;
+}
+
+.actions-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--gs-ochre);
+}
+
+.actions-left-text {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  color: var(--gs-parchment-dim);
+}
+
+.actions-token-btn {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--gs-ochre);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.actions-token-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Secondary row: only rendered when there's something in it (waiting-for-
+   device notice, weather adjustment, Nobility/Landlord one-off buttons) —
+   the rare cases the compact header above has no room for. */
 .turn-status {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 10px;
+  margin-top: 6px;
   font-size: 9.5px;
   letter-spacing: 0.1em;
   color: var(--gs-parchment-dim);
@@ -3064,9 +3121,9 @@ input.entry-code-box:focus {
 }
 
 /* Action buttons (mockup 4a/4b) — a fixed 2-column grid of single-tone
-   cards (name + short cost/effect line), not the header/body two-tone
-   split this used to have. Colors are the design's exact per-action
-   backgrounds. */
+   cards, name only (no cost/effect subtext — costs surface in the
+   pending-pick prompt/dossier once an action is chosen). Colors are the
+   design's exact per-action backgrounds. */
 .actions-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -3075,8 +3132,9 @@ input.entry-code-box:focus {
 
 .action-btn {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   width: 100%;
+  min-height: 40px;
   border-radius: 7px;
   border: 1.5px solid #f0e3c4;
   background: var(--gs-wood-700);
@@ -3084,22 +3142,16 @@ input.entry-code-box:focus {
   color: var(--gs-parchment);
   font-family: var(--font-ui);
   text-align: left;
-  padding: 6px 7px;
+  padding: 8px 10px;
   cursor: pointer;
 }
 
 .action-btn-label {
   font-family: var(--font-display);
-  font-size: 9.5px;
-  line-height: 1.1;
+  font-size: 12px;
+  line-height: 1.2;
   color: #f4ecd6;
   text-transform: uppercase;
-}
-
-.action-btn-hint {
-  font-size: 9px;
-  color: rgba(240, 227, 196, 0.75);
-  margin-top: 2px;
 }
 
 .action-btn.field {

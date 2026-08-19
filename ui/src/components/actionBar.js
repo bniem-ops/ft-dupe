@@ -27,11 +27,10 @@ function eatCap(stage) {
   return stage === 1 ? 1 : stage === 2 ? 2 : 0;
 }
 
-function ActionButton({ label, hint, colorClass, disabled, onClick }) {
+function ActionButton({ label, colorClass, disabled, onClick }) {
   return html`
     <button type="button" class=${`action-btn ${colorClass ?? ''}`} disabled=${disabled} onClick=${onClick}>
       <span class="action-btn-label">${label}</span>
-      <span class="action-btn-hint">${hint}</span>
     </button>
   `;
 }
@@ -109,13 +108,26 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
     setPendingPick(null);
   }
 
+  const hasSubstatus =
+    !canAct || weatherAdjustmentAvailable || (player.chickenName === 'Princess Layer' && !player.extraActionTokenAvailable && player.eggs >= 1) ||
+    (player.chickenName === 'Cumberbill Rockefeather' && player.stage >= 2 && player.location !== 'Coop');
+
   return html`
     <div class="action-bar">
-      <div class="turn-status">
-        <strong>${label}'s turn</strong> — ${state.actionsRemainingThisTurn} action(s) left
-        ${!canAct && html`<span class="ref-text">(waiting for ${label}'s device)</span>`}
+      <div class="actions-header">
+        <span class="actions-header-label">Actions</span>
+        <div class="actions-dots">
+          ${Array.from({ length: state.actionsRemainingThisTurn }, (_, i) => html`<span key=${i} class="actions-dot"></span>`)}
+        </div>
+        <span class="actions-left-text">${state.actionsRemainingThisTurn} left</span>
+        <div class="gs-spacer"></div>
         ${player.extraActionTokenAvailable &&
-        html`<button type="button" disabled=${!canAct} onClick=${onUseExtraAction}>Use Extra Action Token</button>`}
+        html`<button type="button" class="actions-token-btn" disabled=${!canAct} onClick=${onUseExtraAction}>+1 token</button>`}
+      </div>
+
+      ${hasSubstatus &&
+      html`<div class="turn-status">
+        ${!canAct && html`<span class="ref-text">(waiting for ${label}'s device)</span>`}
         ${weatherAdjustmentAvailable &&
         html`<button
           type="button"
@@ -136,7 +148,7 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
         html`<button type="button" disabled=${!canAct} onClick=${() => dispatch({ type: 'freeMoveToCoop', playerId: player.id })}>
           Move to Coop (free — Landlord)
         </button>`}
-      </div>
+      </div>`}
 
       ${pendingPick?.type === 'move' &&
       html`<div class="pending-hint">Click a location on the board to Move. <button type="button" onClick=${cancelPick}>Cancel</button></div>`}
@@ -269,22 +281,15 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
       <div class="actions-grid">
         <${ActionButton}
           label="Forage"
-          hint="Gain 1 food"
           colorClass="field"
           disabled=${noActions}
           onClick=${() => dispatch({ type: 'forage', playerId: player.id })}
         />
 
-        <${ActionButton}
-          label="Lay Egg"
-          hint="Gain 1 egg · free"
-          disabled=${noActions}
-          onClick=${() => dispatch({ type: 'layEgg', playerId: player.id })}
-        />
+        <${ActionButton} label="Lay Egg" disabled=${noActions} onClick=${() => dispatch({ type: 'layEgg', playerId: player.id })} />
 
         <${ActionButton}
           label="Eat"
-          hint="Food → meal"
           colorClass="teal"
           disabled=${noActions || eatCap(player.stage) < 1 || player.food < 1}
           onClick=${() => {
@@ -295,7 +300,6 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
 
         <${ActionButton}
           label="Heal"
-          hint="1 food per ♥"
           disabled=${noActions || healCap(player.stage) < 1 || player.food < 1 || player.health >= player.maxHealth}
           onClick=${() => {
             setHealAmount(1);
@@ -303,17 +307,10 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
           }}
         />
 
-        <${ActionButton}
-          label="Move"
-          hint="New location"
-          colorClass="dusk"
-          disabled=${noActions}
-          onClick=${() => setPendingPick({ type: 'move', playerId: player.id })}
-        />
+        <${ActionButton} label="Move" colorClass="dusk" disabled=${noActions} onClick=${() => setPendingPick({ type: 'move', playerId: player.id })} />
 
         <${ActionButton}
           label="Draw Card"
-          hint="1 bonus card"
           colorClass="dusk"
           disabled=${noActions}
           onClick=${() => dispatch({ type: 'drawCard', playerId: player.id })}
@@ -326,7 +323,6 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
           </select>
           <${ActionButton}
             label="Brood"
-            hint="1 egg · revive"
             disabled=${noActions || !broodTarget}
             onClick=${() => dispatch({ type: 'brood', playerId: player.id, targetPlayerId: broodTarget })}
           />
@@ -334,7 +330,6 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
 
         <${ActionButton}
           label="Attack"
-          hint="1 food per claw"
           colorClass="blood"
           disabled=${noActions}
           onClick=${() => setPendingPick({ type: 'attack', step: 'target', playerId: player.id })}
@@ -343,7 +338,6 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
         ${abilities.some((a) => a.joinsAttackAsSecond) &&
         html`<${ActionButton}
           label="Attack w/ Companion"
-          hint="Quite Friendly"
           colorClass="blood"
           disabled=${noActions || nearbyAlivePlayers.length === 0}
           onClick=${() => setPendingPick({ type: 'attackWithCompanion', step: 'companion', playerId: player.id })}
