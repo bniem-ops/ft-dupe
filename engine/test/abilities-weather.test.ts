@@ -44,6 +44,36 @@ test('Nighttime: a chicken immune to it (Stargazer) cannot use the weather actio
   assert.throws(() => useWeatherActionAdjustment(started, 'p1'));
 });
 
+test('Nighttime: forced automatically on the last day of the phase if the player never used it', () => {
+  const state = { ...withWeather(createGame(baseConfig()), 'Spring', 'Nighttime'), day: 2 }; // last day of phase 1
+  const started = startTurn(state);
+  assert.equal(started.actionsRemainingThisTurn, 1); // forced this time, unlike day 1
+  assert.equal(started.players.find((p) => p.id === 'p1')!.weatherAdjustmentUsedThisPhase, true);
+  assert.throws(() => useWeatherActionAdjustment(started, 'p1')); // already used (forced), can't use again
+});
+
+test('Sunny: forced automatically on the last day of the phase if the player never used it', () => {
+  const state = { ...withWeather(createGame(baseConfig()), 'Summer', 'Sunny'), day: 5 }; // last day of phase 2
+  const started = startTurn(state);
+  assert.equal(started.actionsRemainingThisTurn, 3); // forced this time
+  assert.equal(started.players.find((p) => p.id === 'p1')!.weatherAdjustmentUsedThisPhase, true);
+});
+
+test('Nighttime: not forced again on the last day if the player already used it earlier in the phase', () => {
+  const state = withWeather(createGame(baseConfig()), 'Spring', 'Nighttime');
+  const used = useWeatherActionAdjustment(startTurn(state), 'p1'); // used on day 1
+  const started = startTurn({ ...used, day: 2 }); // day 2 = last day of phase 1, fresh turn
+  assert.equal(started.actionsRemainingThisTurn, 2); // not reduced again
+});
+
+test('Nighttime: a chicken immune to it is not forced on the last day of the phase either', () => {
+  const config = baseConfig({ players: [{ id: 'p1', chickenName: 'Beowing' }, { id: 'p2', chickenName: 'Wingston Coophill' }] });
+  const state = { ...withWeather(createGame(config), 'Spring', 'Nighttime'), day: 2 };
+  const started = startTurn(state);
+  assert.equal(started.actionsRemainingThisTurn, 2); // immune, no forced reduction
+  assert.equal(started.players.find((p) => p.id === 'p1')!.weatherAdjustmentUsedThisPhase, false);
+});
+
 test('Drought: Forage costs 2 actions', () => {
   const state = withWeather(withPlayer(createGame(baseConfig()), 'p1', { location: 'Grit Stones' }), 'Spring', 'Drought');
   const result = forage(state, 'p1');

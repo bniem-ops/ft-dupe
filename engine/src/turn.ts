@@ -36,6 +36,13 @@ export function isPhaseBoundaryDay(day: number, season: Season): boolean {
   return false;
 }
 
+// The last day of each phase (2/5/7, per seasonPhaseForDay above) — a
+// player's final turn before the weather card (and its once-per-phase
+// adjustment) rolls over for good.
+function isLastDayOfPhase(day: number): boolean {
+  return day === 2 || day === 5 || day === 7;
+}
+
 // --- Production (turn start) -------------------------------------------
 
 export interface ProductionRollInfo {
@@ -225,6 +232,26 @@ export function startTurn(state: GameState): GameState {
       if (result.rollIntercepted) {
         next = { ...next, players: replacePlayer(next.players, { ...getPlayer(next.players, playerId), pendingRollIntercept: null }) };
       }
+    }
+  }
+
+  // Sunny/Nighttime's once-per-phase adjustment is normally the player's
+  // own choice (useWeatherActionAdjustment, whichever turn they pick) — but
+  // "once during this phase, you must perform 1 more/less action" is a
+  // mandatory debuff/buff, not one they can just decline all phase by never
+  // clicking the button. Force it on their last turn of the phase if they
+  // haven't used it yet by then, so it's guaranteed to land exactly once
+  // (docs/playtest-feedback.md, 2026-08-18 Nighttime entry).
+  if (weather?.onTurnStart && weather.turnStartOncePerPhase && isLastDayOfPhase(next.day)) {
+    const current = getPlayer(next.players, playerId);
+    const immune =
+      isImmuneToWeather(current.chickenName, current.stage, activeWeatherName(next, playerId) ?? '', weather.positive ?? false) ||
+      current.pendingWeatherImmuneUntilNextTurn ||
+      current.permanentWeatherImmuneUntilNextCard;
+    if (!current.weatherAdjustmentUsedThisPhase && !immune) {
+      const result = weather.onTurnStart({ state: next, playerId }, next.config.rng);
+      actionsDelta += result.actionsDelta ?? 0;
+      next = { ...next, players: replacePlayer(next.players, { ...getPlayer(next.players, playerId), weatherAdjustmentUsedThisPhase: true }) };
     }
   }
 
