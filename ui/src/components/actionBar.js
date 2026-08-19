@@ -4,9 +4,13 @@ import { activeWeatherEffect, activeWeatherName, isImmuneToWeather, getOwnAndBor
 
 const ALL_LOCATIONS = ['Coop', ...OUTSIDE_LOCATIONS];
 
-// Mirrors actions.ts's healCap/eatCap — just for greying out obviously
-// invalid amounts; the engine remains the source of truth and any miss
-// here still surfaces via the dispatch error banner.
+// Mirrors actions.ts's healCap/eatCap exactly, including eatCap's 0 for
+// stage 3 — Hens/Roosters have no meal-counter benefit left to level into
+// (mealsToNext is null past stage 3), so Eat is a deliberate no-op there,
+// not a UI oversight. Used both for greying out invalid amounts and for
+// disabling the button entirely when no nonzero amount is ever valid; the
+// engine remains the source of truth and any miss here still surfaces via
+// the dispatch error banner.
 function healCap(stage) {
   return stage === 1 ? 1 : stage === 2 ? 2 : 3;
 }
@@ -25,7 +29,7 @@ function ActionButton({ label, hint, colorClass, disabled, onClick }) {
 
 export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction, pendingPick, setPendingPick, myPlayerId, displayName, playerNames }) {
   const [healAmount, setHealAmount] = useState(1);
-  const [eatAmount, setEatAmount] = useState(0);
+  const [eatAmount, setEatAmount] = useState(1);
   const [attackStrength, setAttackStrength] = useState(1);
   const [broodTarget, setBroodTarget] = useState('');
   const [tagAlongTarget, setTagAlongTarget] = useState('');
@@ -116,6 +120,54 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
 
       ${pendingPick?.type === 'move' &&
       html`<div class="pending-hint">Click a location on the board to Move. <button type="button" onClick=${cancelPick}>Cancel</button></div>`}
+      ${pendingPick?.type === 'eat' &&
+      html`
+        <div class="pending-hint">
+          How much food to eat (1 meal per food)?
+          <input
+            type="number"
+            min="1"
+            max=${Math.max(1, Math.min(eatCap(player.stage), player.food))}
+            value=${eatAmount}
+            onInput=${(e) => setEatAmount(Number(e.target.value))}
+          />
+          <button
+            type="button"
+            disabled=${!canAct}
+            onClick=${() => {
+              dispatch({ type: 'eat', playerId: player.id, amount: eatAmount });
+              setPendingPick(null);
+            }}
+          >
+            Confirm Eat
+          </button>
+          <button type="button" onClick=${cancelPick}>Cancel</button>
+        </div>
+      `}
+      ${pendingPick?.type === 'heal' &&
+      html`
+        <div class="pending-hint">
+          How many hearts to heal (1 food per heart)?
+          <input
+            type="number"
+            min="1"
+            max=${Math.max(1, Math.min(healCap(player.stage), player.food, player.maxHealth - player.health))}
+            value=${healAmount}
+            onInput=${(e) => setHealAmount(Number(e.target.value))}
+          />
+          <button
+            type="button"
+            disabled=${!canAct}
+            onClick=${() => {
+              dispatch({ type: 'heal', playerId: player.id, amount: healAmount });
+              setPendingPick(null);
+            }}
+          >
+            Confirm Heal
+          </button>
+          <button type="button" onClick=${cancelPick}>Cancel</button>
+        </div>
+      `}
       ${pickingCompanion &&
       html`
         <div class="pending-hint">
@@ -209,38 +261,26 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
           onClick=${() => dispatch({ type: 'layEgg', playerId: player.id })}
         />
 
-        <div class="action-with-amount">
-          <input
-            type="number"
-            min="0"
-            max=${eatCap(player.stage)}
-            value=${eatAmount}
-            onInput=${(e) => setEatAmount(Number(e.target.value))}
-          />
-          <${ActionButton}
-            label="Eat"
-            hint="Food → meal"
-            colorClass="teal"
-            disabled=${noActions}
-            onClick=${() => dispatch({ type: 'eat', playerId: player.id, amount: eatAmount })}
-          />
-        </div>
+        <${ActionButton}
+          label="Eat"
+          hint="Food → meal"
+          colorClass="teal"
+          disabled=${noActions || eatCap(player.stage) < 1 || player.food < 1}
+          onClick=${() => {
+            setEatAmount(1);
+            setPendingPick({ type: 'eat', playerId: player.id });
+          }}
+        />
 
-        <div class="action-with-amount">
-          <input
-            type="number"
-            min="1"
-            max=${healCap(player.stage)}
-            value=${healAmount}
-            onInput=${(e) => setHealAmount(Number(e.target.value))}
-          />
-          <${ActionButton}
-            label="Heal"
-            hint="1 food per ♥"
-            disabled=${noActions}
-            onClick=${() => dispatch({ type: 'heal', playerId: player.id, amount: healAmount })}
-          />
-        </div>
+        <${ActionButton}
+          label="Heal"
+          hint="1 food per ♥"
+          disabled=${noActions || healCap(player.stage) < 1 || player.food < 1 || player.health >= player.maxHealth}
+          onClick=${() => {
+            setHealAmount(1);
+            setPendingPick({ type: 'heal', playerId: player.id });
+          }}
+        />
 
         <${ActionButton}
           label="Move"
