@@ -1557,17 +1557,28 @@ input.entry-code-box:focus {
   cursor: pointer;
 }
 
-/* --- Presence-driven flock rail: absent solo, 56px avatar strip with a
-   hover/click-expand card otherwise. Both are absolutely positioned over
-   .gs-board (already position:relative), not a layout sibling. --- */
+/* --- Right rail: one absolutely-positioned column over .gs-board (already
+   position:relative) holding the presence-driven flock strip (absent solo,
+   56px avatar strip with a hover/click-expand card otherwise) stacked above
+   the log toggle — always present, even solo, since the log has nowhere
+   else to live once it's not floating on the board. --- */
 
-.avatar-strip {
+.right-rail {
   position: absolute;
   right: 14px;
   top: 14px;
   bottom: 14px;
   width: 56px;
   z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.avatar-strip {
+  flex: 1;
+  min-height: 0;
+  width: 56px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1649,23 +1660,54 @@ input.entry-code-box:focus {
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.55);
 }
 
-/* --- Persistent on-board log + full-history overlay (mockup turns
-   4a/4b) — a stacked list bottom-left of the board, newest on top and
-   staying put rather than fading, plus a history chip for the full log. --- */
+/* --- Log rail — a toggle tab at the bottom of the right rail (stacked
+   below the flock strip, or alone in solo) that opens a panel of recent
+   log entries anchored to the same edge, instead of the old bottom-left
+   toast stack + separate modal. Requested after playtesting found the
+   on-board version too easy to miss under the board's own card clutter
+   (docs/playtest-feedback.md, 2026-08-18 Toasts/Roll outcomes entry). --- */
 
-.board-log {
-  position: absolute;
-  left: 14px;
-  bottom: 14px;
-  z-index: 4;
+.log-rail {
+  flex: none;
+  margin-top: auto;
   display: flex;
-  flex-direction: column-reverse;
-  gap: 6px;
-  max-width: 320px;
-  pointer-events: none;
+  justify-content: center;
 }
 
-.board-log-entry {
+.log-rail-toggle {
+  width: 56px;
+  height: 40px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, var(--gs-wood-800), #2f2117);
+  border: 1px solid rgba(240, 227, 196, 0.14);
+  color: var(--gs-parchment);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.log-rail-panel {
+  position: absolute;
+  right: 70px;
+  bottom: 14px;
+  width: 300px;
+  max-width: min(300px, calc(100vw - 100px));
+  max-height: 70%;
+  overflow-y: auto;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px;
+}
+
+.log-rail-title {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--gs-parchment-dim);
+  padding: 4px 2px;
+}
+
+.log-rail-entry {
   font-size: 11px;
   padding: 8px 12px;
   border-radius: 8px;
@@ -1673,53 +1715,6 @@ input.entry-code-box:focus {
   border: 1px solid rgba(240, 227, 196, 0.2);
   color: rgba(240, 227, 196, 0.9);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
-}
-
-.log-history-btn {
-  position: absolute;
-  left: 14px;
-  top: 14px;
-  z-index: 4;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: rgba(43, 36, 28, 0.82);
-  border: 1px solid rgba(240, 227, 196, 0.28);
-  color: var(--gs-parchment);
-  font-size: 15px;
-  cursor: pointer;
-}
-
-.log-history-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  z-index: 50;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.log-history-panel {
-  width: 360px;
-  max-width: 90vw;
-  max-height: 70vh;
-  overflow-y: auto;
-  background: linear-gradient(180deg, var(--gs-wood-800), #2f2117);
-  border: 1px solid rgba(240, 227, 196, 0.2);
-  border-radius: 10px;
-  padding: 14px;
-}
-
-.log-history-panel button {
-  margin-top: 10px;
-  font-family: var(--font-ui);
-  padding: 7px 14px;
-  border-radius: 6px;
-  background: var(--gs-ochre);
-  color: #2b241c;
-  border: none;
-  font-weight: 700;
 }
 
 .table-view-toggle {
@@ -2915,10 +2910,8 @@ input.entry-code-box:focus {
     font-size: 13px;
   }
   .gs-side-panel,
-  .avatar-strip,
+  .right-rail,
   .opponent-expand-card,
-  .board-log,
-  .log-history-btn,
   .table-view-toggle {
     display: none;
   }

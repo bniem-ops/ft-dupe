@@ -103,7 +103,7 @@ function App() {
   // Desktop-only UI state (≥901px — see styles.css's .gs-side-panel/
   // .avatar-strip). Purely local presentation state, not synced.
   const [tableView, setTableView] = useState(false);
-  const [showLogHistory, setShowLogHistory] = useState(false);
+  const [logRailOpen, setLogRailOpen] = useState(false);
 
   // Session state — every game is a session now, no local hotseat mode.
   const [sessionCode, setSessionCode] = useState(null);
@@ -517,32 +517,31 @@ function App() {
             hereLocation=${currentPlayer.location}
           />
           ${!tableView &&
-          opponents.length > 0 &&
-          html`<${AvatarStrip}
-            opponents=${opponents}
-            currentPlayerId=${currentPlayerId}
-            state=${gameState}
-            dispatch=${dispatch}
-            pendingPick=${pendingPick}
-            setPendingPick=${setPendingPick}
-            myPlayerId=${myPlayerId}
-            playerNames=${playerNames}
-          />`}
-          <div class="board-log">
-            ${recentLog.slice(0, 6).map((a, i) => html`<div key=${i} class="board-log-entry" style=${{ opacity: 1 - i * 0.13 }}>${formatLogEntry(a, playerNames)}</div>`)}
-          </div>
-          <button type="button" class="log-history-btn" title="Log" onClick=${() => setShowLogHistory(true)}>🕘</button>
+          html`<div class="right-rail">
+            ${opponents.length > 0 &&
+            html`<${AvatarStrip}
+              opponents=${opponents}
+              currentPlayerId=${currentPlayerId}
+              state=${gameState}
+              dispatch=${dispatch}
+              pendingPick=${pendingPick}
+              setPendingPick=${setPendingPick}
+              myPlayerId=${myPlayerId}
+              playerNames=${playerNames}
+            />`}
+            <div class="log-rail">
+              <button type="button" class="log-rail-toggle" title="Log" onClick=${() => setLogRailOpen((v) => !v)}>
+                🕘
+              </button>
+              ${logRailOpen &&
+              html`<div class="log-rail-panel">
+                <div class="log-rail-title">LOG</div>
+                ${recentLog.map((a, i) => html`<div key=${i} class="log-rail-entry">${formatLogEntry(a, playerNames)}</div>`)}
+              </div>`}
+            </div>
+          </div>`}
         </div>
       </div>
-
-      ${showLogHistory &&
-      html`<div class="log-history-overlay" onClick=${() => setShowLogHistory(false)}>
-        <div class="log-history-panel" onClick=${(e) => e.stopPropagation()}>
-          <div class="gs-log-title">LOG</div>
-          ${recentLog.map((a, i) => html`<div key=${i} class="gs-log-entry">${formatLogEntry(a, playerNames)}</div>`)}
-          <button type="button" onClick=${() => setShowLogHistory(false)}>Close</button>
-        </div>
-      </div>`}
 
       <div class="gs-mobile-dock">
         ${!mobileSheetOpen
