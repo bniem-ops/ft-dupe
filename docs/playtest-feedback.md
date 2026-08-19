@@ -81,3 +81,31 @@ Format per entry:
 - Card/rule involved: N/A
 - Triage: not a regression — the persistent log (with roll outcomes) was there, just easy to miss: a small stack bottom-left of the board, competing with the location/predator/grub cards already cluttering that area.
 - Status: fixed — moved to a toggleable rail on the right edge of the board (a 🕘 tab, opens a scrollable panel), stacked below the flock/avatar strip when opponents exist, alone (still visible) in solo. Replaces both the old bottom-left toast stack and the separate centered-modal log-history button.
+
+## 2026-08-19 — Chicksune Predator effect
+- What happened: I attacked Chicksune as a level 3 chicken during Summer. I had 3 attack and Chicksune has 3 health. When attacking, Chicksune lost only 1 heart. I assume CHicksune rolled a 6 on the predator effect however the card explicitly states Chicksune cannot heal after being defeated
+- Expected: If an attack were to take CHicksune's health to 0, Chicksune cannot heal and should be defeated
+- Card/rule involved: Chicksune Predator card
+- Triage: bug, confirmed — `combat.ts`'s `resolvePredatorAttack` combined incoming damage and any self-heal roll in one formula (`health - damage + heal`), so a heal rolled on the same attack that would otherwise be lethal could net out to a survivable hit instead of a kill. Both Chicksune (S2/S3) and Eggsmeralda (S1) print "Cannot heal after defeat" on their self-heal effects, so this wasn't Chicksune-specific.
+- Status: fixed — the roll-table self-heal (`defaultTargetEffect` in `combat.ts`) now checks whether the attack's own strength alone would already drop the Predator to 0 before granting its heal; if so, the heal is skipped and the kill stands. `CombatContext` gained an `attackStrength` field so this check has the number to compare against. Owl Coopone's weather-conditional bonus health (a standing buff, not a reactive heal — no "cannot heal after defeat" text) is unaffected, still combined in the same tick as before. Added regression tests in `abilities-predators.test.ts` (lethal hit defeats Chicksune despite a max heal roll; non-lethal hit still heals normally).
+
+## 2026-08-19 — Toasts / Roll outcomes
+- What happened: I do not see toasts or roll outcomes from the game
+- Expected: I see the toasts toggle and 'LOG' on the game board but do not see any roll outcomes or toasts through two season of gameplay. I don't know if I care about toasts anymore and just want a persistent log to scroll through to see outcomes (did my teammate get their production roll, did a predator effect work, stuff like that)
+- Card/rule involved: N/A
+- Triage: not a bug in the rail itself — this was reported before the production-roll-visibility work (`e864e8a`) landed, so at the time only regular actions were logged, not roll outcomes; the LOG rail was there but had nothing roll-related to show yet.
+- Status: fixed — `e864e8a` ("Show production roll results and let Strategem/Deus Eggs Machina react to them") and `54e3a86` (widening roll interception/logging to every attributable die roll — attacks, predator effects, weather, Grub defend rolls, not just production) now append a log entry for every roll the engine makes, visible in the same right-rail LOG panel. If rolls are still missing after this, it's a new report, not this one.
+
+## 2026-08-19 — End of Turn Grub Discare
+- What happened: I can discard from a grub pile that's empty
+- Expected: If the outside grub pile is empty, I must discard the inside grub at the end of the turn
+- Card/rule involved: Grub Discard
+- Triage: bug, confirmed — `performDailyGrubDiscard` (`turn.ts`) discarded whichever side the player picked with no check that it actually had a face-up card; `discardFaceUp` silently no-ops on an empty side (`grubs.ts`), so picking the empty side skipped the mandatory daily discard entirely instead of falling back to the side that actually had a card.
+- Status: fixed — `performDailyGrubDiscard` now forces the discard onto the other side if the requested one is already empty but the other has a card. `turnControls.js`'s dropdown also disables/relabels an empty side and auto-corrects the selection so the UI doesn't offer a choice that wouldn't actually happen. Added a regression test in `turn.test.ts`.
+
+## 2026-08-19 — +1 Strength increase bonus card
+- What happened: I played a +1 to attack bonus card before attacking a predator. The predator had 4 health, I had 3 attack. I payed 3 food and dealt 3 damage (predator has 1 health remaining). Daylight savings is my weather card for the turn, Layonardo is the predator with Shellock Holmes as the chicken
+- Expected: Layonardo should have been vanquished
+- Card/rule involved: +1 Strength bonus card
+- Triage: bug, confirmed — the engine's cap/cost math for this card (`actions.ts`'s `attack()`, raising the attack-strength ceiling by 1 at no extra food cost) was already correct and tested, but the UI's attack-strength input (`actionBar.js`) computed its own `max` from just `player.attackStrength`, never accounting for the card's bonus point (or weather/ability bonuses either). So the boosted strength was never actually selectable — you paid for and dealt only your base 3, the card had no effect in practice, matching exactly what was reported.
+- Status: fixed — extracted the engine's cap/cost logic into exported `maxAttackStrengthFor`/`attackCostFor` (`actions.ts`) so there's one source of truth, and wired the UI's attack-strength input to use them instead of its own approximation. The input now also shows the actual food cost live, including when the free bonus point is in play. Verified against the reported scenario directly (base 3, +1 card, 4-health target: costs 3 food, deals 4 damage, defeats it).
