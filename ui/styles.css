@@ -1557,10 +1557,12 @@ input.entry-code-box:focus {
   cursor: pointer;
 }
 
-/* --- Predator dossier (design mockup 6a): the app's first true modal —
-   position:fixed over the whole viewport (not just .gs-board), since it
-   needs to sit above the side panel and right rail too, not just the
-   board itself. --- */
+/* --- Predator/Grub dossier (design mockup 6a): the app's first true
+   modal — position:fixed over the whole viewport (not just .gs-board),
+   since it needs to sit above the side panel and right rail too, not
+   just the board itself. `.dossier-panel.kind-grub` recolors the
+   blood-red predator accent to the teal already used for Grub cards
+   elsewhere (`.card-plate.kind-grub`). --- */
 
 .dossier-backdrop {
   position: fixed;
@@ -1685,6 +1687,37 @@ input.entry-code-box:focus {
   border-radius: 10px;
   background: rgba(140, 59, 52, 0.28);
   border: 1.5px solid rgba(196, 96, 86, 0.55);
+}
+
+.dossier-panel.kind-grub .dossier-header {
+  background: linear-gradient(180deg, #2f5a63, #1b3a43);
+}
+
+.dossier-panel.kind-grub .dossier-portrait-plate {
+  border-color: #8fc0cc;
+  background: #20404a;
+}
+
+.dossier-panel.kind-grub .dossier-portrait-art {
+  background: radial-gradient(circle at 50% 40%, #2c5560, #1b3a43);
+}
+
+.dossier-panel.kind-grub .dossier-portrait-art .monogram {
+  color: #cfe6ec;
+}
+
+.dossier-panel.kind-grub .dossier-portrait-label {
+  background: #2f5a63;
+  color: #cfe6ec;
+}
+
+.dossier-panel.kind-grub .dossier-health-card {
+  background: rgba(47, 90, 99, 0.28);
+  border-color: rgba(143, 192, 204, 0.55);
+}
+
+.dossier-panel.kind-grub .dossier-health-row .heart.full {
+  color: #7fb8c4;
 }
 
 .dossier-health-row {

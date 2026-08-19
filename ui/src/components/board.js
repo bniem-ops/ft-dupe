@@ -227,7 +227,7 @@ function LocationBanner({ name, anchor, hereLocation }) {
 // A predator's card floats above its location's oval as its own
 // independently-anchored slot (design mockup turns 4a/4b), rather than
 // nesting inside the location box — see PREDATOR_ANCHORS above.
-function PredatorSlot({ location, anchor, state, dispatch, pendingPick, setPendingPick, onInspectPredator }) {
+function PredatorSlot({ location, anchor, state, dispatch, pendingPick, setPendingPick, onInspectTarget }) {
   const predator = state.predators.find((p) => p.location === location);
   if (!predator) return null;
 
@@ -264,7 +264,7 @@ function PredatorSlot({ location, anchor, state, dispatch, pendingPick, setPendi
       setPendingPick({ ...pendingPick, step: pendingPick.type === 'attack' ? 'dossier' : 'strength', targetType: 'predator', targetId: predator.name });
       return;
     }
-    onInspectPredator(predator.name);
+    onInspectTarget('predator', predator.name);
   }
 
   return html`
@@ -299,7 +299,7 @@ function SeasonKey({ season }) {
   `;
 }
 
-function GrubDeckBadge({ side, deckSide, state, dispatch, pendingPick, setPendingPick }) {
+function GrubDeckBadge({ side, deckSide, state, dispatch, pendingPick, setPendingPick, onInspectTarget }) {
   const pickingAttackTarget =
     (pendingPick?.type === 'attack' || pendingPick?.type === 'attackWithCompanion') && pendingPick.step === 'target';
   const pickingCardTarget = pendingPick?.type === 'cardTarget' && pendingPick.step === 'target';
@@ -313,7 +313,7 @@ function GrubDeckBadge({ side, deckSide, state, dispatch, pendingPick, setPendin
   const playerSide = actingPlayer ? (actingPlayer.location === 'Coop' ? 'inside' : 'outside') : null;
   const mayAttackAnyLocation = actingPlayer ? getOwnAndBorrowedAbilities(actingPlayer).some((a) => a.mayAttackGrubsFromAnyLocation) : false;
   const attackTargetReachable = !pickingAttackTarget || mayAttackAnyLocation || side === playerSide;
-  const clickable = !!card && ((pickingAttackTarget && attackTargetReachable) || pickingCardTarget);
+  const clickable = !!card;
 
   function select() {
     if (pickingCardTarget) {
@@ -326,9 +326,17 @@ function GrubDeckBadge({ side, deckSide, state, dispatch, pendingPick, setPendin
         targetId: side,
       });
       setPendingPick(null);
-    } else {
-      setPendingPick({ ...pendingPick, step: 'strength', targetType: 'grub', targetId: side });
+      return;
     }
+    // Same generalized dossier flow as PredatorSlot (design mockup 6a):
+    // a plain Attack opens it as the confirm step; attackWithCompanion
+    // keeps the existing inline strength picker; anything unreachable or
+    // unarmed falls to a read-only inspect.
+    if (pickingAttackTarget && attackTargetReachable) {
+      setPendingPick({ ...pendingPick, step: pendingPick.type === 'attack' ? 'dossier' : 'strength', targetType: 'grub', targetId: side });
+      return;
+    }
+    onInspectTarget('grub', side);
   }
 
   return html`
@@ -347,7 +355,7 @@ function GrubDeckBadge({ side, deckSide, state, dispatch, pendingPick, setPendin
   `;
 }
 
-export function Board({ state, dispatch, pendingPick, setPendingPick, playerNames, hereLocation, onInspectPredator }) {
+export function Board({ state, dispatch, pendingPick, setPendingPick, playerNames, hereLocation, onInspectTarget }) {
   const weatherCard = activeWeatherCard(state);
   const locations = ['Coop', ...OUTSIDE_LOCATIONS];
   const grubDiscardCount = state.grubDecks.inside.discard.length + state.grubDecks.outside.discard.length;
@@ -391,7 +399,7 @@ export function Board({ state, dispatch, pendingPick, setPendingPick, playerName
             dispatch=${dispatch}
             pendingPick=${pendingPick}
             setPendingPick=${setPendingPick}
-            onInspectPredator=${onInspectPredator}
+            onInspectTarget=${onInspectTarget}
           />`,
       )}
 
@@ -414,10 +422,26 @@ export function Board({ state, dispatch, pendingPick, setPendingPick, playerName
       </div>
 
       <div class="board-slot" style=${slotStyle('grubsInside')}>
-        <${GrubDeckBadge} side="inside" deckSide=${state.grubDecks.inside} state=${state} dispatch=${dispatch} pendingPick=${pendingPick} setPendingPick=${setPendingPick} />
+        <${GrubDeckBadge}
+          side="inside"
+          deckSide=${state.grubDecks.inside}
+          state=${state}
+          dispatch=${dispatch}
+          pendingPick=${pendingPick}
+          setPendingPick=${setPendingPick}
+          onInspectTarget=${onInspectTarget}
+        />
       </div>
       <div class="board-slot" style=${slotStyle('grubsOutside')}>
-        <${GrubDeckBadge} side="outside" deckSide=${state.grubDecks.outside} state=${state} dispatch=${dispatch} pendingPick=${pendingPick} setPendingPick=${setPendingPick} />
+        <${GrubDeckBadge}
+          side="outside"
+          deckSide=${state.grubDecks.outside}
+          state=${state}
+          dispatch=${dispatch}
+          pendingPick=${pendingPick}
+          setPendingPick=${setPendingPick}
+          onInspectTarget=${onInspectTarget}
+        />
       </div>
 
       <div class="board-slot" style=${slotStyle('weatherTrack')}>

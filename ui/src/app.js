@@ -22,7 +22,7 @@ import { PlayerPanel, AvatarStrip } from './components/playerPanel.js';
 import { ActionBar } from './components/actionBar.js';
 import { TurnControls } from './components/turnControls.js';
 import { ProductionReveal } from './components/productionReveal.js';
-import { PredatorDossier } from './components/predatorDossier.js';
+import { TargetDossier } from './components/targetDossier.js';
 
 const SEASON_ORDER = ['Spring', 'Summer', 'Fall'];
 
@@ -105,10 +105,11 @@ function App() {
   // .avatar-strip). Purely local presentation state, not synced.
   const [tableView, setTableView] = useState(false);
   const [logRailOpen, setLogRailOpen] = useState(false);
-  // A Predator inspected read-only (no attack armed) — design mockup 6a's
-  // dossier doubling as a reference card. Separate from pendingPick since
-  // it's a non-committal peek, not part of the action state machine.
-  const [inspectingPredatorName, setInspectingPredatorName] = useState(null);
+  // A Predator or Grub inspected read-only (no attack armed) — design
+  // mockup 6a's dossier doubling as a reference card. Separate from
+  // pendingPick since it's a non-committal peek, not part of the action
+  // state machine. { targetType: 'predator'|'grub', targetId } | null.
+  const [inspectingTarget, setInspectingTarget] = useState(null);
 
   // Session state — every game is a session now, no local hotseat mode.
   const [sessionCode, setSessionCode] = useState(null);
@@ -471,27 +472,29 @@ function App() {
     playerNames=${playerNames}
   />`;
 
-  // Predator dossier (design mockup 6a): either committing (Attack armed,
-  // a target was just clicked — the dossier is itself the confirm step)
-  // or a read-only inspect (nothing armed, just peeking at a reference
-  // card). At most one of these is ever true.
-  const dossierCommitting = pendingPick?.type === 'attack' && pendingPick.step === 'dossier' && pendingPick.targetType === 'predator';
-  const dossierPredatorName = dossierCommitting ? pendingPick.targetId : inspectingPredatorName;
+  // Predator/Grub dossier (design mockup 6a): either committing (Attack
+  // armed, a target was just clicked — the dossier is itself the confirm
+  // step) or a read-only inspect (nothing armed, just peeking at a
+  // reference card). At most one of these is ever true.
+  const dossierCommitting = pendingPick?.type === 'attack' && pendingPick.step === 'dossier';
+  const dossierTargetType = dossierCommitting ? pendingPick.targetType : inspectingTarget?.targetType;
+  const dossierTargetId = dossierCommitting ? pendingPick.targetId : inspectingTarget?.targetId;
 
   return html`
     <div class="game">
       ${error && html`<div class="error-banner">${error}</div>`}
-      ${dossierPredatorName &&
-      html`<${PredatorDossier}
-        key=${dossierPredatorName}
+      ${dossierTargetId &&
+      html`<${TargetDossier}
+        key=${`${dossierTargetType}-${dossierTargetId}`}
         state=${gameState}
         dispatch=${dispatch}
         pendingPick=${pendingPick}
         setPendingPick=${setPendingPick}
         myPlayerId=${myPlayerId}
-        predatorName=${dossierPredatorName}
+        targetType=${dossierTargetType}
+        targetId=${dossierTargetId}
         committing=${dossierCommitting}
-        onClose=${() => (dossierCommitting ? setPendingPick(null) : setInspectingPredatorName(null))}
+        onClose=${() => (dossierCommitting ? setPendingPick(null) : setInspectingTarget(null))}
       />`}
 
       <div class="gs-topbar">
@@ -539,7 +542,7 @@ function App() {
             setPendingPick=${setPendingPick}
             playerNames=${playerNames}
             hereLocation=${currentPlayer.location}
-            onInspectPredator=${setInspectingPredatorName}
+            onInspectTarget=${(targetType, targetId) => setInspectingTarget({ targetType, targetId })}
           />
           ${!tableView &&
           html`<div class="right-rail">
