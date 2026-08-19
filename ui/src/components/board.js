@@ -69,17 +69,20 @@ const BOARD_CARD_WIDTHS = {
   weatherTrack: 10.4,
 };
 
-// Minimum height (cqh) for the small deck/pile slots — bonus deck, both
-// discard piles, and both grub piles all start at the same height as each
-// other (matching how tall they currently look) but this is a floor, not a
+// Minimum height (cqh) for the small deck/pile slots — a floor, not a
 // fixed height: content-driven "auto" sizing still applies on top of it, so
 // a card never gets forced shorter than its content needs, and the min
 // itself shrinks proportionally as the board does since cqh is relative to
 // the board's own rendered height, not a fixed pixel value.
+// bonusDeck/bonusDiscard/grubDiscard sit near the top of the board (y≈10)
+// and are centered on that anchor via translateY(-50%), so a height as
+// tall as the grub piles' 20.9 pushed their top edge above y=0 and got
+// clipped by the board's overflow:hidden — back to the design's own
+// (shorter) heights for these three specifically.
 const BOARD_CARD_MIN_HEIGHTS = {
-  bonusDeck: 20.9,
-  bonusDiscard: 20.9,
-  grubDiscard: 20.9,
+  bonusDeck: 17.5,
+  bonusDiscard: 17.5,
+  grubDiscard: 16.7,
   grubsInside: 20.9,
   grubsOutside: 20.9,
 };
