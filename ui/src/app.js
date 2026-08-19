@@ -435,7 +435,19 @@ function App() {
 
   const currentPlayerId = gameState.turnOrder[gameState.currentPlayerIndex];
   const currentPlayer = gameState.players.find((p) => p.id === currentPlayerId);
-  const opponents = gameState.players.filter((p) => p.id !== currentPlayerId);
+  // The device's own seat — what "my board"/"you are here" means. Distinct
+  // from currentPlayer (whoever's turn it is): the action bar stays tied to
+  // currentPlayer (only the active player can act, so that's the right
+  // stats/caps to build buttons from), but every display-only panel (dock,
+  // board location, mobile strip/HERE card, player sheet) should always
+  // show *my* player, not whoever's turn it happens to be — previously
+  // these all used currentPlayer, so during a teammate's turn a device
+  // would show their board/location as if it were your own (playtest-
+  // feedback.md, 2026-08-19 "Multi-Player Board" / "Mobile Health
+  // Discrepancy" entries). Falls back to currentPlayer if myPlayerId isn't
+  // a real seat (local/no-session contexts, same tolerance canAct already has).
+  const myPlayer = gameState.players.find((p) => p.id === myPlayerId) ?? currentPlayer;
+  const opponents = gameState.players.filter((p) => p.id !== myPlayer.id);
   // Filter before slicing so a superseded entry (resolveProductionReveal's
   // raw action, see formatLogEntry's case above) doesn't crowd out a real
   // one from the last-12 window.
@@ -448,14 +460,14 @@ function App() {
   // keeps the notebook inline like before.
   const dockPanel = (slideOver = false) => html`<${PlayerPanel}
     variant="dock"
-    player=${currentPlayer}
-    isCurrent=${true}
+    player=${myPlayer}
+    isCurrent=${myPlayer.id === currentPlayerId}
     state=${gameState}
     dispatch=${dispatch}
     pendingPick=${pendingPick}
     setPendingPick=${setPendingPick}
     myPlayerId=${myPlayerId}
-    displayName=${playerNames[currentPlayer.id] ?? currentPlayer.id}
+    displayName=${playerNames[myPlayer.id] ?? myPlayer.id}
     playerNames=${playerNames}
     slideOverNotebook=${slideOver}
   />`;
@@ -542,7 +554,7 @@ function App() {
             pendingPick=${pendingPick}
             setPendingPick=${setPendingPick}
             playerNames=${playerNames}
-            hereLocation=${currentPlayer.location}
+            hereLocation=${myPlayer.location}
             onInspectTarget=${(targetType, targetId) => setInspectingTarget({ targetType, targetId })}
           />
           ${!tableView &&
@@ -579,6 +591,7 @@ function App() {
         setPendingPick=${setPendingPick}
         myPlayerId=${myPlayerId}
         playerNames=${playerNames}
+        myPlayer=${myPlayer}
         currentPlayer=${currentPlayer}
         opponents=${opponents}
         dayEndPending=${dayEndPending}
@@ -593,13 +606,13 @@ function App() {
       />
       ${mobilePlayerSheetOpen &&
       html`<${MobilePlayerSheet}
-        player=${currentPlayer}
+        player=${myPlayer}
         state=${gameState}
         dispatch=${dispatch}
         pendingPick=${pendingPick}
         setPendingPick=${setPendingPick}
         myPlayerId=${myPlayerId}
-        displayName=${playerNames[currentPlayer.id] ?? currentPlayer.id}
+        displayName=${playerNames[myPlayer.id] ?? myPlayer.id}
         playerNames=${playerNames}
         onClose=${() => setMobilePlayerSheetOpen(false)}
       />`}

@@ -588,7 +588,9 @@ export function PlayerPanel({
           <div class="name">${label}</div>
           <div class="breed">${chicken.name} — ${chicken.breed} Stage ${player.stage}${!player.alive ? ' (dead)' : ''}</div>
           <div class="chips">
-            <span class="chip">${state.actionsRemainingThisTurn} action(s)</span>
+            ${isCurrent
+              ? html`<span class="chip">${state.actionsRemainingThisTurn} action(s)</span>`
+              : html`<span class="chip">Not your turn</span>`}
             <span class="chip">${player.attackStrength} claw</span>
           </div>
         </div>

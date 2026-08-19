@@ -88,6 +88,7 @@ export function MobilePlay({
   setPendingPick,
   myPlayerId,
   playerNames,
+  myPlayer,
   currentPlayer,
   opponents,
   dayEndPending,
@@ -108,8 +109,15 @@ export function MobilePlay({
   const canAct = myPlayerId == null || myPlayerId === currentPlayer.id;
   const noActions = state.actionsRemainingThisTurn <= 0 || !canAct;
   const deadPlayers = state.players.filter((p) => !p.alive);
-  const weatherName = activeWeatherName(state, currentPlayer.id);
-  const hereLocation = currentPlayer.location;
+  // Display (weather/location/strip/HERE-card) always follows myPlayer —
+  // the device's own seat — not currentPlayer (whoever's turn it is), so a
+  // teammate's turn never makes this device show their board as if it
+  // were yours (playtest-feedback.md, 2026-08-19 "Multi-Player Board").
+  // Action-taking (tapTile's dispatches, the embedded ActionBar/caps)
+  // stays on currentPlayer since only the active player can act — the two
+  // are the same player whenever a tile is actually enabled.
+  const weatherName = activeWeatherName(state, myPlayer.id);
+  const hereLocation = myPlayer.location;
   const pickingMove = pendingPick?.type === 'move';
 
   function tapLocation(name) {
@@ -241,18 +249,18 @@ export function MobilePlay({
   const playerStrip = html`
     <div class="mobile-play-strip">
       <div class="mobile-play-strip-portrait">
-        <span class="monogram">${monogram(currentPlayer.chickenName)}</span>
+        <span class="monogram">${monogram(myPlayer.chickenName)}</span>
       </div>
       <div class="mobile-play-strip-body">
         <div class="mobile-play-strip-name">
-          <span>${playerNames?.[currentPlayer.id] ?? currentPlayer.id}</span>
-          <span class="mobile-play-strip-stage">Stage ${currentPlayer.stage}</span>
+          <span>${playerNames?.[myPlayer.id] ?? myPlayer.id}</span>
+          <span class="mobile-play-strip-stage">Stage ${myPlayer.stage}</span>
         </div>
         <div class="mobile-play-strip-stats">
-          <span class="ref-text">❤ ${currentPlayer.health}/${currentPlayer.maxHealth}</span>
-          <span class="ref-text">🌾 ${currentPlayer.food}</span>
-          <span class="ref-text">🥚 ${currentPlayer.eggs}</span>
-          <span class="ref-text">MEAL ${currentPlayer.mealCounter}</span>
+          <span class="ref-text">❤ ${myPlayer.health}/${myPlayer.maxHealth}</span>
+          <span class="ref-text">🌾 ${myPlayer.food}</span>
+          <span class="ref-text">🥚 ${myPlayer.eggs}</span>
+          <span class="ref-text">MEAL ${myPlayer.mealCounter}</span>
         </div>
       </div>
       <button type="button" class="mobile-play-strip-expand" onClick=${onOpenPlayerSheet}>▴</button>
@@ -263,7 +271,7 @@ export function MobilePlay({
     const anchor = BOARD_ANCHORS[LOCATION_ANCHOR_KEY[focusLocation]];
     const frame = boardZoomFrame(anchor, PLACE_VIEWPORT, ZOOM_FACTOR);
     const { grubCard, deckSide, predator } = placeInfo(state, focusLocation);
-    const othersHere = state.players.filter((p) => p.alive && p.id !== currentPlayer.id && p.location === focusLocation);
+    const othersHere = state.players.filter((p) => p.alive && p.id !== myPlayer.id && p.location === focusLocation);
     const weatherCardName = weatherName;
 
     return html`
