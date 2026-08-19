@@ -68,6 +68,35 @@ test('Chicksune S1: immune to Bonus Card effects flag is set (inert until phase 
   assert.equal(PREDATOR_EFFECTS['Chicksune'][1]!.immuneToBonusCardEffects, true);
 });
 
+test('Chicksune S3: a lethal hit defeats it even on a self-heal roll ("cannot heal after defeat")', () => {
+  const state = withPlayer(createGame(baseConfig()), 'p1', { food: 5, location: 'Hendred Acre Wood' });
+  const withChicksune: GameState = {
+    ...state,
+    predators: state.predators.map((p) => (p.name === 'Eggsmeralda' ? { ...p, name: 'Chicksune', stage: 3 as const, health: 3 } : p)),
+  };
+  const hitConfig = { ...withChicksune.config, rng: constantRng(0.999) }; // roll 6 -> self-heal 3
+  const result = resolveCombat({ ...withChicksune, config: hitConfig }, 'p1', 'predator', 'Chicksune', 3);
+  const chicksune = result.predators.find((p) => p.name === 'Chicksune')!;
+  assert.equal(chicksune.health, 0);
+  assert.equal(chicksune.defeated, true);
+});
+
+test('Chicksune S3: a non-lethal hit still gets its self-heal roll', () => {
+  const state = withPlayer(createGame(baseConfig()), 'p1', { food: 5, location: 'Hendred Acre Wood' });
+  const withChicksune: GameState = {
+    ...state,
+    predators: state.predators.map((p) =>
+      p.name === 'Eggsmeralda' ? { ...p, name: 'Chicksune', stage: 3 as const, health: 5, maxHealth: 10 } : p,
+    ),
+  };
+  const hitConfig = { ...withChicksune.config, rng: constantRng(0.999) }; // roll 6 -> self-heal 3
+  const result = resolveCombat({ ...withChicksune, config: hitConfig }, 'p1', 'predator', 'Chicksune', 1);
+  const chicksune = result.predators.find((p) => p.name === 'Chicksune')!;
+  // 5 - 1 (attack) + 3 (self-heal) = 7, survives, heal applies since it wasn't a killing blow.
+  assert.equal(chicksune.health, 7);
+  assert.equal(chicksune.defeated, false);
+});
+
 test('Cleopoultra: on a dodge roll, the attack itself is negated and return attack is capped at 1', () => {
   const state = withPlayer(createGame(baseConfig()), 'p1', { food: 5, location: 'Hendred Acre Wood' });
   const withCleopoultra: GameState = {

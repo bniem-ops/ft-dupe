@@ -61,6 +61,12 @@ export interface CombatContext {
   attackerId: string;
   targetType: 'predator' | 'grub';
   targetId: string;
+  // The chosen attack strength this combat instance was declared with — the
+  // raw incoming damage before any dodge/reflect effects. Predator effects
+  // that need to know if their own reaction (e.g. Chicksune's "cannot heal
+  // after defeat") would be beaten by a lethal hit read this directly,
+  // rather than resolveCombat re-deriving it after the fact.
+  attackStrength: number;
 }
 
 export interface CombatStageResult {

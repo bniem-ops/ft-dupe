@@ -122,7 +122,14 @@ function defaultTargetEffect(ctx: CombatContext, rng: RNG): CombatStageResult {
       }
       const outcome = effect.rollOutcomes.find((o) => roll >= o.min && roll <= o.max);
       if (outcome) {
-        if (outcome.selfHeal && !predator.defeated) result.predatorHealthDelta = outcome.selfHeal;
+        // "Cannot heal after defeat" (Chicksune): a self-heal roll doesn't
+        // get to react to damage it never survived — if this attack's own
+        // strength alone already drops the Predator to 0, the heal is
+        // skipped even though it rolled for one (docs/playtest-feedback.md,
+        // 2026-08-19 Chicksune entry: a lethal hit only lost 1 heart net
+        // because the heal was landing simultaneously with a killing blow).
+        const survivesThisHit = predator.health - ctx.attackStrength > 0;
+        if (outcome.selfHeal && !predator.defeated && survivesThisHit) result.predatorHealthDelta = outcome.selfHeal;
         if (outcome.attackerStatus) result.attackerStatusEffects = [...(result.attackerStatusEffects ?? []), ...outcome.attackerStatus];
         if (outcome.attackerFoodLoss) result.attackerFoodDelta = -outcome.attackerFoodLoss;
         if (outcome.returnAttackBonus) result.returnAttackDelta = (result.returnAttackDelta ?? 0) + outcome.returnAttackBonus;
@@ -170,9 +177,16 @@ function defaultChickenAbilities(ctx: CombatContext, rng: RNG): CombatStageResul
   return result;
 }
 
-function runCombatEffects(state: GameState, attackerId: string, targetType: 'predator' | 'grub', targetId: string, rng: RNG): CombatStageResult {
+function runCombatEffects(
+  state: GameState,
+  attackerId: string,
+  targetType: 'predator' | 'grub',
+  targetId: string,
+  attackStrength: number,
+  rng: RNG,
+): CombatStageResult {
   const hooks = state.config.hooks ?? {};
-  const ctx: CombatContext = { state, attackerId, targetType, targetId };
+  const ctx: CombatContext = { state, attackerId, targetType, targetId, attackStrength };
   const weatherResult = hooks.weatherEffect ? hooks.weatherEffect(ctx, rng) : defaultWeatherEffect(ctx, rng);
   const targetResult = hooks.targetEffect ? hooks.targetEffect(ctx, rng) : defaultTargetEffect(ctx, rng);
   const chickenResult = hooks.chickenAbilities ? hooks.chickenAbilities(ctx, rng) : defaultChickenAbilities(ctx, rng);
@@ -235,6 +249,12 @@ function resolvePredatorAttack(
   // top of (or in place of, if also dodged) the normal attack damage.
   const reflectedDamage = effects.reflectReturnAttackToPredator ? baseReturnAttack : 0;
   const damageToPredator = (effects.predatorDodges ? 0 : attackStrength) + reflectedDamage;
+  // Owl Coopone's weather-conditional bonus health and Eggsmeralda-style
+  // self-heals apply in the same tick as the incoming damage (a standing
+  // buff, not a reaction to surviving the hit) — so damage and heal are
+  // combined here. Chicksune's own "cannot heal after defeat" is instead
+  // enforced at its heal roll itself (defaultTargetEffect, gated on this
+  // attack's own strength), not by changing this formula for everyone.
   const newHealth = Math.max(0, predator.health - damageToPredator + (effects.predatorHealthDelta ?? 0));
   const cappedHealth = Math.min(predator.maxHealth, newHealth);
   const justDefeated = cappedHealth <= 0 && !predator.defeated;
@@ -562,7 +582,7 @@ export function resolveCombat(
   mitigation?: { resource: 'bonusCards' | 'eggs'; amount: number },
   damageRedirect?: { toPlayerId: string; amount: number },
 ): GameState {
-  const effects = runCombatEffects(state, playerId, targetType, targetId, state.config.rng);
+  const effects = runCombatEffects(state, playerId, targetType, targetId, attackStrength, state.config.rng);
   // Monocle (Owl Coopone's Loot Drop): "Never miss any attacks" — the
   // holder's own attacks are never dodged/whiffed by the target's roll
   // (a Predator's own dodge outcome, or a Grub's "Miss your attack" defend
