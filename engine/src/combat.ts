@@ -329,11 +329,15 @@ function resolvePredatorAttack(
   let players = replacePlayer(state.players, updatedPlayer);
   if (tankHolder) players = replacePlayer(players, tankHolder);
 
-  // Shere Corn: "All nearby players take N splash damage" — everyone alive
-  // at the Predator's location, the attacker included (already reflected
-  // in `players` above, so this just layers more damage on).
+  // Shere Corn: "All nearby players take N splash damage" — other alive
+  // players at the Predator's location, not the attacker (who already has
+  // their own dedicated return-attack line above; stacking splash on top
+  // double-counted them, reported in solo play where there's no one else
+  // to splash — see docs/playtest-feedback.md's 2026-08-18 Shere Corn entry).
   if (effects.splashDamage) {
-    players = players.map((p) => (p.alive && p.location === predator.location ? applyDamageAndMaybeDeath(p, effects.splashDamage!) : p));
+    players = players.map((p) =>
+      p.alive && p.id !== playerId && p.location === predator.location ? applyDamageAndMaybeDeath(p, effects.splashDamage!) : p,
+    );
   }
 
   // Eggsmeralda S2/S3: "Take N eggs from every player" — no location

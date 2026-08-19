@@ -14,7 +14,7 @@ function withPlayer(state: GameState, playerId: string, patch: Partial<GameState
   return { ...state, players: state.players.map((p) => (p.id === playerId ? { ...p, ...patch } : p)) };
 }
 
-test('Shere Corn: splash damage hits every alive player at its location, attacker included, not players elsewhere', () => {
+test('Shere Corn: splash damage hits other nearby players, not the attacker (who already took the base return attack)', () => {
   const config = baseConfig({ predators: { regular: ['Shere Corn', 'Sal Moe Nella', 'Professor Moltiarty'], boss: 'Ursula Bone' } });
   const state = createGame(config);
   const shereCorn = state.predators.find((p) => p.name === 'Shere Corn')!;
@@ -23,12 +23,19 @@ test('Shere Corn: splash damage hits every alive player at its location, attacke
   const rolledFour = { ...s, config: { ...s.config, rng: () => 0.6 } }; // Shere Corn S1: 4-6 -> 1 splash
 
   const result = resolveCombat(rolledFour, 'p1', 'predator', 'Shere Corn', 1);
-  assert.equal(result.players.find((p) => p.id === 'p2')!.health, 9); // nearby, not the attacker, still splashed
-  assert.ok(result.players.find((p) => p.id === 'p1')!.health < 10); // attacker also splashed (plus their own return attack)
+  assert.equal(result.players.find((p) => p.id === 'p2')!.health, 9); // nearby, not the attacker, splashed
+  // Attacker takes only the base return attack (2), not also the splash —
+  // stacking both double-counted them (docs/playtest-feedback.md, solo Shere Corn entry).
+  assert.equal(result.players.find((p) => p.id === 'p1')!.health, 8);
 
   const elsewhere = withPlayer(rolledFour, 'p2', { location: 'Coop', health: 10, maxHealth: 10 });
   const result2 = resolveCombat(elsewhere, 'p1', 'predator', 'Shere Corn', 1);
   assert.equal(result2.players.find((p) => p.id === 'p2')!.health, 10); // not nearby -> untouched
+
+  // Solo (no other player nearby to splash): only the base return attack applies.
+  const solo = withPlayer(rolledFour, 'p2', { alive: false });
+  const result3 = resolveCombat(solo, 'p1', 'predator', 'Shere Corn', 1);
+  assert.equal(result3.players.find((p) => p.id === 'p1')!.health, 8);
 });
 
 test('Weasma and Clawnk: a triggered roll voids the whole combat instance and flags the mover for relocation, their own choice', () => {
