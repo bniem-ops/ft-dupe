@@ -17,7 +17,13 @@ export const PLAYER_COLORS = ['#c0392b', '#2980b9', '#27ae60', '#8e44ad', '#e67e
 // The five outer-plus-Coop entries carry w/h too — these are the painted
 // ovals themselves (where player tokens land and the Move target you click
 // sits), sized and positioned to match 4a/4b exactly.
-const BOARD_ANCHORS = {
+// The board art's own aspect ratio (native ~1155x912) — matches
+// `.board.board-photo`'s CSS `aspect-ratio`. Exported so mobile's
+// place-focus zoom (mobilePlay.js) can compute pixel dimensions for an
+// oversized render of this same board without duplicating the ratio.
+export const BOARD_ASPECT_RATIO = 1155 / 912;
+
+export const BOARD_ANCHORS = {
   bonusDeck: { x: 5, y: 10 },
   bonusDiscard: { x: 15.65, y: 10 },
   grubDiscard: { x: 95.2, y: 9.9 },
@@ -48,7 +54,7 @@ const BANNER_ANCHORS = {
 // predator "book" card and the location marker are two separately
 // positioned elements. Coop never hosts a predator, so it has no entry.
 // w is the slot's own width (design's printed-slot width), not just x/y.
-const PREDATOR_ANCHORS = {
+export const PREDATOR_ANCHORS = {
   'Golden Gables': { x: 22, y: 30.9, w: 12 },
   'Hendred Acre Wood': { x: 11, y: 71, w: 11.7 },
   'Grit Stones': { x: 88, y: 68, w: 11.7 },
@@ -99,7 +105,7 @@ const DAY_TRACK_XS = [36.0, 41.38, 46.76, 52.14, 57.52, 62.9, 68.28];
 const SEASON_KEY_ANCHOR = { x: 75.5, y: 94.15 };
 const SEASON_ORDER = ['Spring', 'Summer', 'Fall'];
 
-const LOCATION_ANCHOR_KEY = {
+export const LOCATION_ANCHOR_KEY = {
   Coop: 'coop',
   'Golden Gables': 'goldenGables',
   Badlands: 'badlands',
@@ -109,6 +115,21 @@ const LOCATION_ANCHOR_KEY = {
 
 function anchorStyle(anchor) {
   return { left: `${anchor.x}%`, top: `${anchor.y}%`, transform: 'translate(-50%,-50%)' };
+}
+
+// Mobile "place focus" (design mockup 7b): rather than cropping a second
+// copy of the board image, render the same Board component at
+// `zoomFactor`x its normal size and translate it inside a small
+// overflow:hidden viewport so `anchor` ends up centered — the same
+// technique the mockup's own markup uses (an oversized absolutely-
+// positioned inner container, translated into place). Board itself is
+// untouched; this only computes the numbers for the wrapper around it.
+export function boardZoomFrame(anchor, viewport, zoomFactor) {
+  const width = viewport.width * zoomFactor;
+  const height = width / BOARD_ASPECT_RATIO;
+  const left = -((anchor.x / 100) * width - viewport.width / 2);
+  const top = -((anchor.y / 100) * height - viewport.height / 2);
+  return { width, height, left, top };
 }
 
 function slotStyle(anchorKey) {

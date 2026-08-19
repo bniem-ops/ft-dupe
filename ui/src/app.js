@@ -23,6 +23,8 @@ import { ActionBar } from './components/actionBar.js';
 import { TurnControls } from './components/turnControls.js';
 import { ProductionReveal } from './components/productionReveal.js';
 import { TargetDossier } from './components/targetDossier.js';
+import { MobilePlay } from './components/mobilePlay.js';
+import { MobilePlayerSheet } from './components/mobilePlayerSheet.js';
 
 const SEASON_ORDER = ['Spring', 'Summer', 'Fall'];
 
@@ -97,10 +99,9 @@ function App() {
   const [error, setError] = useState(null);
   const [dayEndPending, setDayEndPending] = useState(false);
   const [pendingPick, setPendingPick] = useState(null);
-  // Mobile bottom-sheet UI state (≤900px — see styles.css's .gs-mobile-dock).
-  // Purely local presentation state, not synced.
-  const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
-  const [mobileTab, setMobileTab] = useState('board');
+  // Mobile UI state (≤900px — see styles.css's .mobile-play-*, design
+  // mockups 7a-7c). Purely local presentation state, not synced.
+  const [mobilePlayerSheetOpen, setMobilePlayerSheetOpen] = useState(false);
   // Desktop-only UI state (≥901px — see styles.css's .gs-side-panel/
   // .avatar-strip). Purely local presentation state, not synced.
   const [tableView, setTableView] = useState(false);
@@ -571,55 +572,37 @@ function App() {
         </div>
       </div>
 
-      <div class="gs-mobile-dock">
-        ${!mobileSheetOpen
-          ? html`
-              <div class="mobile-dock-collapsed">
-                <span class="name">${playerNames[currentPlayer.id] ?? currentPlayer.id}</span>
-                <span class="ref-text">❤ ${currentPlayer.health}/${currentPlayer.maxHealth}</span>
-                <div class="gs-spacer"></div>
-                <div class="meal"><span>MEAL</span><strong>${currentPlayer.mealCounter}</strong></div>
-                <button type="button" class="sheet-toggle" onClick=${() => setMobileSheetOpen(true)}>Board ▲</button>
-              </div>
-            `
-          : html`
-              <div class="mobile-dock-expanded">
-                <div class="mobile-tabs">
-                  ${['board', 'flock', 'log'].map(
-                    (t) =>
-                      html`<button key=${t} type="button" class=${`mobile-tab ${mobileTab === t ? 'active' : ''}`} onClick=${() => setMobileTab(t)}>
-                        ${t === 'board' ? 'My board' : t === 'flock' ? 'Flock' : 'Log'}
-                      </button>`,
-                  )}
-                  <button type="button" class="sheet-toggle" onClick=${() => setMobileSheetOpen(false)}>▼</button>
-                </div>
-                <div class="mobile-tab-body">
-                  ${mobileTab === 'board' && (dayEndPending
-                    ? html`<${TurnControls} state=${gameState} onSubmitDayEnd=${handleDayEndSubmit} myPlayerId=${myPlayerId} playerNames=${playerNames} />`
-                    : currentPlayer.pendingProductionReveal
-                      ? html`${dockPanel()}<${ProductionReveal} player=${currentPlayer} dispatch=${dispatch} myPlayerId=${myPlayerId} />`
-                      : html`${dockPanel()}${actionBar()}`)}
-                  ${mobileTab === 'flock' &&
-                  opponents.map(
-                    (p) => html`<${PlayerPanel}
-                      key=${p.id}
-                      variant="rail"
-                      player=${p}
-                      isCurrent=${p.id === currentPlayerId}
-                      state=${gameState}
-                      dispatch=${dispatch}
-                      pendingPick=${pendingPick}
-                      setPendingPick=${setPendingPick}
-                      myPlayerId=${myPlayerId}
-                      displayName=${playerNames[p.id] ?? p.id}
-                      playerNames=${playerNames}
-                    />`,
-                  )}
-                  ${mobileTab === 'log' && recentLog.map((a, i) => html`<div key=${i} class="gs-log-entry">${formatLogEntry(a, playerNames)}</div>`)}
-                </div>
-              </div>
-            `}
-      </div>
+      <${MobilePlay}
+        state=${gameState}
+        dispatch=${dispatch}
+        pendingPick=${pendingPick}
+        setPendingPick=${setPendingPick}
+        myPlayerId=${myPlayerId}
+        playerNames=${playerNames}
+        currentPlayer=${currentPlayer}
+        opponents=${opponents}
+        dayEndPending=${dayEndPending}
+        onSubmitDayEnd=${handleDayEndSubmit}
+        onEndTurn=${handleEndTurn}
+        onUseExtraAction=${() => handleUseExtraAction(currentPlayer.id)}
+        recentLog=${recentLog}
+        formatLogEntry=${formatLogEntry}
+        onInspectTarget=${(targetType, targetId) => setInspectingTarget({ targetType, targetId })}
+        onOpenPlayerSheet=${() => setMobilePlayerSheetOpen(true)}
+        actionBarFactory=${actionBar}
+      />
+      ${mobilePlayerSheetOpen &&
+      html`<${MobilePlayerSheet}
+        player=${currentPlayer}
+        state=${gameState}
+        dispatch=${dispatch}
+        pendingPick=${pendingPick}
+        setPendingPick=${setPendingPick}
+        myPlayerId=${myPlayerId}
+        displayName=${playerNames[currentPlayer.id] ?? currentPlayer.id}
+        playerNames=${playerNames}
+        onClose=${() => setMobilePlayerSheetOpen(false)}
+      />`}
     </div>
   `;
 }

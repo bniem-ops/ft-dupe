@@ -3323,12 +3323,16 @@ input.entry-code-box:focus {
 
 /* --- Mobile bottom sheet (hidden ≥901px) --- */
 
-.gs-mobile-dock {
+/* Mobile play (design mockups 7a "Play" / 7b "Place focus" / 7c "Player
+   sheet") — replaces the old .gs-mobile-dock Board/Flock/Log tabs. Always
+   in the DOM (mobilePlay.js/mobilePlayerSheet.js), hidden above 900px the
+   same way .gs-side-panel/.right-rail are hidden below it. */
+.mobile-play {
   display: none;
 }
 
 @media (min-width: 901px) {
-  .gs-mobile-dock {
+  .mobile-play {
     display: none !important;
   }
 }
@@ -3342,126 +3346,702 @@ input.entry-code-box:focus {
   .gs-title {
     font-size: 13px;
   }
-  .gs-side-panel,
-  .right-rail,
-  .opponent-expand-card,
+  .gs-mid,
   .table-view-toggle {
     display: none;
   }
-  .gs-board {
-    padding: 0;
-    align-items: flex-start;
-    justify-content: flex-start;
-  }
-  .board.board-photo {
-    border-radius: 0;
-    width: 900px;
-    max-width: none;
-    max-height: none;
-    height: auto;
-    flex-shrink: 0;
-  }
-  .player-panel.dock {
-    flex-direction: column;
-  }
-  .dock-charcard,
-  .dock-notebook {
-    width: 100%;
-  }
-  .actions-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
 
-  .gs-mobile-dock {
+  .mobile-play {
     display: flex;
     flex-direction: column;
-    background: linear-gradient(180deg, var(--gs-wood-600), var(--gs-wood-500));
-    border-top: 3px solid var(--gs-wood-500);
+    flex: 1;
+    min-height: 0;
     color: var(--gs-parchment);
     font-family: var(--font-ui);
-    flex: none;
+    position: relative;
   }
 
-  .mobile-dock-collapsed {
-    padding: 9px 12px 12px;
+  .mobile-play-topbar {
+    flex: none;
     display: flex;
     align-items: center;
     gap: 9px;
+    padding: 0 12px;
+    height: 46px;
+    background: linear-gradient(180deg, #4a3527, #38271b);
+    border-bottom: 2px solid var(--gs-wood-900);
   }
-
-  .mobile-dock-collapsed .name {
-    font-size: 12px;
-    font-weight: 700;
+  .mobile-play-brand {
+    font-family: var(--font-display);
+    font-size: 11px;
+    color: #f4ecd6;
   }
-
-  .mobile-dock-collapsed .meal {
-    text-align: right;
+  .mobile-play-season {
+    font-family: var(--font-display);
     font-size: 9px;
+    padding: 5px 9px;
+    border-radius: 4px;
+    background: var(--gs-field);
+    color: #f4ecd6;
+  }
+  .mobile-play-day {
+    font-size: 11px;
+    color: var(--gs-parchment-dim);
+  }
+  .mobile-play-icon-btn {
+    flex: none;
+    min-width: 34px;
+    height: 34px;
+    padding: 0 10px;
+    border-radius: 7px;
+    background: rgba(240, 227, 196, 0.1);
+    border: 1px solid rgba(240, 227, 196, 0.25);
+    color: var(--gs-parchment);
+    font-size: 13px;
+  }
+  .mobile-play-icon-btn.wide {
+    font-size: 10.5px;
+  }
+
+  /* 7a: whole-board overview — plain dot markers, not the real card
+     plates (board text under ~10px isn't legible at this scale). */
+  .mobile-board-overview {
+    flex: none;
+    position: relative;
+    height: 300px;
+    overflow: hidden;
+    background: #17120d;
+  }
+  .mobile-board-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .mobile-board-scrim {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 58% 66%, rgba(0, 0, 0, 0) 38%, rgba(20, 14, 8, 0.5) 100%);
+  }
+  .mobile-board-dot {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    box-sizing: border-box;
+    border-radius: 50%;
+    background: rgba(24, 16, 8, 0.3);
+    border: 1.5px solid rgba(240, 227, 196, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+  .mobile-board-dot.is-here {
+    border-color: var(--gs-ochre);
+    background: rgba(201, 135, 63, 0.22);
+    border-width: 2px;
+  }
+  .mobile-board-dot.is-target {
+    border-style: dashed;
+    border-color: rgba(201, 135, 63, 0.9);
+  }
+  .mobile-board-token {
+    width: 17px;
+    height: 17px;
+    border-radius: 50%;
+    border: 1.5px solid #f0e3c4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 7px;
+    font-weight: 700;
+    color: #f4ecd6;
+  }
+  .mobile-board-predator-badge {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: var(--gs-blood);
+    border: 1.5px solid #f7ddd8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-display);
+    font-size: 6.5px;
+    color: #f7ddd8;
+  }
+  .mobile-board-hint {
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    padding: 7px 10px;
+    border-radius: 8px;
+    background: rgba(36, 26, 18, 0.9);
+    border: 1px solid rgba(240, 227, 196, 0.3);
+    font-size: 10.5px;
+    color: rgba(240, 227, 196, 0.85);
+  }
+
+  .mobile-play-sheet {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    padding: 10px 12px;
+    background: linear-gradient(180deg, var(--gs-wood-600), var(--gs-wood-500));
+  }
+
+  .mobile-play-here-card {
+    flex: none;
+    padding: 9px 11px;
+    border-radius: 10px;
+    background: rgba(201, 135, 63, 0.18);
+    border: 1.5px solid rgba(201, 135, 63, 0.55);
+  }
+  .mobile-play-here-label {
+    font-size: 8.5px;
+    letter-spacing: 0.12em;
+    color: var(--gs-parchment-dim);
+  }
+  .mobile-play-here-name {
+    font-family: var(--font-display);
+    font-size: 13px;
+    color: #f4ecd6;
+    margin-top: 2px;
+  }
+  .mobile-play-here-badges {
+    display: flex;
+    gap: 5px;
+    margin-top: 7px;
+    flex-wrap: wrap;
+  }
+  .mobile-play-badge {
+    padding: 5px 8px;
+    border-radius: 6px;
+    font-size: 10px;
+    background: rgba(24, 16, 8, 0.4);
+    border: 1px solid rgba(240, 227, 196, 0.25);
+    color: rgba(240, 227, 196, 0.85);
+  }
+  .mobile-play-badge.grub {
+    background: rgba(32, 64, 74, 0.85);
+    border-color: #8fc0cc;
+    color: #cfe6ec;
+  }
+  .mobile-play-badge.predator {
+    background: rgba(140, 59, 52, 0.5);
+    border-color: #d99a92;
+    color: #f7ddd8;
+  }
+
+  .mobile-play-strip {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 11px;
+    border-radius: 10px;
+    background: rgba(24, 16, 8, 0.32);
+    border: 1px solid rgba(240, 227, 196, 0.16);
+  }
+  .mobile-play-strip-portrait {
+    flex: none;
+    width: 38px;
+    height: 50px;
+    border-radius: 6px;
+    border: 1.5px solid #f0e3c4;
+    background: #24424b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .mobile-play-strip-portrait .monogram {
+    font-family: var(--font-display);
+    font-size: 15px;
+    color: #f4ecd6;
+  }
+  .mobile-play-strip-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .mobile-play-strip-name {
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #f4ecd6;
+  }
+  .mobile-play-strip-stage {
+    font-family: var(--font-flavor);
+    font-style: italic;
+    font-weight: 400;
+    font-size: 11px;
+    color: var(--gs-parchment-dim);
+  }
+  .mobile-play-strip-stats {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .mobile-play-strip-expand {
+    flex: none;
+    width: 34px;
+    height: 44px;
+    border-radius: 7px;
+    background: rgba(240, 227, 196, 0.1);
+    border: 1px solid rgba(240, 227, 196, 0.28);
+    color: rgba(240, 227, 196, 0.85);
+    font-size: 14px;
+  }
+
+  .mobile-play-actions-header {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .mobile-play-actions-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
     color: var(--gs-parchment-dim);
   }
 
-  .mobile-dock-collapsed .meal strong {
-    display: block;
-    font-family: var(--font-display);
-    font-size: 15px;
-    color: var(--gs-parchment);
+  .mobile-play-tiles {
+    flex: none;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
   }
-
-  .mobile-dock-collapsed .gs-spacer {
-    flex: 1;
-  }
-
-  .sheet-toggle {
-    font-size: 10.5px;
-    padding: 7px 10px;
-    border-radius: 6px;
-    background: rgba(240, 227, 196, 0.12);
-    border: 1px solid rgba(240, 227, 196, 0.28);
-    color: var(--gs-parchment);
-  }
-
-  .mobile-dock-expanded {
+  .mobile-play-tile {
+    height: 70px;
+    border-radius: 9px;
+    border: 1.5px solid #f0e3c4;
+    background: var(--gs-wood-700);
+    box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
     display: flex;
     flex-direction: column;
-    max-height: 74vh;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    color: var(--gs-parchment);
+  }
+  .mobile-play-tile-icon {
+    font-size: 17px;
+  }
+  .mobile-play-tile-label {
+    font-family: var(--font-display);
+    font-size: 8px;
+    color: #f4ecd6;
+  }
+  .mobile-play-tile.field {
+    background: var(--gs-field);
+  }
+  .mobile-play-tile.teal {
+    background: #3f5a63;
+  }
+  .mobile-play-tile.dusk {
+    background: var(--gs-dusk);
+  }
+  .mobile-play-tile.blood {
+    background: var(--gs-blood);
+  }
+  .mobile-play-tile:disabled {
+    opacity: 0.45;
   }
 
-  .mobile-tabs {
+  .mobile-play-brood-picker {
+    flex: none;
     display: flex;
     gap: 6px;
-    padding: 8px 10px 0;
+  }
+  .mobile-play-brood-picker select {
+    flex: 1;
+    font-family: var(--font-ui);
+    font-size: 11px;
+    padding: 6px;
+    border-radius: 6px;
+    border: 1px solid rgba(240, 227, 196, 0.3);
+    background: rgba(0, 0, 0, 0.25);
+    color: var(--gs-parchment);
+  }
+
+  /* The full ActionBar is mounted here too, reusing every ability-extra
+     block (Strategem, Deus Eggs Machina, weather adjustment, etc.)
+     unchanged — only the parts the tile grid/footer above already cover
+     are hidden. */
+  .mobile-play-actionbar-embed .actions-header,
+  .mobile-play-actionbar-embed .actions-grid,
+  .mobile-play-actionbar-embed .end-turn {
+    display: none;
+  }
+
+  .mobile-play-footer {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding-top: 2px;
+  }
+  .mobile-play-footer-btn {
+    flex: 1;
+    padding: 13px 0;
+    border-radius: 10px;
+    background: rgba(240, 227, 196, 0.1);
+    border: 1px solid rgba(240, 227, 196, 0.25);
+    color: rgba(240, 227, 196, 0.85);
+    font-size: 11.5px;
+    text-align: center;
+  }
+  .mobile-play-footer-btn.wide {
+    flex: 2;
+  }
+  .mobile-play-end-turn {
+    flex: 2;
+    padding: 13px 0;
+    border-radius: 10px;
+    background: var(--gs-ochre);
+    border: none;
+    font-family: var(--font-display);
+    font-size: 12.5px;
+    color: #2b241c;
+  }
+  .mobile-play-end-turn:disabled {
+    opacity: 0.5;
+  }
+
+  /* 7b: place focus — real Board, oversized and clipped/translated via
+     board.js's boardZoomFrame so the target location centers, then
+     genuinely legible cards render on top of it, same component. */
+  .mobile-place-header {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 10px;
+    height: 46px;
+    background: linear-gradient(180deg, #4a3527, #38271b);
+    border-bottom: 2px solid var(--gs-wood-900);
+  }
+  .mobile-place-title {
+    font-family: var(--font-display);
+    font-size: 12px;
+    color: #f4ecd6;
+  }
+  .mobile-place-board {
+    flex: none;
+    position: relative;
+    overflow: hidden;
+    background: #17120d;
+  }
+  .mobile-place-board-inner {
+    position: absolute;
+  }
+  .mobile-place-sheet {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(180deg, var(--gs-wood-600), var(--gs-wood-500));
+    border-radius: 16px 16px 0 0;
+    margin-top: -14px;
+    position: relative;
+    padding: 0 12px 10px;
+  }
+  .mobile-place-sheet-handle {
+    flex: none;
+    height: 4px;
+    width: 44px;
+    border-radius: 2px;
+    background: rgba(240, 227, 196, 0.35);
+    margin: 9px auto 10px;
+  }
+  .mobile-place-sheet-title {
+    flex: none;
+    font-size: 8.5px;
+    letter-spacing: 0.12em;
+    color: var(--gs-parchment-dim);
+    margin-bottom: 7px;
+  }
+  .mobile-place-sheet-body {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    margin-bottom: 12px;
+  }
+  .mobile-place-row {
+    padding: 9px 11px;
+    border-radius: 9px;
+    background: rgba(244, 236, 214, 0.06);
+    border: 1px solid rgba(240, 227, 196, 0.16);
+  }
+  .mobile-place-row.grub {
+    background: rgba(32, 64, 74, 0.5);
+    border-color: rgba(143, 192, 204, 0.5);
+  }
+  .mobile-place-row.predator {
+    background: rgba(140, 59, 52, 0.4);
+    border-color: rgba(217, 154, 146, 0.6);
+  }
+  .mobile-place-row-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #f4ecd6;
+  }
+  .mobile-place-row-sub {
+    font-family: var(--font-flavor);
+    font-size: 11px;
+    color: var(--gs-parchment-dim);
+    margin-top: 2px;
+  }
+  .mobile-place-sheet-scroll {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    margin-bottom: 10px;
+  }
+  .mobile-place-sheet .mobile-play-footer {
     flex: none;
   }
 
-  .mobile-tab {
+  /* Shared full-screen overlay for Flock/Log (mobilePlay.js) and the
+     player sheet + its Traits & Cards second sheet (mobilePlayerSheet.js). */
+  .mobile-play-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 45;
+    background: rgba(20, 13, 6, 0.72);
+    display: flex;
+    align-items: flex-end;
+  }
+  .mobile-play-overlay-top {
+    z-index: 46;
+  }
+  .mobile-play-overlay-sheet {
+    width: 100%;
+    max-height: 80vh;
+    overflow-y: auto;
+    border-radius: 16px 16px 0 0;
+    background: linear-gradient(180deg, var(--gs-wood-600), var(--gs-wood-500));
+    border-top: 2px solid var(--gs-wood-900);
+    color: var(--gs-parchment);
+    font-family: var(--font-ui);
+  }
+  .mobile-play-overlay-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 14px 10px;
+    font-family: var(--font-display);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    color: #f4ecd6;
+    position: sticky;
+    top: 0;
+    background: var(--gs-wood-600);
+  }
+  .mobile-play-overlay-body {
+    padding: 0 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  /* 7c: player sheet */
+  .mobile-sheet {
+    width: 100%;
+    max-height: 88vh;
+    overflow-y: auto;
+    border-radius: 18px 18px 0 0;
+    background: linear-gradient(180deg, var(--gs-wood-600), #3a2a1b);
+    border-top: 2px solid var(--gs-wood-900);
+    box-shadow: 0 -18px 40px rgba(0, 0, 0, 0.55);
+    color: var(--gs-parchment);
+    font-family: var(--font-ui);
+    display: flex;
+    flex-direction: column;
+    padding: 0 14px 16px;
+  }
+  .mobile-sheet-handle {
+    height: 4px;
+    width: 44px;
+    border-radius: 2px;
+    background: rgba(240, 227, 196, 0.35);
+    margin: 9px auto 10px;
+  }
+  .mobile-sheet-header {
+    display: flex;
+    gap: 11px;
+    padding-bottom: 13px;
+    border-bottom: 1px solid rgba(240, 227, 196, 0.14);
+  }
+  .mobile-sheet-portrait {
+    flex: none;
+    width: 62px;
+    height: 82px;
+    border-radius: 8px;
+    border: 1.5px solid #f0e3c4;
+    background: #24424b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .mobile-sheet-portrait .monogram {
+    font-family: var(--font-display);
+    font-size: 20px;
+    color: #f4ecd6;
+  }
+  .mobile-sheet-header-body {
     flex: 1;
-    text-align: center;
-    font-size: 10.5px;
-    padding: 7px 0;
-    border-radius: 6px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .mobile-sheet-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #f4ecd6;
+  }
+  .mobile-sheet-breed {
+    font-family: var(--font-flavor);
+    font-style: italic;
+    font-size: 12px;
+    color: var(--gs-parchment-dim);
+  }
+  .mobile-sheet-chips {
+    display: flex;
+    gap: 5px;
+  }
+  .mobile-sheet-chip {
+    font-size: 10px;
+    padding: 5px 8px;
+    border-radius: 5px;
+    background: rgba(244, 236, 214, 0.14);
+    color: #f4ecd6;
+  }
+  .mobile-sheet-chip.blood {
+    background: rgba(192, 65, 58, 0.35);
+  }
+  .mobile-sheet-notebook-btn {
+    align-self: flex-start;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 8px;
     background: rgba(240, 227, 196, 0.1);
-    color: rgba(240, 227, 196, 0.75);
+    border: 1px solid rgba(240, 227, 196, 0.25);
+    color: var(--gs-parchment);
+    font-size: 11.5px;
+  }
+  .mobile-sheet-section {
+    padding: 13px 0;
+    border-bottom: 1px solid rgba(240, 227, 196, 0.14);
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+  }
+  .mobile-sheet-section-head {
+    display: flex;
+    align-items: baseline;
+    gap: 9px;
+  }
+  .mobile-sheet-label {
+    font-size: 8.5px;
+    letter-spacing: 0.12em;
+    color: var(--gs-parchment-dim);
+  }
+  .mobile-sheet-value {
+    font-family: var(--font-display);
+    font-size: 13px;
+    color: #f4ecd6;
+  }
+  .mobile-sheet-hint {
+    font-size: 10.5px;
+    color: var(--gs-ochre);
+  }
+  .mobile-sheet-hearts {
+    display: flex;
+    gap: 6px;
+  }
+  .mobile-sheet-heart {
+    flex: 1;
+    height: 38px;
+    border-radius: 8px;
+    font-size: 16px;
+    border: 1px solid rgba(240, 227, 196, 0.16);
+  }
+  .mobile-sheet-heart.full {
+    background: radial-gradient(circle at 35% 30%, #c9a877, #8a6a3f);
+    color: #b03a35;
     border: none;
   }
-
-  .mobile-tab.active {
-    background: #f0e3c4;
-    color: #3c2b1c;
-    font-weight: 700;
+  .mobile-sheet-heart.empty {
+    background: rgba(0, 0, 0, 0.28);
+    color: transparent;
   }
-
-  .mobile-tab-body {
+  .mobile-sheet-resource-row {
+    display: flex;
+    gap: 8px;
+  }
+  .mobile-sheet-resource {
     flex: 1;
-    overflow-y: auto;
-    padding: 10px;
+    height: 56px;
+    border-radius: 9px;
+    background: rgba(240, 227, 196, 0.09);
+    border: 1.5px solid rgba(240, 227, 196, 0.22);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
   }
-
-  .mobile-tab-body .gs-rail-title,
-  .mobile-tab-body .gs-log {
-    display: block;
+  .mobile-sheet-resource-value {
+    font-family: var(--font-display);
+    font-size: 16px;
+    color: #f4ecd6;
   }
-
-  .mobile-tab-body .player-panel.rail {
-    margin-bottom: 8px;
+  .mobile-sheet-meal-track {
+    display: flex;
+    gap: 4px;
+    padding: 6px;
+    border-radius: 9px;
+    background: #7e9166;
+    border: 1.5px solid var(--gs-field);
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+  }
+  .mobile-sheet-meal-cell {
+    flex: none;
+    scroll-snap-align: center;
+    width: 26px;
+    height: 30px;
+    border-radius: 5px;
+    background: rgba(43, 36, 28, 0.14);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-flavor);
+    font-size: 12px;
+    color: rgba(43, 36, 28, 0.55);
+  }
+  .mobile-sheet-meal-cell.filled {
+    width: 34px;
+    background: #f0e3c4;
+    box-shadow: 0 0 0 2px var(--gs-ochre);
+    font-family: var(--font-display);
+    font-size: 13px;
+    color: #2b241c;
   }
 }

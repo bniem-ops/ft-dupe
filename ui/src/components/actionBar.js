@@ -20,10 +20,10 @@ const ALL_LOCATIONS = ['Coop', ...OUTSIDE_LOCATIONS];
 // disabling the button entirely when no nonzero amount is ever valid; the
 // engine remains the source of truth and any miss here still surfaces via
 // the dispatch error banner.
-function healCap(stage) {
+export function healCap(stage) {
   return stage === 1 ? 1 : stage === 2 ? 2 : 3;
 }
-function eatCap(stage) {
+export function eatCap(stage) {
   return stage === 1 ? 1 : stage === 2 ? 2 : 0;
 }
 
