@@ -21,6 +21,39 @@ import { CardEffect, Resource } from './abilities/types.js';
 import { baseChickStats } from './setup.js';
 import { shuffle } from './random.js';
 
+// Max attack strength = the chicken's stat, adjusted by weather (Dust
+// Storm: -1) and abilities (Adrenaline: +1 if damaged), plus a Bonus
+// Card's "+1 to attack strength, no extra food cost" on top of that base
+// cap. Exported so the UI can mirror it exactly instead of approximating
+// with just the base stat — a prior mismatch let the card's bonus point
+// be computed correctly here but never be reachable through the attack-
+// strength input, since its `max` didn't know about it (playtest-feedback.md,
+// 2026-08-19 "+1 Strength increase bonus card" entry).
+export function maxAttackStrengthFor(state: GameState, playerId: string): { baseCap: number; maxAttackStrength: number } {
+  const player = getPlayer(state.players, playerId);
+  const weather = activeWeatherEffect(state, playerId);
+  const weatherImmune = weather
+    ? isImmuneToWeather(player.chickenName, player.stage, activeWeatherName(state, playerId) ?? '', weather.positive ?? false) ||
+      player.pendingWeatherImmuneUntilNextTurn ||
+      player.permanentWeatherImmuneUntilNextCard
+    : false;
+  const abilities = getOwnAndBorrowedAbilities(player);
+  const abilityBonus =
+    abilities.reduce((sum, a) => sum + (a.maxAttackBonusIfDamaged && player.health < player.maxHealth ? a.maxAttackBonusIfDamaged : 0), 0) +
+    nearbyAuraMaxAttackBonus(state, playerId); // Bolsterer
+  const weatherDelta = !weatherImmune ? (weather?.maxAttackStrengthDelta ?? 0) : 0;
+  const cardBonus = player.pendingFreeAttackPoint ? 1 : 0;
+  const baseCap = Math.max(0, player.attackStrength + weatherDelta + abilityBonus);
+  return { baseCap, maxAttackStrength: baseCap + cardBonus };
+}
+
+// Food cost for a given chosen attack strength — the point beyond baseCap
+// (the Bonus Card's free point, if used) costs nothing extra.
+export function attackCostFor(state: GameState, playerId: string, attackStrength: number): number {
+  const { baseCap } = maxAttackStrengthFor(state, playerId);
+  return attackStrength > baseCap ? attackStrength - 1 : attackStrength;
+}
+
 function assertCanAct(state: GameState, playerId: string): PlayerState {
   if (state.turnOrder[state.currentPlayerIndex] !== playerId) {
     throw new Error(`It is not ${playerId}'s turn`);
@@ -308,25 +341,16 @@ export function attack(
   const minAttackStrength = targetCurrentHealth <= 0 ? 0 : 1;
   if (attackStrength < minAttackStrength) throw new Error(`Attack strength must be at least ${minAttackStrength}`);
 
-  // Max attack strength = the chicken's stat, adjusted by weather (Dust
-  // Storm: -1) and abilities (Adrenaline: +1 if damaged). This cap wasn't
-  // enforced pre-phase-6 since nothing needed to modify it yet.
-  const abilities = getOwnAndBorrowedAbilities(player);
-  const abilityBonus =
-    abilities.reduce((sum, a) => sum + (a.maxAttackBonusIfDamaged && player.health < player.maxHealth ? a.maxAttackBonusIfDamaged : 0), 0) +
-    nearbyAuraMaxAttackBonus(state, playerId); // Bolsterer
-  const weatherDelta = !weatherImmune ? (weather?.maxAttackStrengthDelta ?? 0) : 0;
-  // "+1 to attack strength, no extra food cost" (Bonus Card) raises the
-  // cap by 1; the food discount below only applies if that extra point is
-  // actually used, not just because the card is pending.
-  const cardBonus = player.pendingFreeAttackPoint ? 1 : 0;
-  const baseCap = Math.max(0, player.attackStrength + weatherDelta + abilityBonus);
-  const maxAttackStrength = baseCap + cardBonus;
+  // This cap wasn't enforced pre-phase-6 since nothing needed to modify it yet.
+  const { maxAttackStrength } = maxAttackStrengthFor(state, playerId);
   if (attackStrength > maxAttackStrength) {
     throw new Error(`${playerId}'s attack strength cannot exceed ${maxAttackStrength} right now`);
   }
 
-  const cost = attackStrength > baseCap ? attackStrength - 1 : attackStrength;
+  // "+1 to attack strength, no extra food cost" (Bonus Card) raises the
+  // cap by 1; the food discount only applies if that extra point is
+  // actually used, not just because the card is pending.
+  const cost = attackCostFor(state, playerId, attackStrength);
   if (player.food < cost) throw new Error(`${playerId} does not have ${cost} food to Attack with strength ${attackStrength}`);
 
   const afterCost = withPlayer(state, { ...player, food: player.food - cost });

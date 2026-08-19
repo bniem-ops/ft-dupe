@@ -1,6 +1,15 @@
 import { html } from 'htm/preact';
 import { useState } from 'preact/hooks';
-import { activeWeatherEffect, activeWeatherName, isImmuneToWeather, getOwnAndBorrowedAbilities, OUTSIDE_LOCATIONS, loadGrubCards } from '../engine.js';
+import {
+  activeWeatherEffect,
+  activeWeatherName,
+  isImmuneToWeather,
+  getOwnAndBorrowedAbilities,
+  maxAttackStrengthFor,
+  attackCostFor,
+  OUTSIDE_LOCATIONS,
+  loadGrubCards,
+} from '../engine.js';
 
 const ALL_LOCATIONS = ['Coop', ...OUTSIDE_LOCATIONS];
 
@@ -75,6 +84,17 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
       : (state.grubDecks[pendingPick.targetId]?.faceUp?.currentHealth ?? 1)
     : 1;
   const minAttackStrength = targetHealth <= 0 ? 0 : 1;
+  // Mirrors actions.ts's attack() cap exactly — weather deltas, ability
+  // bonuses (Adrenaline/Bolsterer), and a "+1 to attack strength" Bonus
+  // Card all raise this above the chicken's base stat, so this can't just
+  // be player.attackStrength (that let the card's bonus point be
+  // unreachable through this input — see actionBar.js's git history /
+  // playtest-feedback.md's 2026-08-19 "+1 Strength" entry).
+  const { baseCap: attackBaseCap, maxAttackStrength: attackCap } = maxAttackStrengthFor(state, player.id);
+  const attackCapCost = attackCostFor(state, player.id, attackCap);
+  const affordableAttackMax = attackCapCost <= player.food ? attackCap : Math.min(attackBaseCap, player.food);
+  const attackStrengthMax = Math.max(minAttackStrength, affordableAttackMax);
+  const attackFoodCost = attackCostFor(state, player.id, attackStrength);
   const pickingCompanion = pendingPick?.type === 'attackWithCompanion' && pendingPick.step === 'companion';
 
   const abilities = getOwnAndBorrowedAbilities(player);
@@ -194,14 +214,15 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
       ${pickingAttackStrength &&
       html`
         <div class="pending-hint">
-          ${pendingPick.type === 'attackWithCompanion' ? "Your attack strength (costs that much food):" : 'Attack strength (costs that much food):'}
+          ${pendingPick.type === 'attackWithCompanion' ? 'Your attack strength:' : 'Attack strength:'}
           <input
             type="number"
             min=${minAttackStrength}
-            max=${Math.max(minAttackStrength, Math.min(player.food, player.attackStrength))}
+            max=${attackStrengthMax}
             value=${attackStrength}
             onInput=${(e) => setAttackStrength(Number(e.target.value))}
           />
+          (costs ${attackFoodCost} food${attackStrength > attackBaseCap ? ' — bonus point free' : ''})
           ${pendingPick.type === 'attackWithCompanion' &&
           html`
             ${playerNames?.[pendingPick.companionId] ?? pendingPick.companionId}'s attack strength:
