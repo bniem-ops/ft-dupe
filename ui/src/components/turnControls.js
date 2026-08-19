@@ -11,13 +11,27 @@ export function TurnControls({ state, onSubmitDayEnd, myPlayerId, playerNames })
   const lastPlayerId = state.turnOrder[state.currentPlayerIndex];
   const canAct = myPlayerId == null || myPlayerId === lastPlayerId;
 
+  // The discard is mandatory, not a free pick of an already-empty pile — if
+  // the selected side has no face-up Grub but the other one does, the
+  // engine forces the discard onto that side anyway (turn.ts's
+  // performDailyGrubDiscard), so reflect that here rather than let the
+  // dropdown claim a choice that won't actually happen.
+  const insideHasCard = !!state.grubDecks.inside.faceUp;
+  const outsideHasCard = !!state.grubDecks.outside.faceUp;
+  const effectiveSide =
+    discardSide === 'inside' && !insideHasCard && outsideHasCard
+      ? 'outside'
+      : discardSide === 'outside' && !outsideHasCard && insideHasCard
+        ? 'inside'
+        : discardSide;
+
   function setExchangeAmount(playerId, amount) {
     setExchanges((prev) => ({ ...prev, [playerId]: amount }));
   }
 
   function submit() {
     onSubmitDayEnd({
-      discardSide,
+      discardSide: effectiveSide,
       exchanges: state.players
         .filter((p) => p.alive && exchanges[p.id] > 0)
         .map((p) => ({ playerId: p.id, amount: exchanges[p.id] })),
@@ -30,9 +44,9 @@ export function TurnControls({ state, onSubmitDayEnd, myPlayerId, playerNames })
 
       <label class="field">
         Discard which face-up Grub today?
-        <select value=${discardSide} onChange=${(e) => setDiscardSide(e.target.value)}>
-          <option value="inside">Inside</option>
-          <option value="outside">Outside</option>
+        <select value=${effectiveSide} onChange=${(e) => setDiscardSide(e.target.value)}>
+          <option value="inside" disabled=${!insideHasCard}>Inside${insideHasCard ? '' : ' (empty)'}</option>
+          <option value="outside" disabled=${!outsideHasCard}>Outside${outsideHasCard ? '' : ' (empty)'}</option>
         </select>
       </label>
 

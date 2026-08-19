@@ -400,7 +400,14 @@ export function applyEggExchange(player: PlayerState, amount: number, rate = 1):
 // locations" — overrides the normal single-side daily discard for its
 // duration.
 function performDailyGrubDiscard(decks: GrubDecksState, side: 'inside' | 'outside', rng: RNG, discardBoth: boolean): GrubDecksState {
-  const sides: ('inside' | 'outside')[] = discardBoth ? ['inside', 'outside'] : [side];
+  const other: 'inside' | 'outside' = side === 'inside' ? 'outside' : 'inside';
+  // The daily discard is mandatory, not a free choice of an already-empty
+  // pile — if the requested side has no face-up Grub (its draw pile ran dry
+  // this cycle) but the other side does, the discard falls on that one
+  // instead of silently discarding nothing (docs/playtest-feedback.md,
+  // 2026-08-19 "End of Turn Grub Discard" entry).
+  const forcedSide = !decks[side].faceUp && decks[other].faceUp ? other : side;
+  const sides: ('inside' | 'outside')[] = discardBoth ? ['inside', 'outside'] : [forcedSide];
   let updated = decks;
   for (const s of sides) {
     updated = { ...updated, [s]: discardFaceUp(updated[s]) };

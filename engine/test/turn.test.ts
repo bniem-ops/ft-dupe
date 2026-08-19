@@ -295,6 +295,20 @@ test('advanceDay handles the daily Grub discard and redeal', () => {
   assert.deepEqual(next.grubDecks.outside, state.grubDecks.outside);
 });
 
+test('advanceDay forces the discard onto the non-empty side if the chosen side is already empty', () => {
+  const state = createGame(baseConfig());
+  const emptied: GameState = {
+    ...state,
+    grubDecks: { ...state.grubDecks, outside: { ...state.grubDecks.outside, drawPile: [], faceUp: null } },
+  };
+  const insideFaceUpBefore = emptied.grubDecks.inside.faceUp!.cardId;
+  const next = advanceDay(emptied, { discardSide: 'outside' }); // player picked the already-empty side
+  assert.ok(next.grubDecks.inside.discard.includes(insideFaceUpBefore));
+  assert.notEqual(next.grubDecks.inside.faceUp?.cardId, insideFaceUpBefore);
+  // the requested (empty) side is untouched — nothing to discard there
+  assert.deepEqual(next.grubDecks.outside.faceUp, null);
+});
+
 test('advanceDay crosses a phase boundary: applies Egg Exchange and draws new weather', () => {
   const state = createGame(baseConfig());
   const day2 = advanceDay(state, { discardSide: 'inside' }); // day 1 -> 2, not a boundary
