@@ -109,3 +109,31 @@ Format per entry:
 - Card/rule involved: +1 Strength bonus card
 - Triage: bug, confirmed — the engine's cap/cost math for this card (`actions.ts`'s `attack()`, raising the attack-strength ceiling by 1 at no extra food cost) was already correct and tested, but the UI's attack-strength input (`actionBar.js`) computed its own `max` from just `player.attackStrength`, never accounting for the card's bonus point (or weather/ability bonuses either). So the boosted strength was never actually selectable — you paid for and dealt only your base 3, the card had no effect in practice, matching exactly what was reported.
 - Status: fixed — extracted the engine's cap/cost logic into exported `maxAttackStrengthFor`/`attackCostFor` (`actions.ts`) so there's one source of truth, and wired the UI's attack-strength input to use them instead of its own approximation. The input now also shows the actual food cost live, including when the free bonus point is in play. Verified against the reported scenario directly (base 3, +1 card, 4-health target: costs 3 food, deals 4 damage, defeats it).
+
+## 2026-08-19 — General Tso Starting Location
+- What happened: I started the game in the Coop by default
+- Expected: I should be given the option to start outside the Coop due to my chicken's ability
+- Card/rule involved: General Tso (any chicken card with location flexibility)
+- Triage: not-yet-implemented — `setup.ts`'s `createPlayer` already validated and applied a per-player `startingLocation`, and General Tso/Aracorn's stage-1 abilities (`mayChooseStartingLocation`, Traveler/Free Range) were fully modeled in `abilities/chickens.ts` — the engine was ready, but nothing in the chicken-draft UI ever collected the choice, so every game silently started everyone in the Coop regardless of which chicken was picked.
+- Status: fixed — added a "Start at" picker to `chickenDraft.js`, shown only when the currently-highlighted candidate's real stage-1 abilities include `mayChooseStartingLocation` (checked via `getActiveChickenAbilities`, not a hardcoded chicken-name list — Aracorn gets this too). Synced alongside the chosen chicken itself (`startingLocations` doc field, written in the same `lockInChicken` call as `chosenChicken`) and threaded into the host's `createGame` config at finalization. Verified end-to-end: picking Golden Gables for General Tso lands the player there with Traveler's starting egg.
+
+## 2026-08-19 — Multi-Player Board
+- What happened: I started the game and saw my teammates board on mobile, not my board. I couldn't do anything with their board which is good but wasn't able to see mine. On laptop, I also see the 'You are here' label for my teammate's chicken on their turn which causes confusion
+- Expected: Both game and player board should be visible from a 1 person POV only (I shouldn't see teammates board/location as my own)
+- Card/rule involved: N/A
+- Triage: bug, confirmed — `app.js`'s dock panel, the board's "you are here" label, the avatar strip, and mobile play were all built around `currentPlayer` (whoever's turn it currently is) instead of the viewing device's own seat. During a teammate's turn, a device showed *their* board/location labeled as if it were the viewer's own, and the avatar strip listed the viewer as their own opponent (since "opponents" was "everyone except whoever's turn it is," which includes you when it isn't).
+- Status: fixed — introduced `myPlayer` (looked up from `myPlayerId`) and switched every display-only panel to it; the action bar and dispatch calls stay on `currentPlayer` since only the active player can actually act, and the two are the same player whenever anything is enabled. Also fixed a related latent bug this surfaced: the dock panel previously only ever showed the *active* player's hand, so "any time" Bonus/Grub card plays were unreachable during a teammate's turn — now it's always your own hand. Verified with a 2-seat harness (viewing as p2 while it's p1's turn): dock/board/mobile all correctly show p2's own stats/location, avatar strip lists only p1, action bar reads "waiting for [p1]'s device."
+
+## 2026-08-19 — Mobile Health Discrepancy
+- What happened: On Mobile my chickens health is 3 hearts. On the computer, I see 1 heart (I believe 1 heart is accurate as I took two damage across 2 turns from Bird Flu weather and ending a turn next to a teammate)
+- Expected: I should see the correct health on mobile
+- Card/rule involved: N/A
+- Triage: same root cause as the "Multi-Player Board" entry above — mobile's player strip was also reading `currentPlayer` instead of the viewer's own seat, so if mobile happened to be rendering at a moment when a *different* player's turn was active, it would show their (higher) health instead of yours.
+- Status: fixed by the same `myPlayer` change — mobile's strip, HERE card, and the 7c player sheet all read the viewer's own player now, confirmed in the same 2-seat harness (mobile strip showed p2's real 1/3 health, matching desktop). If a discrepancy still shows up after this, it'd be a new report, not this one.
+
+## 2026-08-19 — General Tso Bonus Card Draw
+- What happened: When drawing bonus cards for General Tso, I only drew one card and it was automatically added to my bonus card hand
+- Expected: I would like to see both cards drawn and choose a card to discard. We can create a similar dossier for this?
+- Card/rule involved: N/A
+- Triage: not-yet-implemented — `actions.ts`'s `drawTwoKeepOne` (Foresight, General Tso S2) was fully implemented and tested at the engine level, but `actionBar.js`'s Draw Card button always dispatched the plain `drawCard` action regardless of the player's abilities, so Foresight had no observable effect.
+- Status: fixed — added `ForesightPicker`, matching the predator dossier's "reveal, then commit" pattern as suggested: it peeks the top 2 cards directly from the synced `bonusDeck.drawPile` (mirroring `drawTwoKeepOne`'s own reshuffle-from-discard logic exactly, so it can't drift from what actually gets drawn), shows both with their real text, and dispatches once the player picks which to keep. Wired into both the desktop action grid and the mobile tile grid. Verified: kept card matches the peeked card exactly, the other goes to discard, the action is spent either way.
