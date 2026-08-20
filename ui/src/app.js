@@ -23,6 +23,7 @@ import { ActionBar } from './components/actionBar.js';
 import { TurnControls } from './components/turnControls.js';
 import { ProductionReveal } from './components/productionReveal.js';
 import { TargetDossier } from './components/targetDossier.js';
+import { ForesightPicker } from './components/foresightPicker.js';
 import { MobilePlay } from './components/mobilePlay.js';
 import { MobilePlayerSheet } from './components/mobilePlayerSheet.js';
 
@@ -509,6 +510,8 @@ function App() {
         committing=${dossierCommitting}
         onClose=${() => (dossierCommitting ? setPendingPick(null) : setInspectingTarget(null))}
       />`}
+      ${pendingPick?.type === 'drawTwoKeepOne' &&
+      html`<${ForesightPicker} state=${gameState} dispatch=${dispatch} pendingPick=${pendingPick} setPendingPick=${setPendingPick} myPlayerId=${myPlayerId} />`}
 
       <div class="gs-topbar">
         <span class="gs-title">FLOCK TOGETHER</span>

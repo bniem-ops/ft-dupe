@@ -1,6 +1,6 @@
 import { html } from 'htm/preact';
 import { useState } from 'preact/hooks';
-import { loadGrubCards, activeWeatherName, OUTSIDE_LOCATIONS } from '../engine.js';
+import { loadGrubCards, activeWeatherName, getOwnAndBorrowedAbilities, OUTSIDE_LOCATIONS } from '../engine.js';
 import { monogram } from '../cardVisuals.js';
 import { Board, playerColor, BOARD_ANCHORS, LOCATION_ANCHOR_KEY, boardZoomFrame } from './board.js';
 import { healCap, eatCap } from './actionBar.js';
@@ -139,7 +139,13 @@ export function MobilePlay({
         dispatch({ type: 'layEgg', playerId: currentPlayer.id });
         return;
       case 'drawCard':
-        dispatch({ type: 'drawCard', playerId: currentPlayer.id });
+        // Foresight (General Tso S2): reveal 2, pick 1 — same picker as
+        // desktop's ActionBar, opened via the shared pendingPick state.
+        if (getOwnAndBorrowedAbilities(currentPlayer).some((a) => a.drawTwoKeepOne)) {
+          setPendingPick({ type: 'drawTwoKeepOne', playerId: currentPlayer.id });
+        } else {
+          dispatch({ type: 'drawCard', playerId: currentPlayer.id });
+        }
         return;
       case 'eat':
         setPendingPick({ type: 'eat', playerId: currentPlayer.id });

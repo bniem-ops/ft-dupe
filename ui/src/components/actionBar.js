@@ -97,6 +97,10 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
   const pickingCompanion = pendingPick?.type === 'attackWithCompanion' && pendingPick.step === 'companion';
 
   const abilities = getOwnAndBorrowedAbilities(player);
+  // Foresight (General Tso S2): Draw Card reveals 2 and lets you pick —
+  // opens the ForesightPicker (app.js, keyed off pendingPick) instead of
+  // dispatching drawCard directly.
+  const hasForesight = abilities.some((a) => a.drawTwoKeepOne);
   const nearbyAlivePlayers = state.players.filter((p) => p.id !== player.id && p.alive && p.location === player.location);
   const otherAlivePlayers = state.players.filter((p) => p.id !== player.id && p.alive);
   // Tomb Raider only reaches the discard pile on your own side (same
@@ -313,7 +317,10 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
           label="Draw Card"
           colorClass="dusk"
           disabled=${noActions}
-          onClick=${() => dispatch({ type: 'drawCard', playerId: player.id })}
+          onClick=${() =>
+            hasForesight
+              ? setPendingPick({ type: 'drawTwoKeepOne', playerId: player.id })
+              : dispatch({ type: 'drawCard', playerId: player.id })}
         />
 
         <div class="action-with-amount">
