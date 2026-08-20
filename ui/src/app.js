@@ -121,6 +121,10 @@ function App() {
   const [predators, setPredators] = useState(null);
   const [dealtChickens, setDealtChickens] = useState(null);
   const [chosenChicken, setChosenChicken] = useState({});
+  // { [playerId]: Location } — set alongside chosenChicken at Lock In, for
+  // chickens with mayChooseStartingLocation (Traveler/Free Range). Defaults
+  // to 'Coop' for everyone else.
+  const [startingLocations, setStartingLocations] = useState({});
   const [myPlayerId, setMyPlayerId] = useState(null);
   // Carries the name from the entry screen into soloSetup — solo needs a
   // difficulty/Eggspansion step in between, so the name can't be used to
@@ -155,6 +159,7 @@ function App() {
       setPredators(doc.predators ?? null);
       setDealtChickens(doc.dealtChickens ?? null);
       setChosenChicken(doc.chosenChicken ?? {});
+      setStartingLocations(doc.startingLocations ?? {});
 
       if (doc.state) {
         const synced = fromSyncedDoc(doc.state);
@@ -218,7 +223,11 @@ function App() {
     finalizingRef.current = true;
     try {
       const config = {
-        players: seatIds.map((id) => ({ id, chickenName: chosenChicken[id] })),
+        players: seatIds.map((id) => ({
+          id,
+          chickenName: chosenChicken[id],
+          startingLocation: startingLocations[id],
+        })),
         difficulty: hostConfig.difficulty,
         eggspansion: hostConfig.eggspansion,
         rng: () => Math.random(),
@@ -231,7 +240,7 @@ function App() {
       setError(e.message);
       finalizingRef.current = false; // allow a retry if this was transient
     }
-  }, [isHost, predators, dealtChickens, hostConfig, seats, chosenChicken, sessionCode]);
+  }, [isHost, predators, dealtChickens, hostConfig, seats, chosenChicken, startingLocations, sessionCode]);
 
   // Every path that can produce a new GameState routes through this so a
   // gameOver result (win via a killing blow, loss via end-of-turn weather
@@ -378,8 +387,8 @@ function App() {
     startDraftFor(sessionCode, hostConfig);
   }
 
-  function handleLockIn(chickenName) {
-    remoteSession.lockInChicken(sessionCode, myPlayerId, chickenName).catch((e) => setError(e.message));
+  function handleLockIn(chickenName, startingLocation) {
+    remoteSession.lockInChicken(sessionCode, myPlayerId, chickenName, startingLocation).catch((e) => setError(e.message));
   }
 
   if (screen === 'entry') {

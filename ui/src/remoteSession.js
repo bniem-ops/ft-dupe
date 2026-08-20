@@ -60,6 +60,7 @@ async function createSession(hostConfig) {
     predators: null, // { regular: [n,n,n], boss } — set once, at Start Game
     dealtChickens: null, // { [playerId]: [name, name] } — set alongside predators
     chosenChicken: {}, // { [playerId]: name } — filled in as each player locks in
+    startingLocations: {}, // { [playerId]: Location } — set alongside chosenChicken, for chickens with mayChooseStartingLocation (Traveler, Free Range)
     state: null, // synced GameState — set once every seat has chosenChicken
     dayEndPending: false,
   });
@@ -112,11 +113,18 @@ async function startDraft(code, predators, dealtChickens) {
 }
 
 // Each player only ever writes their own key here, so no transaction is
-// needed — two different players never race on the same field.
-async function lockInChicken(code, playerId, chickenName) {
+// needed — two different players never race on the same field. Written
+// together since they're both decided at the same Lock In tap — startingLocation
+// defaults to 'Coop' (the ability-gated check in setup.ts's createPlayer is a
+// no-op for 'Coop' regardless of whether the chicken actually has
+// mayChooseStartingLocation, so it's always safe to write).
+async function lockInChicken(code, playerId, chickenName, startingLocation = 'Coop') {
   const database = getDb();
   if (!database) throw new Error('Firebase not configured');
-  await updateDoc(doc(database, 'sessions', code), { [`chosenChicken.${playerId}`]: chickenName });
+  await updateDoc(doc(database, 'sessions', code), {
+    [`chosenChicken.${playerId}`]: chickenName,
+    [`startingLocations.${playerId}`]: startingLocation,
+  });
 }
 
 // Host-only, called live as they adjust flock size/Eggspansion/difficulty in

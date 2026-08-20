@@ -1,6 +1,6 @@
 import { html } from 'htm/preact';
 import { useState } from 'preact/hooks';
-import { findChicken, findPredator } from '../engine.js';
+import { findChicken, findPredator, getActiveChickenAbilities, OUTSIDE_LOCATIONS } from '../engine.js';
 
 function PredatorsStrip({ predators }) {
   return html`
@@ -106,6 +106,10 @@ function FlockStatus({ seatIds, seats, chosenChicken, myPlayerId }) {
 // cross-player contention to show here (no "taken by" state is possible).
 export function ChickenDraft({ predators, candidates, lockedIn, seatIds, seats, chosenChicken, myPlayerId, onLockIn }) {
   const [highlighted, setHighlighted] = useState(candidates[0] ?? null);
+  // Traveler/Free Range (mayChooseStartingLocation): resets to Coop
+  // whenever the highlighted candidate changes, so a choice made for one
+  // bird never silently carries over to a different one.
+  const [startingLocation, setStartingLocation] = useState('Coop');
   const waitingOn = seatIds.filter((id) => id !== myPlayerId && seats[id] && !chosenChicken[id]).map((id) => seats[id].name);
   const filledSeats = seatIds.filter((id) => seats[id]);
   const lockedCount = filledSeats.filter((id) => chosenChicken[id]).length;
@@ -113,6 +117,12 @@ export function ChickenDraft({ predators, candidates, lockedIn, seatIds, seats, 
   const previewTraits = previewChicken
     ? [previewChicken.breed, ...previewChicken.stages.flatMap((s) => s.abilities.map((a) => a.name)).filter(Boolean)].join(' · ')
     : '';
+  const canChooseLocation = highlighted ? getActiveChickenAbilities(highlighted, 1).some((a) => a.mayChooseStartingLocation) : false;
+
+  function highlight(name) {
+    setHighlighted(name);
+    setStartingLocation('Coop');
+  }
 
   return html`
     <div class="draft-screen">
@@ -133,7 +143,7 @@ export function ChickenDraft({ predators, candidates, lockedIn, seatIds, seats, 
             <div class="draft-candidates-label">YOUR CANDIDATES — pick one</div>
             <div class="draft-candidates-grid">
               ${candidates.map(
-                (name) => html`<${CandidateCard} key=${name} name=${name} selected=${highlighted === name} onClick=${() => setHighlighted(name)} />`,
+                (name) => html`<${CandidateCard} key=${name} name=${name} selected=${highlighted === name} onClick=${() => highlight(name)} />`,
               )}
             </div>
           </div>
@@ -150,6 +160,15 @@ export function ChickenDraft({ predators, candidates, lockedIn, seatIds, seats, 
               <div class="ref-text">${previewTraits}</div>
             </div>
           </div>`}
+          ${!lockedIn &&
+          canChooseLocation &&
+          html`<label class="draft-start-location">
+            <span class="ref-text">Start at</span>
+            <select value=${startingLocation} onChange=${(e) => setStartingLocation(e.target.value)}>
+              <option value="Coop">Coop (default)</option>
+              ${OUTSIDE_LOCATIONS.map((loc) => html`<option key=${loc} value=${loc}>${loc}</option>`)}
+            </select>
+          </label>`}
           <div class="draft-footer-spacer"></div>
           ${lockedIn
             ? html`<div class="ref-text">
@@ -157,7 +176,7 @@ export function ChickenDraft({ predators, candidates, lockedIn, seatIds, seats, 
               </div>`
             : html`
                 ${waitingOn.length > 0 && html`<div class="ref-text">${waitingOn.join(', ')} still choosing</div>`}
-                <button type="button" class="draft-lockin-btn" disabled=${!highlighted} onClick=${() => onLockIn(highlighted)}>
+                <button type="button" class="draft-lockin-btn" disabled=${!highlighted} onClick=${() => onLockIn(highlighted, canChooseLocation ? startingLocation : 'Coop')}>
                   ${highlighted ? `LOCK IN ${highlighted.toUpperCase()}` : 'LOCK IN'}
                 </button>
               `}

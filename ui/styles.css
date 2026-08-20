@@ -1291,6 +1291,24 @@ input.entry-code-box:focus {
   flex: 1;
 }
 
+.draft-start-location {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--gs-parchment-dim);
+}
+
+.draft-start-location select {
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(240, 227, 196, 0.3);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--gs-parchment);
+}
+
 .draft-lockin-btn {
   padding: 13px 30px;
 }
