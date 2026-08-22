@@ -106,7 +106,6 @@ function App() {
   // Desktop-only UI state (≥901px — see styles.css's .gs-side-panel/
   // .avatar-strip). Purely local presentation state, not synced.
   const [tableView, setTableView] = useState(false);
-  const [logRailOpen, setLogRailOpen] = useState(false);
   // A Predator or Grub inspected read-only (no attack armed) — design
   // mockup 6a's dossier doubling as a reference card. Separate from
   // pendingPick since it's a non-committal peek, not part of the action
@@ -428,17 +427,64 @@ function App() {
   }
 
   if (screen === 'gameOver') {
+    const won = gameState.won;
+    const predatorsDefeated = gameState.predators.filter((p) => p.defeated).length;
+    const survivors = gameState.players.filter((p) => p.alive).length;
     return html`
-      <div class="game-over">
-        ${gameState.won
-          ? html`<h1>🏆 You Won!</h1>
-              <p>All 4 Predators defeated before the 3rd season ended, with everyone alive.</p>`
-          : html`<h1>Defeat</h1>
-              <p>
-                ${gameState.players.every((p) => !p.alive)
-                  ? 'The whole flock has fallen.'
-                  : 'The 3rd season ended before every Predator was defeated (or a downed player never made it back for their first turn).'}
-              </p>`}
+      <div class="dossier-backdrop">
+        <div class=${`dossier-panel kind-${won ? 'victory' : 'loss'}`}>
+          <div class="dossier-header">
+            <span class="dossier-eyebrow">GAME OVER</span>
+            <span class="dossier-title">${won ? 'Victory!' : 'Defeat'}</span>
+            <span class="dossier-subtitle">${gameState.season} · Day ${gameState.day}</span>
+          </div>
+
+          <div class="dossier-body">
+            <div class="dossier-portrait-col">
+              <div class="dossier-portrait-plate">
+                <div class="dossier-portrait-art"><span class="dossier-outcome-icon">${won ? '🏆' : '💀'}</span></div>
+                <div class="dossier-portrait-label">${won ? 'All Predators Defeated' : 'The Flock Has Fallen'}</div>
+              </div>
+              <div class="dossier-stat-row">
+                <div class="dossier-stat">
+                  <div class="dossier-label">PREDATORS DEFEATED</div>
+                  <div class="dossier-stat-value">${predatorsDefeated}/${gameState.predators.length}</div>
+                </div>
+                <div class="dossier-stat">
+                  <div class="dossier-label">PLAYERS ALIVE</div>
+                  <div class="dossier-stat-value">${survivors}/${gameState.players.length}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="dossier-detail-col">
+              <div class="dossier-section">
+                <span class="dossier-section-title">${won ? 'RESULT' : 'CAUSE'}</span>
+                <div class="dossier-flavor-text">
+                  ${won
+                    ? 'All 4 Predators defeated before the 3rd season ended, with everyone alive.'
+                    : gameState.players.every((p) => !p.alive)
+                    ? 'The whole flock has fallen.'
+                    : 'The 3rd season ended before every Predator was defeated (or a downed player never made it back for their first turn).'}
+                </div>
+              </div>
+
+              <div class="dossier-divider"></div>
+
+              <div class="dossier-section">
+                <span class="dossier-section-title">FINAL FLOCK</span>
+                ${gameState.players.map(
+                  (p) => html`
+                    <div key=${p.id} class="dossier-flavor-text">
+                      ${playerNames[p.id] ?? p.id} — ${p.chickenName} · Stage ${p.stage}
+                      ${p.alive ? html` — ${p.health}/${p.maxHealth} health` : html` — fallen`}
+                    </div>
+                  `,
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     `;
   }
@@ -458,10 +504,9 @@ function App() {
   // a real seat (local/no-session contexts, same tolerance canAct already has).
   const myPlayer = gameState.players.find((p) => p.id === myPlayerId) ?? currentPlayer;
   const opponents = gameState.players.filter((p) => p.id !== myPlayer.id);
-  // Filter before slicing so a superseded entry (resolveProductionReveal's
-  // raw action, see formatLogEntry's case above) doesn't crowd out a real
-  // one from the last-12 window.
-  const recentLog = gameState.actionLog.filter((a) => formatLogEntry(a, playerNames)).slice(-12).reverse();
+  // Full history, newest first — the rail panel is a persistent scrollable
+  // log now (not a small popup), so there's no reason to cap it.
+  const recentLog = gameState.actionLog.filter((a) => formatLogEntry(a, playerNames)).slice().reverse();
 
   // Functions, not hoisted vnodes — the dock is rendered in two places at
   // once (desktop side panel, CSS-hidden on mobile; mobile sheet, CSS-hidden
@@ -583,14 +628,10 @@ function App() {
               playerNames=${playerNames}
             />`}
             <div class="log-rail">
-              <button type="button" class="log-rail-toggle" title="Log" onClick=${() => setLogRailOpen((v) => !v)}>
-                🕘
-              </button>
-              ${logRailOpen &&
-              html`<div class="log-rail-panel">
-                <div class="log-rail-title">LOG</div>
+              <div class="log-rail-title">LOG</div>
+              <div class="log-rail-entries">
                 ${recentLog.map((a, i) => html`<div key=${i} class="log-rail-entry">${formatLogEntry(a, playerNames)}</div>`)}
-              </div>`}
+              </div>
             </div>
           </div>`}
         </div>

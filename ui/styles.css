@@ -100,12 +100,6 @@ fieldset {
   gap: 1em;
 }
 
-.game-over {
-  max-width: 640px;
-  margin: 3em auto;
-  text-align: center;
-}
-
 /* --- Board --- */
 /* .board's own box model is owned entirely by .board.board-photo further
    down (the real board-photo layout) — a bare `.board { display:flex }`
@@ -1738,6 +1732,58 @@ input.entry-code-box:focus {
   color: #7fb8c4;
 }
 
+/* Victory/Defeat outcome dossier (the game-over screen) — same modal
+   chrome as the Predator/Grub dossier above, recolored green for a win
+   and warm red for a loss instead of a bare full-page message. */
+.dossier-panel.kind-victory .dossier-header {
+  background: linear-gradient(180deg, #3f5c34, #263a1f);
+}
+
+.dossier-panel.kind-victory .dossier-portrait-plate {
+  border-color: #a8c98f;
+  background: #2c4222;
+}
+
+.dossier-panel.kind-victory .dossier-portrait-art {
+  background: radial-gradient(circle at 50% 40%, #3a5a2c, #1f3018);
+}
+
+.dossier-panel.kind-victory .dossier-portrait-label {
+  background: #3f5c34;
+  color: #dcedc8;
+}
+
+.dossier-panel.kind-victory .dossier-stat-value {
+  color: #b6d98f;
+}
+
+.dossier-panel.kind-loss .dossier-header {
+  background: linear-gradient(180deg, #6b2e28, #3a1f1d);
+}
+
+.dossier-panel.kind-loss .dossier-portrait-plate {
+  border-color: #d99a92;
+  background: #3a1f1d;
+}
+
+.dossier-panel.kind-loss .dossier-portrait-art {
+  background: repeating-linear-gradient(135deg, #4a2523, #4a2523 5px, #402020 5px, #402020 10px);
+}
+
+.dossier-panel.kind-loss .dossier-portrait-label {
+  background: #8c3b34;
+  color: #f7ddd8;
+}
+
+.dossier-panel.kind-loss .dossier-stat-value {
+  color: #e8a49c;
+}
+
+.dossier-outcome-icon {
+  font-size: 56px;
+  line-height: 1;
+}
+
 .dossier-health-row {
   display: flex;
   align-items: center;
@@ -2010,18 +2056,21 @@ input.entry-code-box:focus {
 /* --- Right rail: one absolutely-positioned column over .gs-board (already
    position:relative) holding the presence-driven flock strip (absent solo,
    56px avatar strip with a hover/click-expand card otherwise) stacked above
-   the log toggle — always present, even solo, since the log has nowhere
-   else to live once it's not floating on the board. --- */
+   the persistent log panel — always present, even solo, since the log has
+   nowhere else to live. The rail itself has no fixed width (align-items:
+   flex-end lets each child pick its own, right-anchored) because the log
+   panel needs real reading width (~300px) while the avatar strip stays a
+   slim 56px icon column. --- */
 
 .right-rail {
   position: absolute;
   right: 14px;
   top: 14px;
   bottom: 14px;
-  width: 56px;
   z-index: 5;
   display: flex;
   flex-direction: column;
+  align-items: flex-end;
   gap: 10px;
 }
 
@@ -2110,51 +2159,46 @@ input.entry-code-box:focus {
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.55);
 }
 
-/* --- Log rail — a toggle tab at the bottom of the right rail (stacked
-   below the flock strip, or alone in solo) that opens a panel of recent
-   log entries anchored to the same edge, instead of the old bottom-left
-   toast stack + separate modal. Requested after playtesting found the
-   on-board version too easy to miss under the board's own card clutter
-   (docs/playtest-feedback.md, 2026-08-18 Toasts/Roll outcomes entry). --- */
+/* --- Log rail — a persistent, always-visible panel stacked below the
+   flock strip (or alone in solo), instead of the old bottom-left toast
+   stack + separate modal, and instead of the toggle-triggered popup this
+   replaced (requested after playtesting found the on-board version too
+   easy to miss under the board's own card clutter — docs/playtest-
+   feedback.md, 2026-08-18 Toasts/Roll outcomes entry; the toggle itself
+   was then found too easy to forget to open — 2026-08-21 follow-up).
+   Wider than the avatar strip (~300px vs 56px) since log sentences need
+   real reading width; .right-rail's align-items:flex-end keeps both
+   right-anchored to the same edge despite the width difference. --- */
 
 .log-rail {
-  flex: none;
-  margin-top: auto;
-  display: flex;
-  justify-content: center;
-}
-
-.log-rail-toggle {
-  width: 56px;
-  height: 40px;
-  border-radius: 10px;
-  background: linear-gradient(180deg, var(--gs-wood-800), #2f2117);
-  border: 1px solid rgba(240, 227, 196, 0.14);
-  color: var(--gs-parchment);
-  font-size: 16px;
-  cursor: pointer;
-}
-
-.log-rail-panel {
-  position: absolute;
-  right: 70px;
-  bottom: 14px;
+  flex: 1;
+  min-height: 0;
   width: 300px;
-  max-width: min(300px, calc(100vw - 100px));
-  max-height: 70%;
-  overflow-y: auto;
-  z-index: 6;
+  max-width: min(300px, calc(100vw - 90px));
   display: flex;
   flex-direction: column;
+  background: linear-gradient(180deg, var(--gs-wood-800), #2f2117);
+  border: 1px solid rgba(240, 227, 196, 0.14);
+  border-radius: 10px;
+  padding: 8px;
   gap: 6px;
-  padding: 4px;
 }
 
 .log-rail-title {
+  flex: none;
   font-size: 10px;
   letter-spacing: 0.14em;
   color: var(--gs-parchment-dim);
-  padding: 4px 2px;
+  padding: 0 2px;
+}
+
+.log-rail-entries {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .log-rail-entry {
@@ -2164,7 +2208,6 @@ input.entry-code-box:focus {
   background: rgba(43, 36, 28, 0.92);
   border: 1px solid rgba(240, 227, 196, 0.2);
   color: rgba(240, 227, 196, 0.9);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
 }
 
 .table-view-toggle {
@@ -2324,8 +2367,8 @@ input.entry-code-box:focus {
 
 /* The painted oval (design mockup 4a/4b) — transparent by default so the
    board art shows through, with the state conveyed by border style alone
-   (solid ochre = current location, dashed ochre = legal move target),
-   matching the design rather than a filled/opaque box. */
+   (dashed ochre = legal move target); no distinct current-location styling
+   for now, pending a decision on whether/how to mark it. */
 .loc-oval {
   position: absolute;
   box-sizing: border-box;
@@ -2335,11 +2378,6 @@ input.entry-code-box:focus {
   justify-content: center;
   gap: 5px;
   border: 1px dashed rgba(240, 227, 196, 0.22);
-}
-
-.loc-oval.is-here {
-  border: 2px solid var(--gs-ochre);
-  background: rgba(201, 135, 63, 0.12);
 }
 
 .loc-oval.is-target {
@@ -2604,6 +2642,11 @@ input.entry-code-box:focus {
 .card-plate.kind-weather .ref-text {
   color: rgba(60, 43, 28, 0.8);
   font-size: 0.871cqw;
+  /* Unlike predator cards, the weather slot sits alone with no neighboring
+     board node to collide with, so it doesn't need the 2-line clamp above —
+     let it grow to fit the full effect text instead of cutting it off. */
+  -webkit-line-clamp: unset;
+  overflow: visible;
 }
 
 /* Discard piles (mockup 4a/4b) — just the count, no label; the bonus
@@ -3504,11 +3547,6 @@ input.entry-code-box:focus {
     align-items: center;
     justify-content: center;
     gap: 4px;
-  }
-  .mobile-board-dot.is-here {
-    border-color: var(--gs-ochre);
-    background: rgba(201, 135, 63, 0.22);
-    border-width: 2px;
   }
   .mobile-board-dot.is-target {
     border-style: dashed;
