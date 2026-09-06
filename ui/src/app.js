@@ -614,27 +614,27 @@ function App() {
             hereLocation=${myPlayer.location}
             onInspectTarget=${(targetType, targetId) => setInspectingTarget({ targetType, targetId })}
           />
-          ${!tableView &&
-          html`<div class="right-rail">
-            ${opponents.length > 0 &&
-            html`<${AvatarStrip}
-              opponents=${opponents}
-              currentPlayerId=${currentPlayerId}
-              state=${gameState}
-              dispatch=${dispatch}
-              pendingPick=${pendingPick}
-              setPendingPick=${setPendingPick}
-              myPlayerId=${myPlayerId}
-              playerNames=${playerNames}
-            />`}
-            <div class="log-rail">
-              <div class="log-rail-title">LOG</div>
-              <div class="log-rail-entries">
-                ${recentLog.map((a, i) => html`<div key=${i} class="log-rail-entry">${formatLogEntry(a, playerNames)}</div>`)}
-              </div>
-            </div>
-          </div>`}
         </div>
+        ${!tableView &&
+        html`<div class="right-rail">
+          ${opponents.length > 0 &&
+          html`<${AvatarStrip}
+            opponents=${opponents}
+            currentPlayerId=${currentPlayerId}
+            state=${gameState}
+            dispatch=${dispatch}
+            pendingPick=${pendingPick}
+            setPendingPick=${setPendingPick}
+            myPlayerId=${myPlayerId}
+            playerNames=${playerNames}
+          />`}
+          <div class="log-rail">
+            <div class="log-rail-title">LOG</div>
+            <div class="log-rail-entries">
+              ${recentLog.map((a, i) => html`<div key=${i} class="log-rail-entry">${formatLogEntry(a, playerNames)}</div>`)}
+            </div>
+          </div>
+        </div>`}
       </div>
 
       <${MobilePlay}

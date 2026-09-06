@@ -2053,21 +2053,30 @@ input.entry-code-box:focus {
   }
 }
 
-/* --- Right rail: one absolutely-positioned column over .gs-board (already
-   position:relative) holding the presence-driven flock strip (absent solo,
-   56px avatar strip with a hover/click-expand card otherwise) stacked above
-   the persistent log panel — always present, even solo, since the log has
-   nowhere else to live. The rail itself has no fixed width (align-items:
-   flex-end lets each child pick its own, right-anchored) because the log
-   panel needs real reading width (~300px) while the avatar strip stays a
-   slim 56px icon column. --- */
+/* --- Right rail: a real sidebar column in .gs-mid's flex row, alongside
+   (not overlaid on top of) .gs-board — a board scan covered by a floating
+   panel meant no way to guarantee it wasn't hiding a card (it was: a wide
+   log panel sat right over the Grit Stones location, playtest 2026-08-22).
+   .gs-board is flex:1, so it simply renders a bit smaller to share the row
+   with this fixed-width column instead — the board's own aspect ratio and
+   cqw/cqh-scaled content handle that gracefully (nothing crops or hides,
+   it's just uniformly smaller), which is the tradeoff this rail is built
+   around: fixed board layout, chrome negotiates space beside it instead of
+   over it. Holds the presence-driven flock strip (absent solo, 56px avatar
+   strip with a hover/click-expand card otherwise) stacked above the
+   persistent log panel — always present, even solo, since the log has
+   nowhere else to live. `position: relative` (rather than static) is kept
+   only so .opponent-expand-card's `right: 78px` flyout still anchors to
+   this column's own right edge, not some further-out ancestor. --- */
 
 .right-rail {
-  position: absolute;
-  right: 14px;
-  top: 14px;
-  bottom: 14px;
-  z-index: 5;
+  position: relative;
+  flex: none;
+  width: 178px;
+  box-sizing: border-box;
+  padding: 14px;
+  background: var(--gs-wood-900);
+  border-left: 2px solid var(--gs-wood-500);
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -2166,15 +2175,16 @@ input.entry-code-box:focus {
    easy to miss under the board's own card clutter — docs/playtest-
    feedback.md, 2026-08-18 Toasts/Roll outcomes entry; the toggle itself
    was then found too easy to forget to open — 2026-08-21 follow-up).
-   Wider than the avatar strip (~300px vs 56px) since log sentences need
-   real reading width; .right-rail's align-items:flex-end keeps both
-   right-anchored to the same edge despite the width difference. --- */
+   Fills .right-rail's own content width (~150px, half its original
+   floating-panel width — 2026-08-22 follow-up after the wider version
+   covered the board) rather than a fixed px value, since .right-rail now
+   owns the column's real width. --- */
 
 .log-rail {
   flex: 1;
   min-height: 0;
-  width: 300px;
-  max-width: min(300px, calc(100vw - 90px));
+  width: 100%;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   background: linear-gradient(180deg, var(--gs-wood-800), #2f2117);

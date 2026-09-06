@@ -37,16 +37,18 @@ function genCode() {
 // config.rng/config.hooks are functions — not JSON-serializable, and
 // don't need to be shared: a roll's *outcome* is already baked into the
 // resulting state, so each device just keeps using its own local rng for
-// whatever it rolls next. actionLog is dropped too (unbounded growth
-// against Firestore's 1MiB doc cap; nothing in the UI reads it).
+// whatever it rolls next. actionLog rides along (the right rail's log
+// panel reads gameState.actionLog) capped at 500 entries as a defensive
+// margin against Firestore's 1MiB doc cap — a full 3-season game is at
+// most a few hundred actions, so this is well above what a real game
+// needs, not a rolling window that'd actually trim live play.
 export function toSyncedState(state) {
   const { players, difficulty, eggspansion, predators } = state.config;
-  const { actionLog, ...rest } = state;
-  return { ...rest, config: { players, difficulty, eggspansion, predators } };
+  return { ...state, actionLog: state.actionLog.slice(-500), config: { players, difficulty, eggspansion, predators } };
 }
 
 export function fromSyncedDoc(syncedState) {
-  return { ...syncedState, config: { ...syncedState.config, rng: () => Math.random() }, actionLog: [] };
+  return { ...syncedState, config: { ...syncedState.config, rng: () => Math.random() } };
 }
 
 async function createSession(hostConfig) {
