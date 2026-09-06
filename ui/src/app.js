@@ -566,6 +566,8 @@ function App() {
       />`}
       ${pendingPick?.type === 'drawTwoKeepOne' &&
       html`<${ForesightPicker} state=${gameState} dispatch=${dispatch} pendingPick=${pendingPick} setPendingPick=${setPendingPick} myPlayerId=${myPlayerId} />`}
+      ${dayEndPending &&
+      html`<${TurnControls} state=${gameState} onSubmitDayEnd=${handleDayEndSubmit} myPlayerId=${myPlayerId} playerNames=${playerNames} />`}
 
       <div class="gs-topbar">
         <span class="gs-title">FLOCK TOGETHER</span>
@@ -598,11 +600,9 @@ function App() {
       <div class="gs-mid">
         ${!tableView &&
         html`<div class="gs-side-panel">
-          ${dayEndPending
-            ? html`<${TurnControls} state=${gameState} onSubmitDayEnd=${handleDayEndSubmit} myPlayerId=${myPlayerId} playerNames=${playerNames} />`
-            : currentPlayer.pendingProductionReveal
-              ? html`${dockPanel(true)}<${ProductionReveal} player=${currentPlayer} dispatch=${dispatch} myPlayerId=${myPlayerId} />`
-              : html`${dockPanel(true)}${actionBar()}`}
+          ${currentPlayer.pendingProductionReveal
+            ? html`${dockPanel(true)}<${ProductionReveal} player=${currentPlayer} dispatch=${dispatch} myPlayerId=${myPlayerId} />`
+            : html`${dockPanel(true)}${actionBar()}`}
         </div>`}
         <div class="gs-board">
           <${Board}
@@ -647,8 +647,6 @@ function App() {
         myPlayer=${myPlayer}
         currentPlayer=${currentPlayer}
         opponents=${opponents}
-        dayEndPending=${dayEndPending}
-        onSubmitDayEnd=${handleDayEndSubmit}
         onEndTurn=${handleEndTurn}
         onUseExtraAction=${() => handleUseExtraAction(currentPlayer.id)}
         recentLog=${recentLog}

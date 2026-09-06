@@ -4,7 +4,6 @@ import { loadGrubCards, activeWeatherName, getOwnAndBorrowedAbilities, OUTSIDE_L
 import { monogram } from '../cardVisuals.js';
 import { Board, playerColor, BOARD_ANCHORS, LOCATION_ANCHOR_KEY, boardZoomFrame } from './board.js';
 import { healCap, eatCap } from './actionBar.js';
-import { TurnControls } from './turnControls.js';
 import { ProductionReveal } from './productionReveal.js';
 import { PlayerPanel } from './playerPanel.js';
 
@@ -95,8 +94,6 @@ export function MobilePlay({
   myPlayer,
   currentPlayer,
   opponents,
-  dayEndPending,
-  onSubmitDayEnd,
   onEndTurn,
   onUseExtraAction,
   recentLog,
@@ -207,9 +204,12 @@ export function MobilePlay({
     </div>
   `;
 
-  const actionsAndExtras = dayEndPending
-    ? html`<${TurnControls} state=${state} onSubmitDayEnd=${onSubmitDayEnd} myPlayerId=${myPlayerId} playerNames=${playerNames} />`
-    : currentPlayer.pendingProductionReveal
+  // dayEndPending is handled by app.js's own top-level <TurnControls> (a
+  // fixed-position dossier covering the whole viewport, same as
+  // TargetDossier/ForesightPicker) — not rendered here too, or day-end
+  // would show as two stacked overlays with two independent copies of its
+  // discard/exchange picker state.
+  const actionsAndExtras = currentPlayer.pendingProductionReveal
       ? html`<${ProductionReveal} player=${currentPlayer} dispatch=${dispatch} myPlayerId=${myPlayerId} />`
       : html`
           <div class="mobile-play-actions-header">

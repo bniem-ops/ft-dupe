@@ -3406,39 +3406,198 @@ input.entry-code-box:focus {
   align-self: flex-start;
 }
 
-/* --- Day-end (TurnControls) --- */
-
-.turn-controls.day-end {
+/* --- End of Day dossier (TurnControls) — reuses .dossier-backdrop/
+   .dossier-header/.dossier-footer for the surrounding chrome (same pattern
+   as .foresight-panel above), a "notebook" cream panel instead of the
+   wood-toned Predator/Grub/Victory/Loss variants since this is an
+   administrative decision, not a combat or outcome screen. Promoted from
+   an embedded .gs-side-panel block to a real modal (playtest feedback,
+   2026-08-23 "make an End Turn Dossier") — as a side effect this also
+   means it now actually shows up in Table view, where the side panel
+   (and the old embedded version) is hidden entirely. */
+.dossier-panel.kind-dayend {
   background: var(--gs-notebook);
   color: var(--gs-notebook-text);
-  border: none;
-  border-radius: 10px;
-  padding: 16px 18px;
-  position: static;
-  font-family: var(--font-ui);
   max-width: 640px;
-  width: 100%;
 }
 
-.turn-controls.day-end h3 {
-  font-family: var(--font-display);
-  font-size: 15px;
-  margin-bottom: 10px;
+.dossier-panel.kind-dayend .dossier-header {
+  background: var(--gs-notebook-border);
 }
 
-.turn-controls .egg-exchange {
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 8px;
-  padding: 8px 10px;
+.dossier-panel.kind-dayend .dossier-eyebrow,
+.dossier-panel.kind-dayend .dossier-subtitle {
+  color: rgba(74, 53, 39, 0.65);
 }
 
-.turn-controls button {
+.dossier-panel.kind-dayend .dossier-title {
+  color: var(--gs-notebook-text);
+}
+
+.dossier-panel.kind-dayend .dossier-close {
+  color: var(--gs-notebook-text);
+  border-color: rgba(74, 53, 39, 0.28);
+}
+
+.dossier-panel.kind-dayend .dossier-section-title {
+  color: #8a5a2a;
+}
+
+.dossier-panel.kind-dayend .dossier-flavor-text,
+.dossier-panel.kind-dayend .dossier-flavor {
+  color: rgba(74, 53, 39, 0.8);
+}
+
+.dossier-panel.kind-dayend .dossier-divider {
+  background: rgba(74, 53, 39, 0.14);
+}
+
+.dossier-panel.kind-dayend .dossier-footer {
+  background: rgba(74, 53, 39, 0.06);
+  border-top: 2px solid var(--gs-notebook-border);
+}
+
+/* Ochre, not the default blood-red confirm — this isn't a combat
+   commitment, just advancing the day. */
+.dossier-panel.kind-dayend .dossier-btn-confirm {
   background: var(--gs-ochre);
+  border-color: #e0b878;
   color: #2b241c;
-  border: none;
+}
+
+.dossier-stack-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px 22px;
+}
+
+/* Two selectable Grub cards side by side — health/effect/reward for both,
+   so the discard decision doesn't require remembering what the other side
+   held (playtest feedback, 2026-08-23). */
+.grub-choice-row {
+  display: flex;
+  gap: 12px;
+}
+
+.grub-choice-card {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  border-radius: 11px;
+  border: 1.5px solid rgba(74, 53, 39, 0.25);
+  background: rgba(255, 255, 255, 0.4);
+  color: var(--gs-notebook-text);
+  padding: 12px 13px;
+  cursor: pointer;
+  font-family: var(--font-ui);
+  position: relative;
+}
+
+.grub-choice-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.grub-choice-card.selected {
+  border-color: #8a5a2a;
+  background: rgba(255, 255, 255, 0.75);
+  box-shadow: 0 0 0 2px rgba(138, 90, 42, 0.3);
+}
+
+.grub-choice-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-display);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  margin-bottom: 8px;
+}
+
+.grub-choice-header .hearts {
+  margin: 0;
+}
+
+.grub-choice-header .heart.full {
+  color: var(--gs-blood);
+}
+
+.grub-choice-header .heart.empty {
+  color: rgba(74, 53, 39, 0.25);
+}
+
+.grub-choice-art {
+  height: 56px;
+  border-radius: 8px;
+  background: radial-gradient(circle at 50% 40%, #d8c69a, #c9b48a);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.grub-choice-art .monogram {
+  font-family: var(--font-display);
+  font-size: 22px;
+  color: var(--gs-notebook-text);
+}
+
+.grub-choice-name {
+  font-family: var(--font-display);
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.grub-choice-label {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: rgba(74, 53, 39, 0.55);
+  margin-top: 6px;
+}
+
+.grub-choice-text {
+  font-family: var(--font-flavor);
+  font-size: 12px;
+  line-height: 1.4;
+  color: rgba(74, 53, 39, 0.85);
+}
+
+.grub-choice-empty {
+  font-size: 12px;
+  font-style: italic;
+  color: rgba(74, 53, 39, 0.5);
+}
+
+.grub-choice-tag {
+  margin-top: 8px;
+  font-size: 9px;
+  letter-spacing: 0.08em;
   font-weight: 700;
+  color: #8a5a2a;
+}
+
+.egg-exchange-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.egg-exchange-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.egg-exchange-row input {
+  width: 60px;
+  padding: 6px 8px;
   border-radius: 6px;
-  padding: 8px 16px;
+  border: 1px solid rgba(74, 53, 39, 0.3);
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--gs-notebook-text);
   font-family: var(--font-ui);
 }
 

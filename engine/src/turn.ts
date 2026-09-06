@@ -38,8 +38,12 @@ export function isPhaseBoundaryDay(day: number, season: Season): boolean {
 
 // The last day of each phase (2/5/7, per seasonPhaseForDay above) — a
 // player's final turn before the weather card (and its once-per-phase
-// adjustment) rolls over for good.
-function isLastDayOfPhase(day: number): boolean {
+// adjustment) rolls over for good. Exported for the UI too: it's the same
+// condition that makes an end-of-day Egg Exchange actually count (see
+// advanceDay's isPhaseBoundaryDay(day+1...) check below) — the End Turn
+// dossier uses it to decide whether to show the Egg Exchange section at
+// all, rather than always showing it with a "may not apply" disclaimer.
+export function isLastDayOfPhase(day: number): boolean {
   return day === 2 || day === 5 || day === 7;
 }
 
