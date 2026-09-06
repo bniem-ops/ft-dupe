@@ -116,6 +116,11 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
     !canAct || weatherAdjustmentAvailable || (player.chickenName === 'Princess Layer' && !player.extraActionTokenAvailable && player.eggs >= 1) ||
     (player.chickenName === 'Cumberbill Rockefeather' && player.stage >= 2 && player.location !== 'Coop');
 
+  // The 8 actions below are color-coded by where core_rules.md's action
+  // table allows them — green (field) for Outside-only, red (blood) for
+  // Inside-only, and the unstyled neutral look for Any-location — so the
+  // color itself tells you where you need to be (playtest feedback,
+  // 2026-08-23). Kept in sync with mobilePlay.js's ACTION_TILES.
   return html`
     <div class="action-bar">
       <div class="actions-header">
@@ -290,11 +295,11 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
           onClick=${() => dispatch({ type: 'forage', playerId: player.id })}
         />
 
-        <${ActionButton} label="Lay Egg" disabled=${noActions} onClick=${() => dispatch({ type: 'layEgg', playerId: player.id })} />
+        <${ActionButton} label="Lay Egg" colorClass="blood" disabled=${noActions} onClick=${() => dispatch({ type: 'layEgg', playerId: player.id })} />
 
         <${ActionButton}
           label="Eat"
-          colorClass="teal"
+          colorClass="field"
           disabled=${noActions || eatCap(player.stage) < 1 || player.food < 1}
           onClick=${() => {
             setEatAmount(1);
@@ -304,6 +309,7 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
 
         <${ActionButton}
           label="Heal"
+          colorClass="blood"
           disabled=${noActions || healCap(player.stage) < 1 || player.food < 1 || player.health >= player.maxHealth}
           onClick=${() => {
             setHealAmount(1);
@@ -311,11 +317,10 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
           }}
         />
 
-        <${ActionButton} label="Move" colorClass="dusk" disabled=${noActions} onClick=${() => setPendingPick({ type: 'move', playerId: player.id })} />
+        <${ActionButton} label="Move" disabled=${noActions} onClick=${() => setPendingPick({ type: 'move', playerId: player.id })} />
 
         <${ActionButton}
           label="Draw Card"
-          colorClass="dusk"
           disabled=${noActions}
           onClick=${() =>
             hasForesight
@@ -330,6 +335,7 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
           </select>
           <${ActionButton}
             label="Brood"
+            colorClass="blood"
             disabled=${noActions || !broodTarget}
             onClick=${() => dispatch({ type: 'brood', playerId: player.id, targetPlayerId: broodTarget })}
           />
@@ -337,7 +343,6 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
 
         <${ActionButton}
           label="Attack"
-          colorClass="blood"
           disabled=${noActions}
           onClick=${() => setPendingPick({ type: 'attack', step: 'target', playerId: player.id })}
         />
@@ -345,7 +350,6 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
         ${abilities.some((a) => a.joinsAttackAsSecond) &&
         html`<${ActionButton}
           label="Attack w/ Companion"
-          colorClass="blood"
           disabled=${noActions || nearbyAlivePlayers.length === 0}
           onClick=${() => setPendingPick({ type: 'attackWithCompanion', step: 'companion', playerId: player.id })}
         />`}

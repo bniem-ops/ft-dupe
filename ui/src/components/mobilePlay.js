@@ -21,15 +21,19 @@ const ALL_LOCATIONS = ['Coop', ...OUTSIDE_LOCATIONS];
 const ZOOM_FACTOR = 2.6;
 const PLACE_VIEWPORT = { width: 390, height: 346 };
 
+// Color-coded by where core_rules.md's action table allows each action —
+// green (field) for Outside-only, red (blood) for Inside-only, and the
+// unstyled neutral look for Any-location, so the color itself tells you
+// where you need to be (playtest feedback, 2026-08-23).
 const ACTION_TILES = [
   { key: 'forage', label: 'Forage', icon: '🌿', colorClass: 'field' },
-  { key: 'eat', label: 'Eat', icon: '🍽', colorClass: 'teal' },
-  { key: 'move', label: 'Move', icon: '➜', colorClass: 'dusk' },
-  { key: 'drawCard', label: 'Draw', icon: '🂠', colorClass: 'dusk' },
-  { key: 'layEgg', label: 'Lay Egg', icon: '🥚', colorClass: '' },
-  { key: 'heal', label: 'Heal', icon: '✚', colorClass: '' },
-  { key: 'brood', label: 'Brood', icon: '🪺', colorClass: '' },
-  { key: 'attack', label: 'Attack', icon: '⚔', colorClass: 'blood' },
+  { key: 'eat', label: 'Eat', icon: '🍽', colorClass: 'field' },
+  { key: 'move', label: 'Move', icon: '➜', colorClass: '' },
+  { key: 'drawCard', label: 'Draw', icon: '🂠', colorClass: '' },
+  { key: 'layEgg', label: 'Lay Egg', icon: '🥚', colorClass: 'blood' },
+  { key: 'heal', label: 'Heal', icon: '✚', colorClass: 'blood' },
+  { key: 'brood', label: 'Brood', icon: '🪺', colorClass: 'blood' },
+  { key: 'attack', label: 'Attack', icon: '⚔', colorClass: '' },
 ];
 
 // What's at a location right now — the grub matching that side, a

@@ -3244,11 +3244,18 @@ input.entry-code-box:focus {
 
 /* Action buttons (mockup 4a/4b) — a fixed 2-column grid of single-tone
    cards, name only (no cost/effect subtext — costs surface in the
-   pending-pick prompt/dossier once an action is chosen). Colors are the
-   design's exact per-action backgrounds. */
+   pending-pick prompt/dossier once an action is chosen). Colors mark each
+   action's required location (green Outside-only, red Inside-only,
+   neutral Any — see actionBar.js). `align-items: start` keeps every
+   .action-btn at its own natural height instead of the grid default
+   (stretch) blowing up Attack/Draw Card to match Brood's row, which is
+   taller because its cell also holds the dead-player <select> above the
+   button (playtest feedback, 2026-08-23 "make the 8 actions the same
+   size"). */
 .actions-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
+  align-items: start;
   gap: 6px;
 }
 
@@ -3280,16 +3287,8 @@ input.entry-code-box:focus {
   background: var(--gs-field);
 }
 
-.action-btn.dusk {
-  background: var(--gs-dusk);
-}
-
 .action-btn.blood {
   background: var(--gs-blood);
-}
-
-.action-btn.teal {
-  background: #3f5a63;
 }
 
 .action-btn:disabled {
@@ -3760,12 +3759,6 @@ input.entry-code-box:focus {
   }
   .mobile-play-tile.field {
     background: var(--gs-field);
-  }
-  .mobile-play-tile.teal {
-    background: #3f5a63;
-  }
-  .mobile-play-tile.dusk {
-    background: var(--gs-dusk);
   }
   .mobile-play-tile.blood {
     background: var(--gs-blood);
