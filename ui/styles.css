@@ -3242,6 +3242,71 @@ input.entry-code-box:focus {
   font-weight: 700;
 }
 
+/* Eat/Heal amount picker — a row of clickable number boxes instead of a
+   native <input type="number">'s tiny spinner arrows, which for a range
+   as small as 1-3 was more fiddly than useful (playtest feedback,
+   2026-09-06). Same idea as TargetDossier's .dossier-strength-box, sized
+   down to fit the narrower side-panel/pending-hint context. */
+.amount-picker-row {
+  display: flex;
+  gap: 5px;
+}
+
+.amount-picker-box {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 6px;
+  border-radius: 6px;
+  border: 1.5px solid rgba(240, 227, 196, 0.3);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--gs-parchment);
+  font-family: var(--font-display);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.amount-picker-box.selected {
+  background: var(--gs-ochre);
+  border-color: #f0e3c4;
+  color: #241a12;
+}
+
+/* Target chip row — one named button per candidate (dead players for
+   Brood, other players for Tag Along) instead of a <select> dropdown, so
+   picking a target is a single tap rather than open-dropdown-then-pick
+   (playtest feedback, 2026-09-06 "I don't know if I like the current
+   dropdowns"). Candidates are almost always 1-3 people, which is exactly
+   what this suits; wraps if there are ever more. */
+.target-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.target-chip {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(240, 227, 196, 0.3);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--gs-parchment);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.target-chip.selected {
+  background: var(--gs-ochre);
+  border-color: #f0e3c4;
+  color: #241a12;
+  font-weight: 700;
+}
+
+.target-chip-empty {
+  font-size: 11px;
+  color: rgba(240, 227, 196, 0.5);
+  font-style: italic;
+}
+
 /* Action buttons (mockup 4a/4b) — a fixed 2-column grid of single-tone
    cards, name only (no cost/effect subtext — costs surface in the
    pending-pick prompt/dossier once an action is chosen). Colors mark each
@@ -3249,9 +3314,8 @@ input.entry-code-box:focus {
    neutral Any — see actionBar.js). `align-items: start` keeps every
    .action-btn at its own natural height instead of the grid default
    (stretch) blowing up Attack/Draw Card to match Brood's row, which is
-   taller because its cell also holds the dead-player <select> above the
-   button (playtest feedback, 2026-08-23 "make the 8 actions the same
-   size"). */
+   taller because its cell also holds the TargetChipRow above the button
+   (playtest feedback, 2026-08-23 "make the 8 actions the same size"). */
 .actions-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);

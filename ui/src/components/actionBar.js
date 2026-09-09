@@ -35,6 +35,46 @@ function ActionButton({ label, colorClass, disabled, onClick }) {
   `;
 }
 
+// A row of clickable number boxes (1..max) instead of a native
+// <input type="number">'s tiny spinner arrows — same pattern
+// TargetDossier already uses for Attack Strength, reused here for Eat/Heal
+// amounts, which cover an even smaller range (playtest feedback,
+// 2026-09-06 "tiny arrow clicks... feels distracting").
+function AmountPicker({ min, max, value, onChange }) {
+  const options = Array.from({ length: Math.max(0, max - min + 1) }, (_, i) => min + i);
+  return html`
+    <div class="amount-picker-row">
+      ${options.map(
+        (n) => html`
+          <button key=${n} type="button" class=${`amount-picker-box ${n === value ? 'selected' : ''}`} onClick=${() => onChange(n)}>
+            ${n}
+          </button>
+        `,
+      )}
+    </div>
+  `;
+}
+
+// A row of named buttons instead of a <select> — pick a target player
+// directly rather than opening a dropdown then a separate confirm step.
+// Used for Brood (dead players) and Tag Along (other alive players);
+// candidates are usually 1-3 people, which is exactly what this suits
+// (playtest feedback, 2026-09-06).
+function TargetChipRow({ candidates, selected, onSelect, emptyLabel }) {
+  if (candidates.length === 0) return html`<span class="target-chip-empty">${emptyLabel}</span>`;
+  return html`
+    <div class="target-chip-row">
+      ${candidates.map(
+        (c) => html`
+          <button key=${c.id} type="button" class=${`target-chip ${selected === c.id ? 'selected' : ''}`} onClick=${() => onSelect(c.id)}>
+            ${c.label}
+          </button>
+        `,
+      )}
+    </div>
+  `;
+}
+
 export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction, pendingPick, setPendingPick, myPlayerId, displayName, playerNames }) {
   const [healAmount, setHealAmount] = useState(1);
   const [eatAmount, setEatAmount] = useState(1);
@@ -165,13 +205,7 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
       html`
         <div class="pending-hint">
           How much food to eat (1 meal per food)?
-          <input
-            type="number"
-            min="1"
-            max=${Math.max(1, Math.min(eatCap(player.stage), player.food))}
-            value=${eatAmount}
-            onInput=${(e) => setEatAmount(Number(e.target.value))}
-          />
+          <${AmountPicker} min=${1} max=${Math.max(1, Math.min(eatCap(player.stage), player.food))} value=${eatAmount} onChange=${setEatAmount} />
           <button
             type="button"
             disabled=${!canAct}
@@ -189,12 +223,11 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
       html`
         <div class="pending-hint">
           How many hearts to heal (1 food per heart)?
-          <input
-            type="number"
-            min="1"
+          <${AmountPicker}
+            min=${1}
             max=${Math.max(1, Math.min(healCap(player.stage), player.food, player.maxHealth - player.health))}
             value=${healAmount}
-            onInput=${(e) => setHealAmount(Number(e.target.value))}
+            onChange=${setHealAmount}
           />
           <button
             type="button"
@@ -329,10 +362,12 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
         />
 
         <div class="action-with-amount">
-          <select onChange=${(e) => setBroodTarget(e.target.value)}>
-            <option value="">Dead player…</option>
-            ${deadPlayers.map((p) => html`<option key=${p.id} value=${p.id}>${playerNames?.[p.id] ?? p.id}</option>`)}
-          </select>
+          <${TargetChipRow}
+            candidates=${deadPlayers.map((p) => ({ id: p.id, label: playerNames?.[p.id] ?? p.id }))}
+            selected=${broodTarget}
+            onSelect=${setBroodTarget}
+            emptyLabel="No dead players"
+          />
           <${ActionButton}
             label="Brood"
             colorClass="blood"
@@ -463,12 +498,12 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
 
       ${(player.permanentTagAlongUnlocked || (player.chickenName === 'Wingston Coophill' && player.stage >= 2)) &&
       html`<div class="action-with-amount">
-        <select onChange=${(e) => setTagAlongTarget(e.target.value)} value=${tagAlongTarget}>
-          <option value="">Tag along with…</option>
-          ${state.players
-            .filter((p) => p.id !== player.id && p.alive)
-            .map((p) => html`<option key=${p.id} value=${p.id}>${playerNames?.[p.id] ?? p.id}</option>`)}
-        </select>
+        <${TargetChipRow}
+          candidates=${state.players.filter((p) => p.id !== player.id && p.alive).map((p) => ({ id: p.id, label: playerNames?.[p.id] ?? p.id }))}
+          selected=${tagAlongTarget}
+          onSelect=${setTagAlongTarget}
+          emptyLabel="No one nearby"
+        />
         <button
           type="button"
           disabled=${!canAct || !tagAlongTarget}
