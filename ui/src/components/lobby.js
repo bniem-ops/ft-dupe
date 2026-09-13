@@ -54,7 +54,7 @@ function PerchRow({ seat, isHost }) {
 // settings + Start, guest gets a read-only summary + a Ready toggle.
 // Settings (hostConfig) are live now, not a one-time setup step: every
 // pill click here writes straight to Firestore via onUpdateHostConfig.
-export function Lobby({ role, code, hostConfig, seats, myPlayerId, onUpdateHostConfig, onStart, onToggleReady, error }) {
+export function Lobby({ role, code, hostConfig, seats, myPlayerId, onUpdateHostConfig, onStart, onToggleReady, onLeave, error }) {
   const isHost = role === 'host';
   const seatIds = Array.from({ length: hostConfig.playerCount }, (_, i) => `p${i + 1}`);
   const filledCount = seatIds.filter((id) => seats[id]).length;
@@ -79,6 +79,7 @@ export function Lobby({ role, code, hostConfig, seats, myPlayerId, onUpdateHostC
             <span class="roost-code-value">${code}</span>
             ${isHost && html`<button type="button" class="roost-copy-btn" onClick=${() => navigator.clipboard?.writeText(code)}>Copy code</button>`}
           </div>
+          <button type="button" class="roost-leave-btn" onClick=${onLeave}>Leave</button>
         </div>
 
         ${error && html`<div class="error-banner">${error}</div>`}

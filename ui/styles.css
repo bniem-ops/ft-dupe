@@ -695,6 +695,19 @@ input.entry-code-box:focus {
   border: none;
 }
 
+/* A way out of a lobby you're stuck in (wrong code, changed your mind) —
+   deliberately muted next to the ochre "Copy code" button since leaving
+   isn't the action this screen wants you to take. */
+.roost-leave-btn {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--gs-parchment-dim);
+  border: 1.5px solid rgba(240, 227, 196, 0.25);
+}
+
 .roost-body {
   display: flex;
   align-items: stretch;
@@ -1216,10 +1229,17 @@ input.entry-code-box:focus {
   background: linear-gradient(260deg, var(--gs-page-light), var(--gs-page-dark));
 }
 
+/* The design handoff's 196px height was sized for a landscape placeholder;
+   the real generated portraits are tall (3:4) head-and-shoulders shots, so
+   a short landscape crop was cutting off most of the bird. Taller box +
+   top-biased object-position shows the head/body instead of a strip of
+   midsection — .draft-page-portrait-body below still has its own
+   flex:1/overflow:auto, so it absorbs the extra height without pushing
+   the footer off-spread. */
 .draft-book-art {
   position: relative;
   flex: none;
-  height: 196px;
+  height: 300px;
   overflow: hidden;
   display: flex;
   align-items: flex-end;
@@ -1243,6 +1263,7 @@ input.entry-code-box:focus {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: 50% 20%;
 }
 
 .draft-page-portrait-body {
@@ -1588,7 +1609,7 @@ input.entry-code-box:focus {
   }
 
   .draft-book-art {
-    height: 160px;
+    height: 220px;
   }
 
   .draft-footer {
@@ -2397,7 +2418,7 @@ input.entry-code-box:focus {
 }
 
 .dossier-portrait-art {
-  height: 150px;
+  height: 230px;
   background: repeating-linear-gradient(135deg, #4a2523, #4a2523 5px, #402020 5px, #402020 10px);
   display: flex;
   align-items: center;

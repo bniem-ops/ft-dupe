@@ -28,6 +28,31 @@ import { MobilePlay } from './components/mobilePlay.js';
 import { MobilePlayerSheet } from './components/mobilePlayerSheet.js';
 
 const SEASON_ORDER = ['Spring', 'Summer', 'Fall'];
+const SESSION_STORAGE_KEY = 'flockSessionCode';
+
+// A refresh (or a reopened tab) shouldn't lose your place in a session —
+// the actual GameState already lives in Firestore, so all that's missing
+// client-side is which session code to reconnect to. Checked first
+// against the URL (so a shared/bookmarked link also reconnects), then
+// localStorage (so a bare refresh does too).
+function readStoredSessionCode() {
+  const fromUrl = new URLSearchParams(window.location.search).get('session');
+  return fromUrl || localStorage.getItem(SESSION_STORAGE_KEY);
+}
+
+function persistSessionCode(code) {
+  localStorage.setItem(SESSION_STORAGE_KEY, code);
+  const url = new URL(window.location.href);
+  url.searchParams.set('session', code);
+  window.history.replaceState(null, '', url);
+}
+
+function clearStoredSessionCode() {
+  localStorage.removeItem(SESSION_STORAGE_KEY);
+  const url = new URL(window.location.href);
+  url.searchParams.delete('session');
+  window.history.replaceState(null, '', url);
+}
 
 // Turns a raw dispatched Action into a short log sentence — actionLog only
 // stores the action objects themselves (engine/src/types.ts), not text, so
@@ -113,8 +138,11 @@ function App() {
   const [inspectingTarget, setInspectingTarget] = useState(null);
 
   // Session state — every game is a session now, no local hotseat mode.
-  const [sessionCode, setSessionCode] = useState(null);
-  const [isHost, setIsHost] = useState(false);
+  // sessionCode is restored from the URL/localStorage (see
+  // readStoredSessionCode) so a refresh reconnects instead of losing the
+  // game — the subscribe effect below takes it from there the same way it
+  // handles a fresh join.
+  const [sessionCode, setSessionCode] = useState(() => readStoredSessionCode());
   const [hostConfig, setHostConfig] = useState(null);
   const [seats, setSeats] = useState({});
   const [predators, setPredators] = useState(null);
@@ -125,6 +153,11 @@ function App() {
   // to 'Coop' for everyone else.
   const [startingLocations, setStartingLocations] = useState({});
   const [myPlayerId, setMyPlayerId] = useState(null);
+  // Derived, not stored: joinAndClaimSeat always hands the host seat 'p1'
+  // (the session doc has no seats yet when handleHost claims the first
+  // one), so this is a stable fact about the seat itself rather than
+  // something that needs its own state to survive a refresh.
+  const isHost = myPlayerId === 'p1';
   // Carries the name from the entry screen into soloSetup — solo needs a
   // difficulty/Eggspansion step in between, so the name can't be used to
   // create+claim a seat until that step submits.
@@ -160,6 +193,24 @@ function App() {
       setChosenChicken(doc.chosenChicken ?? {});
       setStartingLocations(doc.startingLocations ?? {});
 
+      // myPlayerId (React state) can lag one tick behind a join that just
+      // succeeded, and is always null right after a page refresh — the
+      // doc's snapshot can arrive before this device's own setMyPlayerId
+      // call runs, or before it's ever run at all this page-load. Falling
+      // back to the synchronous localStorage read (already written by the
+      // Host/Join/Solo handler before setMyPlayerId, and durable across a
+      // refresh unlike React state) avoids a spurious flash back to the
+      // entry screen, and lets a refresh reconnect to a game already in
+      // progress, not just a still-forming lobby/draft.
+      const savedSeat = myPlayerId ?? remoteSession.getMySeat(sessionCode);
+      if (!savedSeat) {
+        // This device never claimed a seat in this session (a foreign/
+        // stale link, or storage was cleared) — nothing to reconnect to.
+        setScreen('entry');
+        return;
+      }
+      if (!myPlayerId) setMyPlayerId(savedSeat);
+
       if (doc.state) {
         const synced = fromSyncedDoc(doc.state);
         setGameState(synced);
@@ -167,19 +218,6 @@ function App() {
         setScreen(synced.gameOver ? 'gameOver' : 'game');
         return;
       }
-      // myPlayerId (React state) can lag one tick behind a join that just
-      // succeeded — the doc's snapshot can arrive before this device's own
-      // setMyPlayerId call runs. Falling back to the synchronous localStorage
-      // read (already written by the Host/Join/Solo handler before
-      // setMyPlayerId) avoids a spurious flash back to the entry screen.
-      const savedSeat = myPlayerId ?? remoteSession.getMySeat(sessionCode);
-      if (!savedSeat) {
-        // Shouldn't normally happen now that a seat is claimed as part of
-        // the Host/Join/Solo submission itself — still the safest fallback.
-        setScreen('entry');
-        return;
-      }
-      if (!myPlayerId) setMyPlayerId(savedSeat);
 
       if (!doc.predators) {
         // Solo skips the waiting-room lobby entirely — its one seat is
@@ -213,8 +251,17 @@ function App() {
   // GameState and publishes it — every device (including this one) then
   // moves on via the snapshot handler above, same pattern as every other
   // state-producing step in this app.
+  //
+  // The `gameState` check matters beyond the obvious "don't redo finished
+  // work": predators/dealtChickens/hostConfig/chosenChicken all stay
+  // populated in the session doc forever once a game exists (nothing ever
+  // clears them), and finalizingRef is a plain ref — it resets on every
+  // page load same as any other component state. Without this check, the
+  // host reloading mid-game (or after it's over) would re-run this whole
+  // effect from that freshly-populated doc data and silently overwrite the
+  // real, in-progress game with a brand-new createGame() call.
   useEffect(() => {
-    if (!isHost || !predators || !dealtChickens || !hostConfig || finalizingRef.current) return;
+    if (!isHost || !predators || !dealtChickens || !hostConfig || finalizingRef.current || gameState) return;
     const seatIds = Object.keys(seats);
     if (seatIds.length < hostConfig.playerCount) return;
     if (!seatIds.every((id) => chosenChicken[id])) return;
@@ -239,7 +286,7 @@ function App() {
       setError(e.message);
       finalizingRef.current = false; // allow a retry if this was transient
     }
-  }, [isHost, predators, dealtChickens, hostConfig, seats, chosenChicken, startingLocations, sessionCode]);
+  }, [isHost, predators, dealtChickens, hostConfig, seats, chosenChicken, startingLocations, sessionCode, gameState]);
 
   // Every path that can produce a new GameState routes through this so a
   // gameOver result (win via a killing blow, loss via end-of-turn weather
@@ -308,10 +355,10 @@ function App() {
   async function handleHost(name) {
     try {
       const code = await remoteSession.createSession({ playerCount: 4, eggspansion: false, difficulty: 4 });
-      setIsHost(true);
       const seatId = await remoteSession.joinAndClaimSeat(code, name);
       remoteSession.setMySeat(code, seatId);
       setMyPlayerId(seatId);
+      persistSessionCode(code);
       setSessionCode(code); // the subscribe effect above takes it from here
       setError(null);
     } catch (e) {
@@ -322,11 +369,11 @@ function App() {
   async function handleJoinByCode(name, code) {
     try {
       await remoteSession.getSession(code); // validates the code exists before committing to it
-      setIsHost(false);
       const existingSeat = remoteSession.getMySeat(code);
       const seatId = existingSeat ?? (await remoteSession.joinAndClaimSeat(code, name));
       if (!existingSeat) remoteSession.setMySeat(code, seatId);
       setMyPlayerId(seatId);
+      persistSessionCode(code);
       setSessionCode(code);
       setError(null);
     } catch (e) {
@@ -345,15 +392,43 @@ function App() {
     try {
       setSoloFlow(true);
       const code = await remoteSession.createSession({ playerCount: 1, ...soloConfig });
-      setIsHost(true);
       const seatId = await remoteSession.joinAndClaimSeat(code, pendingName);
       remoteSession.setMySeat(code, seatId);
       setMyPlayerId(seatId);
+      persistSessionCode(code);
       setSessionCode(code);
       setError(null);
     } catch (e) {
       setError(e.message);
     }
+  }
+
+  // Forgets this device's session locally (localStorage + the URL) and
+  // resets all session-derived state back to a clean slate — the shared
+  // Firestore doc itself is untouched, so this only affects what *this*
+  // device reconnects to on its next load, not the other seats. Used once
+  // a game is over (or you want to bail on a lobby you're stuck in) so a
+  // refresh doesn't keep reopening the same finished/abandoned game.
+  function leaveSession() {
+    if (sessionCode) remoteSession.clearMySeat(sessionCode);
+    clearStoredSessionCode();
+    setSessionCode(null);
+    setHostConfig(null);
+    setSeats({});
+    setPredators(null);
+    setDealtChickens(null);
+    setChosenChicken({});
+    setStartingLocations({});
+    setMyPlayerId(null);
+    setGameState(null);
+    setDayEndPending(false);
+    setPendingPick(null);
+    setSoloFlow(false);
+    setPendingName(null);
+    soloStartingRef.current = false;
+    finalizingRef.current = false;
+    setError(null);
+    setScreen('entry');
   }
 
   function handleUpdateHostConfig(partial) {
@@ -408,6 +483,7 @@ function App() {
       onUpdateHostConfig=${handleUpdateHostConfig}
       onStart=${handleStartDraft}
       onToggleReady=${handleToggleReady}
+      onLeave=${leaveSession}
       error=${error}
     />`;
   }
@@ -484,6 +560,11 @@ function App() {
                 )}
               </div>
             </div>
+          </div>
+
+          <div class="dossier-footer">
+            <div class="dossier-spacer"></div>
+            <button type="button" class="dossier-btn-confirm" onClick=${leaveSession}>LEAVE GAME</button>
           </div>
         </div>
       </div>

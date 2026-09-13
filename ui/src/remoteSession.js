@@ -174,6 +174,10 @@ function setMySeat(code, playerId) {
   localStorage.setItem(`flockSeat:${code}`, playerId);
 }
 
+function clearMySeat(code) {
+  localStorage.removeItem(`flockSeat:${code}`);
+}
+
 export const remoteSession = {
   isConfigured: () => configured,
   createSession,
@@ -187,4 +191,5 @@ export const remoteSession = {
   subscribe,
   getMySeat,
   setMySeat,
+  clearMySeat,
 };
