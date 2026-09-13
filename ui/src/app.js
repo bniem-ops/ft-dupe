@@ -417,6 +417,7 @@ function App() {
     return html`<${ChickenDraft}
       predators=${predators}
       candidates=${dealtChickens[myPlayerId]}
+      allCandidates=${dealtChickens}
       lockedIn=${chosenChicken[myPlayerId] ?? null}
       seatIds=${seatIds}
       seats=${seats}
@@ -508,25 +509,10 @@ function App() {
   // log now (not a small popup), so there's no reason to cap it.
   const recentLog = gameState.actionLog.filter((a) => formatLogEntry(a, playerNames)).slice().reverse();
 
-  // Functions, not hoisted vnodes — the dock is rendered in two places at
-  // once (desktop side panel, CSS-hidden on mobile; mobile sheet, CSS-hidden
-  // on desktop), and Preact can't render the same vnode instance twice.
-  // `slideOver` is only true for the desktop side panel — the mobile sheet
-  // keeps the notebook inline like before.
-  const dockPanel = (slideOver = false) => html`<${PlayerPanel}
-    variant="dock"
-    player=${myPlayer}
-    isCurrent=${myPlayer.id === currentPlayerId}
-    state=${gameState}
-    dispatch=${dispatch}
-    pendingPick=${pendingPick}
-    setPendingPick=${setPendingPick}
-    myPlayerId=${myPlayerId}
-    displayName=${playerNames[myPlayer.id] ?? myPlayer.id}
-    playerNames=${playerNames}
-    slideOverNotebook=${slideOver}
-  />`;
-
+  // Function, not a hoisted vnode — reused for both mobile's bottom sheet
+  // (unchanged, "Traits & Cards" overlay in mobilePlayerSheet.js) and, for
+  // the desktop rail below, passed in as the sidebar's `actionsSlot`;
+  // Preact can't render the same vnode instance twice.
   const actionBar = () => html`<${ActionBar}
     state=${gameState}
     player=${currentPlayer}
@@ -538,6 +524,29 @@ function App() {
     myPlayerId=${myPlayerId}
     displayName=${playerNames[currentPlayer.id] ?? currentPlayer.id}
     playerNames=${playerNames}
+  />`;
+
+  // Desktop left rail (design 7a) — the player's own board, always myPlayer,
+  // with the action grid / special abilities / End Turn wired to whoever's
+  // turn it currently is (currentPlayer) exactly like the old dockPanel()+
+  // actionBar() split did.
+  const sidebarPanel = () => html`<${PlayerPanel}
+    variant="sidebar"
+    player=${myPlayer}
+    currentPlayer=${currentPlayer}
+    isCurrent=${myPlayer.id === currentPlayerId}
+    state=${gameState}
+    dispatch=${dispatch}
+    pendingPick=${pendingPick}
+    setPendingPick=${setPendingPick}
+    myPlayerId=${myPlayerId}
+    displayName=${playerNames[myPlayer.id] ?? myPlayer.id}
+    playerNames=${playerNames}
+    onEndTurn=${handleEndTurn}
+    onUseExtraAction=${() => handleUseExtraAction(currentPlayer.id)}
+    actionsSlot=${currentPlayer.pendingProductionReveal
+      ? html`<${ProductionReveal} player=${currentPlayer} dispatch=${dispatch} myPlayerId=${myPlayerId} />`
+      : actionBar()}
   />`;
 
   // Predator/Grub dossier (design mockup 6a): either committing (Attack
@@ -598,12 +607,7 @@ function App() {
       </div>
 
       <div class="gs-mid">
-        ${!tableView &&
-        html`<div class="gs-side-panel">
-          ${currentPlayer.pendingProductionReveal
-            ? html`${dockPanel(true)}<${ProductionReveal} player=${currentPlayer} dispatch=${dispatch} myPlayerId=${myPlayerId} />`
-            : html`${dockPanel(true)}${actionBar()}`}
-        </div>`}
+        ${!tableView && html`<div class="gs-side-panel">${sidebarPanel()}</div>`}
         <div class="gs-board">
           <${Board}
             state=${gameState}

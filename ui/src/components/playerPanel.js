@@ -14,6 +14,8 @@ import {
 } from '../engine.js';
 import { monogram } from '../cardVisuals.js';
 import { playerColor } from './board.js';
+import { chickenImagePath } from '../chickenArt.js';
+import { TargetChipRow, AmountPicker } from './actionBar.js';
 
 // A card's identity in hand — same "card anatomy" language as the board's
 // full card plates (board.js), just collapsed to a monogram chip since a
@@ -24,9 +26,9 @@ function CardChip({ kind, name }) {
 
 const ALL_LOCATIONS = ['Coop', ...OUTSIDE_LOCATIONS];
 
-export function Hearts({ health, maxHealth }) {
+export function Hearts({ health, maxHealth, onArt = false }) {
   return html`
-    <div class="hearts">
+    <div class=${`hearts ${onArt ? 'on-art' : ''}`}>
       ${Array.from({ length: maxHealth }, (_, i) => html`<span key=${i} class=${i < health ? 'heart full' : 'heart empty'}>❤</span>`)}
     </div>
   `;
@@ -147,6 +149,107 @@ function PlayCardControls({ effect, selfId, otherPlayers, playerNames, remaining
         ${shape.needsEnemy ? 'Play (pick target on board)' : 'Play'}
       </button>
     </span>
+  `;
+}
+
+// Left rail redesign's "play prompt" (design 7a) — same cardInputShape()
+// logic as PlayCardControls above, restyled with the themed TargetChipRow /
+// AmountPicker controls instead of <select>/<input type=number>, per the
+// handoff's "render its controls inside this prompt using the existing
+// themed controls" instruction. Bonus/Grub cards only — Loot drops have
+// their own bespoke pickers (StashControls etc. below) that keep their
+// native inputs and are wrapped in this same shell by the caller.
+function RailPlayPrompt({ title, body, effect, selfId, otherPlayers, playerNames, remainingCards, onPlay, onPickEnemy, onCancel }) {
+  const shape = cardInputShape(effect);
+  const [option, setOption] = useState(1);
+  const [targetPlayerId, setTargetPlayerId] = useState('');
+  const [amount, setAmount] = useState(1);
+  const [discardExtraCardIndex, setDiscardExtraCardIndex] = useState('');
+  const [abilityStage, setAbilityStage] = useState(1);
+  const [copiedCardIndex, setCopiedCardIndex] = useState('');
+
+  const targetPlayer = otherPlayers.find((p) => p.id === targetPlayerId);
+  const blockedOnTeammate = shape?.needsTeammate && !targetPlayerId;
+  const blockedOnDiscard = shape?.needsExtraCardDiscard && option === 2 && discardExtraCardIndex === '';
+  const blockedOnCopiedCard = shape?.needsCopiedCard && copiedCardIndex === '';
+
+  function play() {
+    const params = {
+      option: shape.needsOption ? option : undefined,
+      targetPlayerId: shape.needsTeammate ? targetPlayerId || undefined : undefined,
+      amount: shape.needsAmount ? amount : shape.needsAbilityStage ? abilityStage : undefined,
+      discardExtraCardIndex: shape.needsExtraCardDiscard && option === 2
+        ? Number(discardExtraCardIndex)
+        : shape.needsCopiedCard && copiedCardIndex !== ''
+          ? Number(copiedCardIndex)
+          : undefined,
+    };
+    if (shape.needsEnemy) onPickEnemy(params);
+    else onPlay(params);
+  }
+
+  const teammateCandidates = [
+    ...(shape?.allowSelfAsTarget ? [{ id: selfId, label: 'Myself' }] : []),
+    ...otherPlayers.map((p) => ({ id: p.id, label: playerNames?.[p.id] ?? p.id })),
+  ];
+
+  return html`
+    <div class="rail-play-prompt">
+      <div class="rail-play-prompt-title">${title}</div>
+      ${body && html`<div class="rail-play-prompt-body">${body}</div>`}
+      ${!effect && html`<div class="rail-play-prompt-body">(not yet implemented)</div>`}
+      ${effect &&
+      html`
+        ${shape.needsOption &&
+        html`<${TargetChipRow}
+          candidates=${[{ id: 1, label: 'Option 1' }, { id: 2, label: 'Option 2' }]}
+          selected=${option}
+          onSelect=${(id) => setOption(Number(id))}
+        />`}
+        ${shape.needsTeammate &&
+        html`<${TargetChipRow}
+          candidates=${teammateCandidates}
+          selected=${targetPlayerId}
+          onSelect=${setTargetPlayerId}
+          emptyLabel="No one nearby"
+        />`}
+        ${shape.needsAbilityStage &&
+        html`<${TargetChipRow}
+          candidates=${Array.from({ length: targetPlayer?.stage ?? 1 }, (_, i) => i + 1).map((s) => ({ id: s, label: `Stage ${s}` }))}
+          selected=${abilityStage}
+          onSelect=${(id) => setAbilityStage(Number(id))}
+          emptyLabel="Pick a teammate first"
+        />`}
+        ${shape.needsCopiedCard &&
+        html`<${TargetChipRow}
+          candidates=${(targetPlayer?.bonusCardHand ?? []).map((cardId, i) => ({ id: i, label: loadBonusCards()[cardId]?.shorthand ?? '?' }))}
+          selected=${copiedCardIndex}
+          onSelect=${setCopiedCardIndex}
+          emptyLabel="Pick a teammate first"
+        />`}
+        ${shape.needsAmount &&
+        html`<${AmountPicker} min=${1} max=${shape.maxAmount} value=${amount} onChange=${setAmount} />`}
+        ${shape.needsExtraCardDiscard &&
+        option === 2 &&
+        html`<${TargetChipRow}
+          candidates=${remainingCards.map((c) => ({ id: c.index, label: c.label }))}
+          selected=${discardExtraCardIndex}
+          onSelect=${setDiscardExtraCardIndex}
+          emptyLabel="No other cards to discard"
+        />`}
+      `}
+      <div class="rail-play-prompt-buttons">
+        <button
+          type="button"
+          class="rail-play-prompt-confirm"
+          disabled=${!!effect && (blockedOnTeammate || blockedOnDiscard || blockedOnCopiedCard)}
+          onClick=${effect ? play : onCancel}
+        >
+          ${!effect ? 'OK' : shape.needsEnemy ? 'Play · pick target' : 'Play'}
+        </button>
+        <button type="button" class="rail-play-prompt-cancel" onClick=${onCancel}>Cancel</button>
+      </div>
+    </div>
   `;
 }
 
@@ -284,7 +387,7 @@ function MealCounterStrip({ mealCounter, mealsToNext }) {
     return html`<div class="chip-stat">Meals ${mealCounter}</div>`;
   }
   return html`
-    <div class="meal-counter-strip">
+    <div class="meal-counter-strip" style=${{ gridTemplateColumns: `repeat(${mealsToNext}, 1fr)` }}>
       ${Array.from({ length: mealsToNext }, (_, i) => html`<span key=${i} class=${i + 1 === mealCounter ? 'filled' : ''}>${i + 1}</span>`)}
     </div>
   `;
@@ -302,6 +405,16 @@ export function PlayerPanel({
   playerNames,
   variant = 'rail',
   slideOverNotebook = false,
+  // variant="sidebar" only (left rail redesign, design 7a) — the action
+  // grid/special-abilities/End Turn control the CURRENT turn's player, not
+  // necessarily this panel's own `player` (=myPlayer in a remote session
+  // watching someone else's turn), so those are passed in rather than
+  // derived from `player` here — same split app.js already had between
+  // dockPanel()'s player and actionBar()'s player.
+  currentPlayer,
+  onEndTurn,
+  onUseExtraAction,
+  actionsSlot,
 }) {
   const chicken = findChicken(player.chickenName);
   const stageData = chicken.stages.find((s) => s.stage === player.stage);
@@ -329,6 +442,13 @@ export function PlayerPanel({
   // Desktop side-panel only (slideOverNotebook=true) — mobile's bottom-sheet
   // "My board" tab keeps the notebook inline, unaffected by this.
   const [slideOverOpen, setSlideOverOpen] = useState(false);
+
+  // variant="sidebar" only. armedCardId is keyed `${kind}-${handIndex}` so a
+  // Bonus card and a Grub card can never collide despite both starting
+  // their indices at 0. Reset whenever the armed card itself changes so a
+  // stale option/target/amount never leaks into the next card's prompt.
+  const [armedCardId, setArmedCardId] = useState(null);
+  const [openAbilityStage, setOpenAbilityStage] = useState(player.stage);
 
   const hasUrgentPending =
     !!player.pendingRevivalChoices ||
@@ -568,6 +688,303 @@ export function PlayerPanel({
     <div class="meal-counter">Meals: ${player.mealCounter}${stageData?.mealsToNext ? ` / ${stageData.mealsToNext}` : ''}</div>
     <div class="extra-action">Extra Action Token: ${player.extraActionTokenAvailable ? 'available' : 'used'}</div>
   `;
+
+  if (variant === 'sidebar') {
+    const art = chickenImagePath(player.chickenName, player.stage);
+    // The action grid / special abilities / End Turn act on whoever's turn
+    // it currently is, not necessarily this panel's own player — mirrors
+    // the existing dockPanel()/actionBar() split in app.js (a remote
+    // viewer's own rail still shows their own resources/cards while
+    // someone else's turn is in progress).
+    const turnPlayer = currentPlayer ?? player;
+    const canActAsTurnPlayer = myPlayerId == null || myPlayerId === turnPlayer.id;
+
+    function armKey(kind, i) {
+      return `${kind}-${i}`;
+    }
+    function toggleArm(key) {
+      setArmedCardId((cur) => (cur === key ? null : key));
+    }
+
+    const handTiles = [];
+    const armedPrompt = { value: null };
+
+    player.bonusCardHand.forEach((id, i) => {
+      const key = armKey('bonus', i);
+      const card = loadBonusCards()[id];
+      const effect = card?.shorthand ? BONUS_CARD_EFFECTS[card.shorthand] : undefined;
+      handTiles.push(html`
+        <button key=${key} type="button" class=${`rail-hand-tile kind-bonus ${armedCardId === key ? 'is-armed' : ''}`} onClick=${() => toggleArm(key)}>
+          <span class="rail-hand-kicker">BONUS</span>
+          <span class="rail-hand-name">${card?.shorthand ?? 'Bonus'}</span>
+        </button>
+      `);
+      if (armedCardId === key) {
+        const remainingCards = player.bonusCardHand
+          .filter((_, j) => j !== i)
+          .map((cid, j) => ({ index: j, label: loadBonusCards()[cid]?.shorthand ?? '?' }));
+        armedPrompt.value = !canAct
+          ? html`<div class="rail-play-prompt"><span class="ref-text">(waiting for ${label}'s device)</span></div>`
+          : html`<${RailPlayPrompt}
+              title=${card?.shorthand ?? 'Bonus Card'}
+              body=${card?.description}
+              effect=${effect}
+              selfId=${player.id}
+              otherPlayers=${otherPlayers}
+              playerNames=${playerNames}
+              remainingCards=${remainingCards}
+              onPlay=${(params) => {
+                dispatch({ type: 'playBonusCard', playerId: player.id, cardHandIndex: i, ...params });
+                setArmedCardId(null);
+              }}
+              onPickEnemy=${(params) => {
+                setPendingPick({
+                  type: 'cardTarget',
+                  actionType: 'playBonusCard',
+                  playerId: player.id,
+                  handIndexField: 'cardHandIndex',
+                  handIndex: i,
+                  step: 'target',
+                  extraParams: params,
+                });
+                setArmedCardId(null);
+              }}
+              onCancel=${() => setArmedCardId(null)}
+            />`;
+        if (canAct && overBonusCardHandLimit) {
+          armedPrompt.value = html`${armedPrompt.value}<button type="button" onClick=${() => { dispatch({ type: 'discardBonusCard', playerId: player.id, cardHandIndex: i }); setArmedCardId(null); }}>Discard (over hand limit)</button>`;
+        }
+      }
+    });
+
+    player.grubHand.forEach((held, i) => {
+      const key = armKey('grub', i);
+      const card = loadGrubCards()[held.cardId];
+      const effect = card?.name ? GRUB_REWARDS[card.name] : undefined;
+      handTiles.push(html`
+        <button
+          key=${key}
+          type="button"
+          class=${`rail-hand-tile kind-grub ${armedCardId === key ? 'is-armed' : ''}`}
+          disabled=${held.rewardUsed}
+          onClick=${() => toggleArm(key)}
+        >
+          <span class="rail-hand-kicker">GRUB</span>
+          <span class="rail-hand-name">${card?.name ?? 'Grub'}</span>
+        </button>
+      `);
+      if (armedCardId === key) {
+        armedPrompt.value = !canAct
+          ? html`<div class="rail-play-prompt"><span class="ref-text">(waiting for ${label}'s device)</span></div>`
+          : html`<${RailPlayPrompt}
+              title=${card?.name ?? 'Grub Card'}
+              body=${`(${held.currentHealth}/${card?.health}) — Reward: ${card?.reward ?? '—'}`}
+              effect=${effect}
+              selfId=${player.id}
+              otherPlayers=${otherPlayers}
+              playerNames=${playerNames}
+              remainingCards=${[]}
+              onPlay=${(params) => {
+                dispatch({ type: 'useGrubReward', playerId: player.id, grubHandIndex: i, ...params });
+                setArmedCardId(null);
+              }}
+              onPickEnemy=${(params) => {
+                setPendingPick({
+                  type: 'cardTarget',
+                  actionType: 'useGrubReward',
+                  playerId: player.id,
+                  handIndexField: 'grubHandIndex',
+                  handIndex: i,
+                  step: 'target',
+                  extraParams: params,
+                });
+                setArmedCardId(null);
+              }}
+              onCancel=${() => setArmedCardId(null)}
+            />`;
+      }
+    });
+
+    // Loot drops have their own bespoke pickers (not cardInputShape-driven)
+    // — kept exactly as-is functionally, just wrapped in the same armed-tile
+    // + prompt shell as Bonus/Grub for a consistent tap-to-arm feel.
+    player.lootDrops.forEach((name, i) => {
+      const key = armKey('loot', i);
+      const loot = PREDATOR_LOOT[name];
+      const remaining = player.lootCharges?.[name] ?? 0;
+      handTiles.push(html`
+        <button key=${key} type="button" class=${`rail-hand-tile kind-loot ${armedCardId === key ? 'is-armed' : ''}`} onClick=${() => toggleArm(key)}>
+          <span class="rail-hand-kicker">LOOT</span>
+          <span class="rail-hand-name">${name}</span>
+        </button>
+      `);
+      if (armedCardId === key) {
+        const close = () => setArmedCardId(null);
+        armedPrompt.value = html`
+          <div class="rail-play-prompt">
+            <div class="rail-play-prompt-title">${name}</div>
+            <div class="rail-play-prompt-body">${findPredator(name).lootDrop ?? '—'}</div>
+            ${!canAct
+              ? html`<span class="ref-text">(waiting for ${label}'s device)</span>`
+              : html`
+                  ${loot?.stash &&
+                  html`<${StashControls}
+                    name=${name}
+                    resource=${loot.stash.resource === 'egg' ? 'eggs' : 'food'}
+                    remaining=${remaining}
+                    otherPlayers=${otherPlayers}
+                    playerNames=${playerNames}
+                    onCollect=${(amount, targetPlayerId) => { dispatch({ type: 'collectFromStash', playerId: player.id, predatorName: name, amount, targetPlayerId }); close(); }}
+                  />`}
+                  ${loot?.chargedRangedAttack &&
+                  html`<span class="card-controls">
+                    <span class="ref-text">${remaining} arrows left</span>
+                    <button
+                      type="button"
+                      disabled=${remaining < 1}
+                      onClick=${() => {
+                        setPendingPick({ type: 'cardTarget', actionType: 'useArrowPack', playerId: player.id, handIndexField: 'unused', step: 'target', extraParams: {} });
+                        close();
+                      }}
+                    >
+                      Fire Arrow (pick target on board)
+                    </button>
+                  </span>`}
+                  ${loot?.activatableAttackReduction &&
+                  html`<span class="card-controls">
+                    ${remaining > 0
+                      ? html`<button
+                          type="button"
+                          onClick=${() => {
+                            setPendingPick({ type: 'cardTarget', actionType: 'useGasMask', playerId: player.id, handIndexField: 'unused', step: 'target', extraParams: {} });
+                            close();
+                          }}
+                        >
+                          Use Gas Mask (pick Predator on board)
+                        </button>`
+                      : html`<span class="ref-text">(used)</span>`}
+                  </span>`}
+                  ${loot?.everyoneAtLocationRefreshExtraAction &&
+                  html`<button type="button" onClick=${() => { dispatch({ type: 'useChamberstick', playerId: player.id }); close(); }}>Refresh everyone's Token here</button>`}
+                  ${loot?.freeDrawBonusCardForSelfOrTeammate &&
+                  html`<${CaveHoardControls}
+                    otherPlayers=${otherPlayers}
+                    playerNames=${playerNames}
+                    onUse=${(targetPlayerId) => { dispatch({ type: 'useCaveHoard', playerId: player.id, targetPlayerId }); close(); }}
+                  />`}
+                  ${loot?.healEveryoneAtLocation &&
+                  html`<button type="button" onClick=${() => { dispatch({ type: 'useHealingPoultice', playerId: player.id }); close(); }}>
+                    Heal everyone here ${loot.healEveryoneAtLocation}
+                  </button>`}
+                  ${loot?.freeMoveForSelfOrNearby &&
+                  html`<${SecretTunnelsControls}
+                    otherPlayers=${otherPlayers}
+                    playerNames=${playerNames}
+                    onUse=${(destination, targetPlayerId) => { dispatch({ type: 'useSecretTunnels', playerId: player.id, destination, targetPlayerId }); close(); }}
+                  />`}
+                  ${loot?.dungeonKeys &&
+                  (remaining > 0
+                    ? html`<${DungeonKeysControls}
+                        myId=${player.id}
+                        nearbyOtherPlayers=${nearbyOtherPlayers}
+                        playerNames=${playerNames}
+                        onUse=${(targetPlayerId) => { dispatch({ type: 'useDungeonKeys', playerId: player.id, targetPlayerId }); close(); }}
+                      />`
+                    : html`<span class="ref-text">(used)</span>`)}
+                  ${loot?.grantsWeatherImmunityForTurn &&
+                  html`<${PortableHouseControls}
+                    myId=${player.id}
+                    nearbyOtherPlayers=${nearbyOtherPlayers}
+                    playerNames=${playerNames}
+                    onUse=${(targetPlayerId) => { dispatch({ type: 'usePortableHouse', playerId: player.id, targetPlayerId }); close(); }}
+                  />`}
+                `}
+            <div class="rail-play-prompt-buttons">
+              <button type="button" class="rail-play-prompt-cancel" onClick=${close}>Close</button>
+            </div>
+          </div>
+        `;
+      }
+    });
+
+    return html`
+      <div class=${`rail-sidebar ${!player.alive ? 'dead' : ''}`}>
+        <div class="rail-hero">
+          ${art
+            ? html`<img class="rail-hero-img" src=${art} alt=${chicken.name} onError=${(e) => { e.currentTarget.style.display = 'none'; }} />`
+            : html`<span class="rail-hero-kicker">CHICKEN ART PLACEHOLDER</span>`}
+          <div class="rail-hero-badges">
+            <span class="rail-badge rail-badge-strength">👊 ${player.attackStrength}</span>
+            <span class="rail-badge rail-badge-stage">STAGE ${player.stage}</span>
+          </div>
+          <div class="rail-hero-scrim">
+            <div class="rail-hero-name">${label}${!player.alive ? ' (dead)' : ''}</div>
+            <div class="rail-hero-breed">${chicken.name} — ${chicken.breed} · ${stageData?.label ?? ''}</div>
+            <${Hearts} health=${player.health} maxHealth=${player.maxHealth} onArt=${true} />
+          </div>
+        </div>
+
+        <div class="rail-resources">
+          <div class="rail-resource-tile rail-resource-food">
+            <span class="rail-resource-value">${player.food}</span>
+            <span class="rail-resource-label">FOOD</span>
+          </div>
+          <div class="rail-resource-tile rail-resource-egg">
+            <span class="rail-resource-value">${player.eggs}</span>
+            <span class="rail-resource-label">EGGS</span>
+          </div>
+          <button
+            type="button"
+            class=${`rail-resource-tile rail-token-btn ${turnPlayer.extraActionTokenAvailable ? 'is-ready' : 'is-spent'}`}
+            disabled=${!canActAsTurnPlayer || !turnPlayer.extraActionTokenAvailable}
+            onClick=${onUseExtraAction}
+          >
+            <span class="rail-resource-value">${turnPlayer.extraActionTokenAvailable ? '🔥' : '💨'}</span>
+            <span class="rail-resource-label">${turnPlayer.extraActionTokenAvailable ? 'READY' : 'SPENT'}</span>
+          </button>
+        </div>
+
+        <div class="rail-scroll-body">
+          ${pendingBlock}
+          <${MealCounterStrip} mealCounter=${player.mealCounter} mealsToNext=${stageData?.mealsToNext} />
+
+          ${actionsSlot}
+
+          <div class="rail-section-head">
+            <span class="rail-section-label">In Hand</span>
+            <span class="rail-section-rule"></span>
+            ${handTiles.length > 0 && html`<span class="rail-section-note">free to play</span>`}
+          </div>
+          ${handTiles.length > 0 && html`<div class="rail-tile-grid">${handTiles}</div>`}
+          ${armedPrompt.value}
+
+          <div class="rail-section-head">
+            <span class="rail-section-label">Abilities</span>
+            <span class="rail-section-rule"></span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            ${chicken.stages.map((s) => {
+              const open = openAbilityStage === s.stage;
+              return html`
+                <div key=${s.stage} class=${`rail-ability-row ${s.stage > player.stage ? 'future' : ''} ${open ? 'is-open' : ''}`}>
+                  <button type="button" class="rail-ability-head" onClick=${() => setOpenAbilityStage((cur) => (cur === s.stage ? null : s.stage))}>
+                    <span>Stage ${s.stage} — ${s.label}</span>
+                    <span class="rail-ability-caret">${open ? '−' : '+'}</span>
+                  </button>
+                  ${open &&
+                  html`<div class="rail-ability-body">
+                    ${s.abilities.map((a, i) => html`<div key=${i}>${a.name ? html`<strong>${a.name}</strong> — ` : ''}${a.text}</div>`)}
+                  </div>`}
+                </div>
+              `;
+            })}
+          </div>
+        </div>
+
+        <button type="button" class="end-turn rail-end-turn" disabled=${!canActAsTurnPlayer} onClick=${onEndTurn}>End Turn</button>
+      </div>
+    `;
+  }
 
   if (variant === 'dock') {
     const notebook = html`

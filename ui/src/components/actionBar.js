@@ -27,10 +27,29 @@ export function eatCap(stage) {
   return stage === 1 ? 1 : stage === 2 ? 2 : 0;
 }
 
-function ActionButton({ label, colorClass, disabled, onClick }) {
+// Left rail redesign (design 7a / 6b): one dark plate per action, color only
+// in the icon and the trailing legality tag. `where` is the actual location
+// rule from core_rules.md's action table — NOT the handoff doc's own table,
+// which has Eat/Heal/Attack wrong (it lists them ANY/ANY/OUT; the rules are
+// OUT/IN/ANY respectively). Ink colors are exactly the handoff's, since
+// those aren't a rules question — only which location-word gets attached is.
+const ACTION_META = {
+  forage: { icon: '🌾', where: 'OUT', ink: 'var(--gs-ink-forage)' },
+  eat: { icon: '🍽', where: 'OUT', ink: 'var(--gs-ink-eat)' },
+  layEgg: { icon: '🥚', where: 'IN', ink: 'var(--gs-ink-layegg)' },
+  brood: { icon: '🪺', where: 'IN', ink: 'var(--gs-ink-brood)' },
+  heal: { icon: '❤️', where: 'IN', ink: 'var(--gs-ink-heal)' },
+  move: { icon: '👣', where: 'ANY', ink: 'var(--gs-ink-move)' },
+  drawCard: { icon: '🃏', where: 'ANY', ink: 'var(--gs-ink-draw)' },
+  attack: { icon: '⚔️', where: 'ANY', ink: 'var(--gs-ink-attack)' },
+};
+
+function ActionTile({ meta, label, disabled, onClick }) {
   return html`
-    <button type="button" class=${`action-btn ${colorClass ?? ''}`} disabled=${disabled} onClick=${onClick}>
-      <span class="action-btn-label">${label}</span>
+    <button type="button" class="rail-action-btn" disabled=${disabled} onClick=${onClick}>
+      <span class="rail-action-icon">${meta.icon}</span>
+      <span>${label}</span>
+      <span class="rail-action-tag" style=${{ color: meta.ink, opacity: 0.8 }}>${meta.where}</span>
     </button>
   `;
 }
@@ -40,7 +59,7 @@ function ActionButton({ label, colorClass, disabled, onClick }) {
 // TargetDossier already uses for Attack Strength, reused here for Eat/Heal
 // amounts, which cover an even smaller range (playtest feedback,
 // 2026-09-06 "tiny arrow clicks... feels distracting").
-function AmountPicker({ min, max, value, onChange }) {
+export function AmountPicker({ min, max, value, onChange }) {
   const options = Array.from({ length: Math.max(0, max - min + 1) }, (_, i) => min + i);
   return html`
     <div class="amount-picker-row">
@@ -55,12 +74,13 @@ function AmountPicker({ min, max, value, onChange }) {
   `;
 }
 
-// A row of named buttons instead of a <select> — pick a target player
-// directly rather than opening a dropdown then a separate confirm step.
-// Used for Brood (dead players) and Tag Along (other alive players);
-// candidates are usually 1-3 people, which is exactly what this suits
-// (playtest feedback, 2026-09-06).
-function TargetChipRow({ candidates, selected, onSelect, emptyLabel }) {
+// A row of named buttons instead of a <select> — pick a target directly
+// rather than opening a dropdown then a separate confirm step. Used for
+// Brood (dead players), Tag Along (other alive players), and — in the left
+// rail's play prompt — teammate/enemy/location picks that used to be
+// <select> dropdowns. Candidates are usually 1-3 people, which is exactly
+// what this suits (playtest feedback, 2026-09-06).
+export function TargetChipRow({ candidates, selected, onSelect, emptyLabel }) {
   if (candidates.length === 0) return html`<span class="target-chip-empty">${emptyLabel}</span>`;
   return html`
     <div class="target-chip-row">
@@ -152,15 +172,28 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
     setPendingPick(null);
   }
 
-  const hasSubstatus =
-    !canAct || weatherAdjustmentAvailable || (player.chickenName === 'Princess Layer' && !player.extraActionTokenAvailable && player.eggs >= 1) ||
-    (player.chickenName === 'Cumberbill Rockefeather' && player.stage >= 2 && player.location !== 'Coop');
+  const canTagAlong = player.permanentTagAlongUnlocked || (player.chickenName === 'Wingston Coophill' && player.stage >= 2);
+
+  // Per-chicken/situational triggered abilities — not one of the 8 core
+  // actions, not a held card. The handoff doc doesn't cover these (they
+  // didn't exist in the prototype); grouped here under their own section,
+  // styled like the action tiles per the call made with the user rather
+  // than guessing at an unspecified design.
+  const hasSpecialAbilities =
+    weatherAdjustmentAvailable ||
+    (player.chickenName === 'Princess Layer' && !player.extraActionTokenAvailable && player.eggs >= 1) ||
+    (player.chickenName === 'Cumberbill Rockefeather' && player.stage >= 2 && player.location !== 'Coop') ||
+    abilities.some((a) => a.canAdjustAnyRollForEggs) ||
+    abilities.some((a) => a.canRerollAnyRollForEgg) ||
+    (abilities.some((a) => a.freeWeatherRedrawRoll) && !player.freeAbilityUsedThisTurn) ||
+    (abilities.some((a) => a.freeMoveAnotherPlayerForEgg) && !player.freeAbilityUsedThisTurn) ||
+    (abilities.some((a) => a.canAttackDiscardedGrubs) && discardPile.length > 0) ||
+    canTagAlong;
 
   // The 8 actions below are color-coded by where core_rules.md's action
-  // table allows them — green (field) for Outside-only, red (blood) for
-  // Inside-only, and the unstyled neutral look for Any-location — so the
-  // color itself tells you where you need to be (playtest feedback,
-  // 2026-08-23). Kept in sync with mobilePlay.js's ACTION_TILES.
+  // table allows them — the tag text/ink tells you where you need to be
+  // (playtest feedback, 2026-08-23). Kept in sync with mobilePlay.js's
+  // ACTION_TILES.
   return html`
     <div class="action-bar">
       <div class="actions-header">
@@ -169,35 +202,10 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
           ${Array.from({ length: state.actionsRemainingThisTurn }, (_, i) => html`<span key=${i} class="actions-dot"></span>`)}
         </div>
         <span class="actions-left-text">${state.actionsRemainingThisTurn} left</span>
-        <div class="gs-spacer"></div>
-        ${player.extraActionTokenAvailable &&
-        html`<button type="button" class="actions-token-btn" disabled=${!canAct} onClick=${onUseExtraAction}>+1 token</button>`}
+        <span class="rail-location">📍 ${player.location}</span>
       </div>
 
-      ${hasSubstatus &&
-      html`<div class="turn-status">
-        ${!canAct && html`<span class="ref-text">(waiting for ${label}'s device)</span>`}
-        ${weatherAdjustmentAvailable &&
-        html`<button
-          type="button"
-          disabled=${!canAct}
-          onClick=${() => dispatch({ type: 'useWeatherActionAdjustment', playerId: player.id })}
-        >
-          ${weather.positive ? `Take Bonus Action (${weatherName})` : `Take Reduced Action (${weatherName})`}
-        </button>`}
-        ${player.chickenName === 'Princess Layer' &&
-        !player.extraActionTokenAvailable &&
-        player.eggs >= 1 &&
-        html`<button type="button" disabled=${!canAct} onClick=${() => dispatch({ type: 'refreshExtraActionToken', playerId: player.id })}>
-          Refresh Token (1 egg — Nobility)
-        </button>`}
-        ${player.chickenName === 'Cumberbill Rockefeather' &&
-        player.stage >= 2 &&
-        player.location !== 'Coop' &&
-        html`<button type="button" disabled=${!canAct} onClick=${() => dispatch({ type: 'freeMoveToCoop', playerId: player.id })}>
-          Move to Coop (free — Landlord)
-        </button>`}
-      </div>`}
+      ${!canAct && html`<div class="turn-status"><span class="ref-text">(waiting for ${label}'s device)</span></div>`}
 
       ${pendingPick?.type === 'move' &&
       html`<div class="pending-hint">Click a location on the board to Move. <button type="button" onClick=${cancelPick}>Cancel</button></div>`}
@@ -320,19 +328,17 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
         </div>
       `}
 
-      <div class="actions-grid">
-        <${ActionButton}
+      <div class="actions-grid rail-tile-grid">
+        <${ActionTile}
+          meta=${ACTION_META.forage}
           label="Forage"
-          colorClass="field"
           disabled=${noActions}
           onClick=${() => dispatch({ type: 'forage', playerId: player.id })}
         />
 
-        <${ActionButton} label="Lay Egg" colorClass="blood" disabled=${noActions} onClick=${() => dispatch({ type: 'layEgg', playerId: player.id })} />
-
-        <${ActionButton}
+        <${ActionTile}
+          meta=${ACTION_META.eat}
           label="Eat"
-          colorClass="field"
           disabled=${noActions || eatCap(player.stage) < 1 || player.food < 1}
           onClick=${() => {
             setEatAmount(1);
@@ -340,9 +346,23 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
           }}
         />
 
-        <${ActionButton}
+        <${ActionTile}
+          meta=${ACTION_META.layEgg}
+          label="Lay Egg"
+          disabled=${noActions}
+          onClick=${() => dispatch({ type: 'layEgg', playerId: player.id })}
+        />
+
+        <${ActionTile}
+          meta=${ACTION_META.brood}
+          label="Brood"
+          disabled=${noActions || deadPlayers.length === 0}
+          onClick=${() => setPendingPick({ type: 'broodPick', playerId: player.id })}
+        />
+
+        <${ActionTile}
+          meta=${ACTION_META.heal}
           label="Heal"
-          colorClass="blood"
           disabled=${noActions || healCap(player.stage) < 1 || player.food < 1 || player.health >= player.maxHealth}
           onClick=${() => {
             setHealAmount(1);
@@ -350,9 +370,10 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
           }}
         />
 
-        <${ActionButton} label="Move" disabled=${noActions} onClick=${() => setPendingPick({ type: 'move', playerId: player.id })} />
+        <${ActionTile} meta=${ACTION_META.move} label="Move" disabled=${noActions} onClick=${() => setPendingPick({ type: 'move', playerId: player.id })} />
 
-        <${ActionButton}
+        <${ActionTile}
+          meta=${ACTION_META.drawCard}
           label="Draw Card"
           disabled=${noActions}
           onClick=${() =>
@@ -361,159 +382,210 @@ export function ActionBar({ state, player, dispatch, onEndTurn, onUseExtraAction
               : dispatch({ type: 'drawCard', playerId: player.id })}
         />
 
-        <div class="action-with-amount">
-          <${TargetChipRow}
-            candidates=${deadPlayers.map((p) => ({ id: p.id, label: playerNames?.[p.id] ?? p.id }))}
-            selected=${broodTarget}
-            onSelect=${setBroodTarget}
-            emptyLabel="No dead players"
-          />
-          <${ActionButton}
-            label="Brood"
-            colorClass="blood"
-            disabled=${noActions || !broodTarget}
-            onClick=${() => dispatch({ type: 'brood', playerId: player.id, targetPlayerId: broodTarget })}
-          />
-        </div>
-
-        <${ActionButton}
+        <${ActionTile}
+          meta=${ACTION_META.attack}
           label="Attack"
           disabled=${noActions}
           onClick=${() => setPendingPick({ type: 'attack', step: 'target', playerId: player.id })}
         />
 
         ${abilities.some((a) => a.joinsAttackAsSecond) &&
-        html`<${ActionButton}
+        html`<${ActionTile}
+          meta=${ACTION_META.attack}
           label="Attack w/ Companion"
           disabled=${noActions || nearbyAlivePlayers.length === 0}
           onClick=${() => setPendingPick({ type: 'attackWithCompanion', step: 'companion', playerId: player.id })}
         />`}
       </div>
 
-      ${abilities.some((a) => a.canAdjustAnyRollForEggs) &&
-      html`<div class="action-with-amount">
-        <select onChange=${(e) => setStrategemTarget(e.target.value)} value=${strategemTarget}>
-          <option value=${player.id}>Myself</option>
-          ${otherAlivePlayers.map((p) => html`<option key=${p.id} value=${p.id}>${playerNames?.[p.id] ?? p.id}</option>`)}
-        </select>
-        <input type="number" min="1" max=${Math.max(1, player.eggs)} value=${strategemEggs} onInput=${(e) => setStrategemEggs(Number(e.target.value))} />
-        <select onChange=${(e) => setStrategemDirection(e.target.value)} value=${strategemDirection}>
-          <option value="1">+1 per egg</option>
-          <option value="-1">-1 per egg</option>
-        </select>
-        <button
-          type="button"
-          disabled=${!canAct || player.eggs < 1}
-          onClick=${() =>
-            dispatch({
-              type: 'useStrategem',
-              playerId: player.id,
-              targetPlayerId: strategemTarget || player.id,
-              eggsToSpend: strategemEggs,
-              direction: Number(strategemDirection),
-            })}
-        >
-          Use Strategem
-        </button>
-      </div>`}
+      ${pendingPick?.type === 'broodPick' &&
+      html`
+        <div class="pending-hint">
+          Revive who?
+          <${TargetChipRow}
+            candidates=${deadPlayers.map((p) => ({ id: p.id, label: playerNames?.[p.id] ?? p.id }))}
+            selected=${broodTarget}
+            onSelect=${setBroodTarget}
+            emptyLabel="No dead players"
+          />
+          <button
+            type="button"
+            disabled=${!canAct || !broodTarget}
+            onClick=${() => {
+              dispatch({ type: 'brood', playerId: player.id, targetPlayerId: broodTarget });
+              setBroodTarget('');
+              setPendingPick(null);
+            }}
+          >
+            Confirm Brood
+          </button>
+          <button type="button" onClick=${() => { setBroodTarget(''); cancelPick(); }}>Cancel</button>
+        </div>
+      `}
 
-      ${abilities.some((a) => a.canRerollAnyRollForEgg) &&
-      html`<div class="action-with-amount">
-        <select onChange=${(e) => setDeusTarget(e.target.value)} value=${deusTarget}>
-          <option value=${player.id}>Myself</option>
-          ${otherAlivePlayers.map((p) => html`<option key=${p.id} value=${p.id}>${playerNames?.[p.id] ?? p.id}</option>`)}
-        </select>
-        <button
-          type="button"
-          disabled=${!canAct || player.eggs < 1}
-          onClick=${() => dispatch({ type: 'useDeusEggsMachina', playerId: player.id, targetPlayerId: deusTarget || player.id })}
-        >
-          Use Deus Eggs Machina (1 egg, reroll)
-        </button>
-      </div>`}
+      ${canAct &&
+      hasSpecialAbilities &&
+      html`
+        <div class="rail-section-head">
+          <span class="rail-section-label">Special</span>
+          <span class="rail-section-rule"></span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          ${weatherAdjustmentAvailable &&
+          html`<button type="button" class="rail-action-btn" onClick=${() => dispatch({ type: 'useWeatherActionAdjustment', playerId: player.id })}>
+            <span class="rail-action-icon">🌤</span>
+            <span>${weather.positive ? `Bonus Action (${weatherName})` : `Reduced Action (${weatherName})`}</span>
+          </button>`}
+          ${player.chickenName === 'Princess Layer' &&
+          !player.extraActionTokenAvailable &&
+          player.eggs >= 1 &&
+          html`<button type="button" class="rail-action-btn" onClick=${() => dispatch({ type: 'refreshExtraActionToken', playerId: player.id })}>
+            <span class="rail-action-icon">🔥</span>
+            <span>Refresh Token (1 egg — Nobility)</span>
+          </button>`}
+          ${player.chickenName === 'Cumberbill Rockefeather' &&
+          player.stage >= 2 &&
+          player.location !== 'Coop' &&
+          html`<button type="button" class="rail-action-btn" onClick=${() => dispatch({ type: 'freeMoveToCoop', playerId: player.id })}>
+            <span class="rail-action-icon">🏠</span>
+            <span>Move to Coop (free — Landlord)</span>
+          </button>`}
 
-      ${abilities.some((a) => a.freeWeatherRedrawRoll) &&
-      !player.freeAbilityUsedThisTurn &&
-      html`<button type="button" disabled=${!canAct} onClick=${() => dispatch({ type: 'useWhereverAnyWeather', playerId: player.id })}>
-        Roll for New Weather (free, once/turn)
-      </button>`}
+          ${abilities.some((a) => a.canAdjustAnyRollForEggs) &&
+          html`<div class="action-with-amount">
+            <select onChange=${(e) => setStrategemTarget(e.target.value)} value=${strategemTarget}>
+              <option value=${player.id}>Myself</option>
+              ${otherAlivePlayers.map((p) => html`<option key=${p.id} value=${p.id}>${playerNames?.[p.id] ?? p.id}</option>`)}
+            </select>
+            <input type="number" min="1" max=${Math.max(1, player.eggs)} value=${strategemEggs} onInput=${(e) => setStrategemEggs(Number(e.target.value))} />
+            <select onChange=${(e) => setStrategemDirection(e.target.value)} value=${strategemDirection}>
+              <option value="1">+1 per egg</option>
+              <option value="-1">-1 per egg</option>
+            </select>
+            <button
+              type="button"
+              class="rail-action-btn"
+              disabled=${player.eggs < 1}
+              onClick=${() =>
+                dispatch({
+                  type: 'useStrategem',
+                  playerId: player.id,
+                  targetPlayerId: strategemTarget || player.id,
+                  eggsToSpend: strategemEggs,
+                  direction: Number(strategemDirection),
+                })}
+            >
+              <span class="rail-action-icon">🥚</span>
+              <span>Use Strategem</span>
+            </button>
+          </div>`}
 
-      ${abilities.some((a) => a.freeMoveAnotherPlayerForEgg) &&
-      !player.freeAbilityUsedThisTurn &&
-      html`<div class="action-with-amount">
-        <select onChange=${(e) => setGuideTarget(e.target.value)} value=${guideTarget}>
-          <option value="">Move who…</option>
-          ${otherAlivePlayers.map((p) => html`<option key=${p.id} value=${p.id}>${playerNames?.[p.id] ?? p.id}</option>`)}
-        </select>
-        <select onChange=${(e) => setGuideDestination(e.target.value)} value=${guideDestination}>
-          <option value="">Destination…</option>
-          ${ALL_LOCATIONS.map((loc) => html`<option key=${loc} value=${loc}>${loc}</option>`)}
-        </select>
-        <button
-          type="button"
-          disabled=${!canAct || player.eggs < 1 || !guideTarget || !guideDestination}
-          onClick=${() => {
-            dispatch({ type: 'useWildernessGuide', playerId: player.id, targetPlayerId: guideTarget, destination: guideDestination });
-            setGuideTarget('');
-            setGuideDestination('');
-          }}
-        >
-          Use Wilderness Guide (1 egg)
-        </button>
-      </div>`}
+          ${abilities.some((a) => a.canRerollAnyRollForEgg) &&
+          html`<div class="action-with-amount">
+            <select onChange=${(e) => setDeusTarget(e.target.value)} value=${deusTarget}>
+              <option value=${player.id}>Myself</option>
+              ${otherAlivePlayers.map((p) => html`<option key=${p.id} value=${p.id}>${playerNames?.[p.id] ?? p.id}</option>`)}
+            </select>
+            <button
+              type="button"
+              class="rail-action-btn"
+              disabled=${player.eggs < 1}
+              onClick=${() => dispatch({ type: 'useDeusEggsMachina', playerId: player.id, targetPlayerId: deusTarget || player.id })}
+            >
+              <span class="rail-action-icon">🎲</span>
+              <span>Deus Eggs Machina (1 egg, reroll)</span>
+            </button>
+          </div>`}
 
-      ${abilities.some((a) => a.canAttackDiscardedGrubs) &&
-      discardPile.length > 0 &&
-      html`<div class="action-with-amount">
-        <select onChange=${(e) => setDiscardIndex(e.target.value)} value=${discardIndex}>
-          <option value="">Raid ${discardSide} discard…</option>
-          ${discardPile.map(
-            (cardId, i) => html`<option key=${i} value=${i}>${loadGrubCards()[cardId]?.name ?? 'Unnamed Grub'}</option>`,
-          )}
-        </select>
-        <input
-          type="number"
-          min="1"
-          max=${Math.max(1, player.food)}
-          value=${discardStrength}
-          onInput=${(e) => setDiscardStrength(Number(e.target.value))}
-        />
-        <button
-          type="button"
-          disabled=${noActions || discardIndex === ''}
-          onClick=${() => {
-            dispatch({
-              type: 'attackDiscardedGrub',
-              playerId: player.id,
-              side: discardSide,
-              discardIndex: Number(discardIndex),
-              attackStrength: discardStrength,
-            });
-            setDiscardIndex('');
-          }}
-        >
-          Raid Discard Pile (Tomb Raider)
-        </button>
-      </div>`}
+          ${abilities.some((a) => a.freeWeatherRedrawRoll) &&
+          !player.freeAbilityUsedThisTurn &&
+          html`<button type="button" class="rail-action-btn" onClick=${() => dispatch({ type: 'useWhereverAnyWeather', playerId: player.id })}>
+            <span class="rail-action-icon">🌦</span>
+            <span>Roll for New Weather (free, once/turn)</span>
+          </button>`}
 
-      ${(player.permanentTagAlongUnlocked || (player.chickenName === 'Wingston Coophill' && player.stage >= 2)) &&
-      html`<div class="action-with-amount">
-        <${TargetChipRow}
-          candidates=${state.players.filter((p) => p.id !== player.id && p.alive).map((p) => ({ id: p.id, label: playerNames?.[p.id] ?? p.id }))}
-          selected=${tagAlongTarget}
-          onSelect=${setTagAlongTarget}
-          emptyLabel="No one nearby"
-        />
-        <button
-          type="button"
-          disabled=${!canAct || !tagAlongTarget}
-          onClick=${() => dispatch({ type: 'tagAlong', playerId: player.id, targetPlayerId: tagAlongTarget })}
-        >
-          Tag Along
-        </button>
-      </div>`}
+          ${abilities.some((a) => a.freeMoveAnotherPlayerForEgg) &&
+          !player.freeAbilityUsedThisTurn &&
+          html`<div class="action-with-amount">
+            <select onChange=${(e) => setGuideTarget(e.target.value)} value=${guideTarget}>
+              <option value="">Move who…</option>
+              ${otherAlivePlayers.map((p) => html`<option key=${p.id} value=${p.id}>${playerNames?.[p.id] ?? p.id}</option>`)}
+            </select>
+            <select onChange=${(e) => setGuideDestination(e.target.value)} value=${guideDestination}>
+              <option value="">Destination…</option>
+              ${ALL_LOCATIONS.map((loc) => html`<option key=${loc} value=${loc}>${loc}</option>`)}
+            </select>
+            <button
+              type="button"
+              class="rail-action-btn"
+              disabled=${player.eggs < 1 || !guideTarget || !guideDestination}
+              onClick=${() => {
+                dispatch({ type: 'useWildernessGuide', playerId: player.id, targetPlayerId: guideTarget, destination: guideDestination });
+                setGuideTarget('');
+                setGuideDestination('');
+              }}
+            >
+              <span class="rail-action-icon">🧭</span>
+              <span>Wilderness Guide (1 egg)</span>
+            </button>
+          </div>`}
 
-      <button type="button" class="end-turn" disabled=${!canAct} onClick=${onEndTurn}>End Turn</button>
+          ${abilities.some((a) => a.canAttackDiscardedGrubs) &&
+          discardPile.length > 0 &&
+          html`<div class="action-with-amount">
+            <select onChange=${(e) => setDiscardIndex(e.target.value)} value=${discardIndex}>
+              <option value="">Raid ${discardSide} discard…</option>
+              ${discardPile.map(
+                (cardId, i) => html`<option key=${i} value=${i}>${loadGrubCards()[cardId]?.name ?? 'Unnamed Grub'}</option>`,
+              )}
+            </select>
+            <input
+              type="number"
+              min="1"
+              max=${Math.max(1, player.food)}
+              value=${discardStrength}
+              onInput=${(e) => setDiscardStrength(Number(e.target.value))}
+            />
+            <button
+              type="button"
+              class="rail-action-btn"
+              disabled=${noActions || discardIndex === ''}
+              onClick=${() => {
+                dispatch({
+                  type: 'attackDiscardedGrub',
+                  playerId: player.id,
+                  side: discardSide,
+                  discardIndex: Number(discardIndex),
+                  attackStrength: discardStrength,
+                });
+                setDiscardIndex('');
+              }}
+            >
+              <span class="rail-action-icon">🪦</span>
+              <span>Raid Discard Pile (Tomb Raider)</span>
+            </button>
+          </div>`}
+
+          ${canTagAlong &&
+          html`<div class="action-with-amount">
+            <${TargetChipRow}
+              candidates=${state.players.filter((p) => p.id !== player.id && p.alive).map((p) => ({ id: p.id, label: playerNames?.[p.id] ?? p.id }))}
+              selected=${tagAlongTarget}
+              onSelect=${setTagAlongTarget}
+              emptyLabel="No one nearby"
+            />
+            <button
+              type="button"
+              class="rail-action-btn"
+              disabled=${!tagAlongTarget}
+              onClick=${() => dispatch({ type: 'tagAlong', playerId: player.id, targetPlayerId: tagAlongTarget })}
+            >
+              <span class="rail-action-icon">🐥</span>
+              <span>Tag Along</span>
+            </button>
+          </div>`}
+        </div>
+      `}
     </div>
   `;
 }

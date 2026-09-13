@@ -6,6 +6,7 @@ import { Board, playerColor, BOARD_ANCHORS, LOCATION_ANCHOR_KEY, boardZoomFrame 
 import { healCap, eatCap } from './actionBar.js';
 import { ProductionReveal } from './productionReveal.js';
 import { PlayerPanel } from './playerPanel.js';
+import { chickenImagePath } from '../chickenArt.js';
 
 // Design mockups 7a ("Play") / 7b ("Place focus"): the mobile game
 // screen, replacing the old .gs-mobile-dock's Board/Flock/Log tabs. One
@@ -260,6 +261,13 @@ export function MobilePlay({
     <div class="mobile-play-strip">
       <div class="mobile-play-strip-portrait">
         <span class="monogram">${monogram(myPlayer.chickenName)}</span>
+        ${chickenImagePath(myPlayer.chickenName, myPlayer.stage) &&
+        html`<img
+          class="mobile-portrait-img"
+          src=${chickenImagePath(myPlayer.chickenName, myPlayer.stage)}
+          alt=${myPlayer.chickenName}
+          onError=${(e) => { e.currentTarget.style.display = 'none'; }}
+        />`}
       </div>
       <div class="mobile-play-strip-body">
         <div class="mobile-play-strip-name">

@@ -1,6 +1,8 @@
 import { html } from 'htm/preact';
 import { findPredator, loadGrubCards, seasonCardList, OUTSIDE_LOCATIONS, getOwnAndBorrowedAbilities } from '../engine.js';
 import { monogram, SEASON_COLORS } from '../cardVisuals.js';
+import { chickenImagePath } from '../chickenArt.js';
+import { predatorImagePath } from '../predatorArt.js';
 
 export const PLAYER_COLORS = ['#c0392b', '#2980b9', '#27ae60', '#8e44ad', '#e67e22', '#16a085'];
 
@@ -168,7 +170,13 @@ function PlayerTokens({ state, location, playerNames }) {
     <div class="tokens">
       ${here.map((p) => {
         const name = playerNames?.[p.id] ?? p.id;
-        return html`<span class="token" key=${p.id} title=${name} style=${{ background: playerColor(state, p.id) }}>${name.slice(0, 2)}</span>`;
+        const art = chickenImagePath(p.chickenName, p.stage);
+        return html`
+          <span class="token" key=${p.id} title=${name} style=${{ background: playerColor(state, p.id) }}>
+            ${name.slice(0, 2)}
+            ${art && html`<img class="token-img" src=${art} alt=${name} onError=${(e) => { e.currentTarget.style.display = 'none'; }} />`}
+          </span>
+        `;
       })}
     </div>
   `;
@@ -198,7 +206,16 @@ function PredatorCard({ predator, clickable, onSelect }) {
       <div class="card-plate-header">
         <span>PREDATOR · STAGE ${predator.stage} ${predator.isBoss ? '👑' : ''}</span>
       </div>
-      <div class="card-plate-art"><span class="monogram">${monogram(predator.name)}</span></div>
+      <div class="card-plate-art">
+        <span class="monogram">${monogram(predator.name)}</span>
+        ${predatorImagePath(predator.name, predator.stage) &&
+        html`<img
+          class="card-plate-portrait-img"
+          src=${predatorImagePath(predator.name, predator.stage)}
+          alt=${predator.name}
+          onError=${(e) => { e.currentTarget.style.display = 'none'; }}
+        />`}
+      </div>
       <div class="card-plate-body">
         <div class="card-plate-title-row">
           <span class="card-plate-name">${predator.name} · ${data.species}</span>

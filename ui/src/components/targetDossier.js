@@ -3,6 +3,7 @@ import { useState } from 'preact/hooks';
 import { findPredator, loadGrubCards, maxAttackStrengthFor, attackCostFor, parseIntField } from '../engine.js';
 import { monogram } from '../cardVisuals.js';
 import { Hearts } from './playerPanel.js';
+import { predatorImagePath } from '../predatorArt.js';
 
 // Design mockup 6a, generalized to both Predators and Grubs: opens the
 // moment a target is selected during an armed Attack, and is itself the
@@ -72,7 +73,17 @@ export function TargetDossier({ state, dispatch, pendingPick, setPendingPick, my
         <div class="dossier-body">
           <div class="dossier-portrait-col">
             <div class="dossier-portrait-plate">
-              <div class="dossier-portrait-art"><span class="monogram">${monogram(name)}</span></div>
+              <div class="dossier-portrait-art">
+                <span class="monogram">${monogram(name)}</span>
+                ${isPredator &&
+                predatorImagePath(predator.name, predator.stage) &&
+                html`<img
+                  class="dossier-portrait-img"
+                  src=${predatorImagePath(predator.name, predator.stage)}
+                  alt=${name}
+                  onError=${(e) => { e.currentTarget.style.display = 'none'; }}
+                />`}
+              </div>
               <div class="dossier-portrait-label">${name}</div>
             </div>
 

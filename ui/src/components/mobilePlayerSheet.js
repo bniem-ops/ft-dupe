@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { findChicken } from '../engine.js';
 import { monogram } from '../cardVisuals.js';
 import { PlayerPanel } from './playerPanel.js';
+import { chickenImagePath } from '../chickenArt.js';
 
 // Design mockup 7c: the desktop dock panel rebuilt for a thumb — 38px
 // health targets instead of small pips, a horizontally scroll-snapping
@@ -38,7 +39,16 @@ export function MobilePlayerSheet({ player, state, dispatch, pendingPick, setPen
         <div class="mobile-sheet-handle"></div>
 
         <div class="mobile-sheet-header">
-          <div class="mobile-sheet-portrait"><span class="monogram">${monogram(player.chickenName)}</span></div>
+          <div class="mobile-sheet-portrait">
+            <span class="monogram">${monogram(player.chickenName)}</span>
+            ${chickenImagePath(player.chickenName, player.stage) &&
+            html`<img
+              class="mobile-portrait-img"
+              src=${chickenImagePath(player.chickenName, player.stage)}
+              alt=${player.chickenName}
+              onError=${(e) => { e.currentTarget.style.display = 'none'; }}
+            />`}
+          </div>
           <div class="mobile-sheet-header-body">
             <div class="mobile-sheet-name">${displayName ?? player.id}</div>
             <div class="mobile-sheet-breed">${chicken.breed} · Stage ${player.stage}</div>
