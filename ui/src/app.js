@@ -26,8 +26,18 @@ import { TargetDossier } from './components/targetDossier.js';
 import { ForesightPicker } from './components/foresightPicker.js';
 import { MobilePlay } from './components/mobilePlay.js';
 import { MobilePlayerSheet } from './components/mobilePlayerSheet.js';
+import { DieRoll } from './components/dieRoll.js';
 
 const SEASON_ORDER = ['Spring', 'Summer', 'Fall'];
+
+// A short caption for the on-board die animation — null for any actionLog
+// entry that isn't a roll (most of them), which the caller uses to skip
+// non-roll entries entirely.
+function rollCaption(entry) {
+  if (entry.type === 'productionRoll') return 'Production';
+  if (entry.type === 'combatRoll') return entry.kind === 'fogDodge' ? 'Fog' : entry.targetName;
+  return null;
+}
 const SESSION_STORAGE_KEY = 'flockSessionCode';
 
 // A refresh (or a reopened tab) shouldn't lose your place in a session —
@@ -89,6 +99,26 @@ function formatLogEntry(action, playerNames) {
         ? html`${name(action.playerId)} rolled a <b>${action.roll}</b> for production (needed ${action.threshold}+)${methodNote} — gained ${action.eggAmount} egg${action.eggAmount > 1 ? 's' : ''}.`
         : html`${name(action.playerId)} rolled a <b>${action.roll}</b> for production (needed ${action.threshold}+)${methodNote} — no egg this time.`;
     }
+    // Every roll made while resolving a single Attack — a Predator's own
+    // effect roll, a Grub's defend roll, or Fog's dodge roll (see
+    // engine/src/types.ts's CombatRollLogEntry). Multiple can ride along
+    // one Attack (e.g. Fog's roll plus the target's own effect roll), each
+    // its own log line, ahead of the plain "X attacked Y" line reducer.ts
+    // appends for the Attack action itself.
+    case 'combatRoll': {
+      if (action.kind === 'fogDodge') {
+        return action.triggered
+          ? html`${name(action.playerId)} rolled a <b>${action.roll}</b> in the Fog — the attack missed entirely.`
+          : html`${name(action.playerId)} rolled a <b>${action.roll}</b> in the Fog — no effect, the attack landed normally.`;
+      }
+      // The stored effect text is inconsistently self-quoted already (some
+      // are "4-6: heals 1 health", some aren't quoted at all) — shown bare,
+      // same as the dossier's own effect card, rather than double-quoting it.
+      const kindLabel = action.kind === 'grubDefend' ? "defend roll" : "effect roll";
+      return action.triggered
+        ? html`${name(action.playerId)} rolled a <b>${action.roll}</b> for ${action.targetName}'s ${kindLabel}${action.effectText ? html` — ${action.effectText}` : ''}`
+        : html`${name(action.playerId)} rolled a <b>${action.roll}</b> for ${action.targetName}'s ${kindLabel} — no effect.`;
+    }
     // Superseded by the productionRoll entry the same dispatch also
     // appends (actions.ts's resolveProductionReveal) — the raw action
     // object has no roll value to show, so it'd just be a duplicate,
@@ -136,6 +166,40 @@ function App() {
   // pendingPick since it's a non-committal peek, not part of the action
   // state machine. { targetType: 'predator'|'grub', targetId } | null.
   const [inspectingTarget, setInspectingTarget] = useState(null);
+
+  // The on-board die animation (DieRoll) for the most recent roll — purely
+  // presentational, driven by watching actionLog grow rather than by the
+  // dispatch call sites themselves, so it fires the same way for rolls
+  // made on another device too (multiplayer sync). `key` forces a fresh
+  // mount (restarting the CSS animation) even if the roll value repeats.
+  const [dieRoll, setDieRoll] = useState(null);
+  // null until the first real actionLog is seen, so a fresh page load or a
+  // reconnect-after-refresh (which arrives with a whole backlog already in
+  // it) doesn't replay every past roll's animation at once — only entries
+  // added *after* that point count as "new."
+  const seenLogLengthRef = useRef(null);
+  useEffect(() => {
+    const log = gameState?.actionLog;
+    if (!log) return;
+    if (seenLogLengthRef.current === null) {
+      seenLogLengthRef.current = log.length;
+      return;
+    }
+    const prevLength = seenLogLengthRef.current;
+    seenLogLengthRef.current = log.length;
+    if (log.length <= prevLength) return; // e.g. a fresh game just started
+    const newEntries = log.slice(prevLength);
+    // Last-in-first-shown: if one dispatch logged more than one roll (Fog's
+    // dodge roll alongside the target's own effect roll), the later one is
+    // what actually decided the outcome.
+    for (let i = newEntries.length - 1; i >= 0; i--) {
+      const label = rollCaption(newEntries[i]);
+      if (label) {
+        setDieRoll({ roll: newEntries[i].roll, label, key: prevLength + i });
+        return;
+      }
+    }
+  }, [gameState?.actionLog?.length]);
 
   // Session state — every game is a session now, no local hotseat mode.
   // sessionCode is restored from the URL/localStorage (see
@@ -690,6 +754,7 @@ function App() {
       <div class="gs-mid">
         ${!tableView && html`<div class="gs-side-panel">${sidebarPanel()}</div>`}
         <div class="gs-board">
+          ${dieRoll && html`<${DieRoll} key=${dieRoll.key} roll=${dieRoll.roll} label=${dieRoll.label} />`}
           <${Board}
             state=${gameState}
             dispatch=${dispatch}

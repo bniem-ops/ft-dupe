@@ -78,7 +78,11 @@ export const WEATHER_EFFECTS: Record<string, WeatherEffect> = {
     onTurnEnd: () => ({ discardChoice: ['food', 'egg'] }),
   },
   Fog: {
-    onAttack: (ctx, rng: RNG) => (peekRollIntercept(ctx.state, ctx.attackerId, rollDie(rng), rng) <= 2 ? { dodged: true } : {}),
+    onAttack: (ctx, rng: RNG) => {
+      const roll = peekRollIntercept(ctx.state, ctx.attackerId, rollDie(rng), rng);
+      const triggered = roll <= 2;
+      return { ...(triggered ? { dodged: true } : {}), rollLog: [{ kind: 'fogDodge', roll, triggered, effectText: null }] };
+    },
   },
   'Dust Storm': {
     maxAttackStrengthDelta: -1,

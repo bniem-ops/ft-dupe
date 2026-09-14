@@ -23,6 +23,8 @@ import {
   Season,
   RNG,
   rollDie,
+  CombatRollLogItem,
+  CombatRollLogEntry,
 } from './types.js';
 import { findPredator, loadGrubCards, parseIntField, parseHealthMultiplier } from './data.js';
 import { getPlayer, replacePlayer } from './helpers.js';
@@ -54,6 +56,7 @@ function mergeCombatResults(a: CombatStageResult, b: CombatStageResult): CombatS
     forcesWeatherRedraw: a.forcesWeatherRedraw || b.forcesWeatherRedraw,
     takesEggsFromEveryone: (a.takesEggsFromEveryone ?? 0) + (b.takesEggsFromEveryone ?? 0),
     attackerEggDelta: (a.attackerEggDelta ?? 0) + (b.attackerEggDelta ?? 0),
+    rollLog: [...(a.rollLog ?? []), ...(b.rollLog ?? [])],
   };
 }
 
@@ -70,15 +73,16 @@ function defaultTargetEffect(ctx: CombatContext, rng: RNG): CombatStageResult {
   if (ctx.targetType === 'grub') {
     const side = ctx.targetId as 'inside' | 'outside';
     const faceUp = ctx.state.grubDecks[side].faceUp;
-    const grubName = faceUp ? loadGrubCards()[faceUp.cardId]?.name : null;
-    const effect = grubName ? GRUB_DEFEND_EFFECTS[grubName] : undefined;
+    const grubCard = faceUp ? loadGrubCards()[faceUp.cardId] : null;
+    const effect = grubCard?.name ? GRUB_DEFEND_EFFECTS[grubCard.name] : undefined;
     if (!effect?.rollOutcomes) return {};
     const attackerLocation = getPlayer(ctx.state.players, ctx.attackerId).location;
     const baseRoll = Math.max(1, rollDie(rng) - nearbyAuraPredatorRollPenalty(ctx.state, attackerLocation)); // Battle Cry
     const roll = peekRollIntercept(ctx.state, ctx.attackerId, baseRoll, rng);
     const outcome = effect.rollOutcomes.find((o) => roll >= o.min && roll <= o.max);
-    if (!outcome) return {};
-    const result: CombatStageResult = {};
+    const rollLog: CombatRollLogItem[] = [{ kind: 'grubDefend', roll, triggered: !!outcome, effectText: grubCard?.effect ?? null }];
+    if (!outcome) return { rollLog };
+    const result: CombatStageResult = { rollLog };
     if (outcome.selfHeal) result.predatorHealthDelta = outcome.selfHeal;
     if (outcome.returnAttackOverride != null) result.returnAttackOverride = outcome.returnAttackOverride;
     if (outcome.predatorDodges) result.predatorDodges = true;
@@ -90,9 +94,20 @@ function defaultTargetEffect(ctx: CombatContext, rng: RNG): CombatStageResult {
   const attacker = getPlayer(ctx.state.players, ctx.attackerId);
   const effect = PREDATOR_EFFECTS[predator.name]?.[predator.stage];
 
+  // The free-text rules effect being rolled against — used to label any
+  // rollLog entry produced below, whether by the roll-table branch or a
+  // bespoke `custom` implementation (predators.ts's `custom` functions
+  // report {roll, triggered} but leave effectText null, since they don't
+  // have this stage/species text handy — filled in centrally here instead
+  // of duplicating a findPredator lookup in every one of them).
+  const effectText = findPredator(predator.name).stages.find((s) => s.stage === predator.stage)?.effect ?? null;
+
   let result: CombatStageResult = {};
   if (effect?.custom) {
     result = effect.custom(ctx, rng);
+    if (result.rollLog?.length) {
+      result = { ...result, rollLog: result.rollLog.map((item) => ({ ...item, effectText })) };
+    }
   } else if (effect) {
     if (effect.alwaysStatus) result.attackerStatusEffects = [...effect.alwaysStatus];
     if (effect.returnAttackIfAttackerHasNoBonusCard != null && attacker.bonusCardHand.length === 0) {
@@ -121,6 +136,7 @@ function defaultTargetEffect(ctx: CombatContext, rng: RNG): CombatStageResult {
         roll = applyRollIntercept(attacker, roll, rng).roll;
       }
       const outcome = effect.rollOutcomes.find((o) => roll >= o.min && roll <= o.max);
+      result.rollLog = [...(result.rollLog ?? []), { kind: 'predatorEffect', roll, triggered: !!outcome, effectText }];
       if (outcome) {
         // "Cannot heal after defeat" (Chicksune): a self-heal roll doesn't
         // get to react to damage it never survived — if this attack's own
@@ -595,10 +611,36 @@ export function resolveCombat(
     targetType === 'predator'
       ? resolvePredatorAttack(state, playerId, targetId, attackStrength, finalEffects, mitigation, damageRedirect)
       : resolveGrubAttack(state, playerId, targetId as 'inside' | 'outside', attackStrength, finalEffects);
+  // Dice-roll transparency: surface every roll this attack made (a target
+  // effect roll, Fog's dodge roll) as actionLog entries. The target's
+  // display name is resolved from `state` (before this attack), not
+  // `resolved` — a killing blow already redealt a fresh face-up Grub into
+  // the same deck slot by now, which would otherwise misname the roll
+  // after the fact.
+  const withRollLog = finalEffects.rollLog?.length
+    ? {
+        ...resolved,
+        actionLog: [
+          ...resolved.actionLog,
+          ...finalEffects.rollLog.map(
+            (item): CombatRollLogEntry => ({
+              type: 'combatRoll',
+              playerId,
+              targetType,
+              targetName:
+                targetType === 'predator'
+                  ? targetId
+                  : (loadGrubCards()[state.grubDecks[targetId as 'inside' | 'outside'].faceUp?.cardId ?? -1]?.name ?? 'Grub'),
+              ...item,
+            }),
+          ),
+        ],
+      }
+    : resolved;
   // "Not really a miss" (Cluck Norris): only meaningful once the attack
   // actually missed — `predatorDodges` on the *final* (post-Monocle) effects
   // is exactly that signal, for either target type.
-  return finalEffects.predatorDodges ? applyNotReallyAMiss(resolved, playerId) : resolved;
+  return finalEffects.predatorDodges ? applyNotReallyAMiss(withRollLog, playerId) : withRollLog;
 }
 
 // Cluck Norris' "Not really a miss": self clause draws a Bonus Card, the

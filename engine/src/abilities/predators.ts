@@ -19,9 +19,10 @@ function grubMaxHealth(faceUp: { cardId: number } | null): number {
 
 function coopellaRoll(ctx: CombatContext, rng: RNG): CombatStageResult {
   const roll = peekRollIntercept(ctx.state, ctx.attackerId, rollDie(rng), rng);
-  if (roll === 4) return { forcesExtraActionTokenUnavailable: true };
-  if (roll >= 5) return { forcesWeatherRedraw: true };
-  return {};
+  const rollLog: CombatStageResult['rollLog'] = [{ kind: 'predatorEffect', roll, triggered: roll >= 4, effectText: null }];
+  if (roll === 4) return { forcesExtraActionTokenUnavailable: true, rollLog };
+  if (roll >= 5) return { forcesWeatherRedraw: true, rollLog };
+  return { rollLog };
 }
 
 export const PREDATOR_EFFECTS: Record<string, Partial<Record<Stage, PredatorEffect>>> = {
@@ -33,17 +34,19 @@ export const PREDATOR_EFFECTS: Record<string, Partial<Record<Stage, PredatorEffe
     2: {
       custom: (ctx, rng) => {
         const roll = peekRollIntercept(ctx.state, ctx.attackerId, rollDie(rng), rng);
-        if (roll <= 2) return {};
-        if (roll <= 4) return { attackerEggDelta: -1 };
-        return { takesEggsFromEveryone: 1 };
+        const rollLog: CombatStageResult['rollLog'] = [{ kind: 'predatorEffect', roll, triggered: roll > 2, effectText: null }];
+        if (roll <= 2) return { rollLog };
+        if (roll <= 4) return { attackerEggDelta: -1, rollLog };
+        return { takesEggsFromEveryone: 1, rollLog };
       },
     },
     3: {
       custom: (ctx, rng) => {
         const roll = peekRollIntercept(ctx.state, ctx.attackerId, rollDie(rng), rng);
-        if (roll <= 2) return {};
-        if (roll <= 4) return { attackerEggDelta: -2 };
-        return { takesEggsFromEveryone: 2 };
+        const rollLog: CombatStageResult['rollLog'] = [{ kind: 'predatorEffect', roll, triggered: roll > 2, effectText: null }];
+        if (roll <= 2) return { rollLog };
+        if (roll <= 4) return { attackerEggDelta: -2, rollLog };
+        return { takesEggsFromEveryone: 2, rollLog };
       },
     },
   },
@@ -110,21 +113,29 @@ export const PREDATOR_EFFECTS: Record<string, Partial<Record<Stage, PredatorEffe
     // Predator's location (the attacker included), on top of the normal
     // return attack, so it uses the `custom` escape hatch rather than the
     // single-target rollOutcomes shape.
-    1: { custom: (ctx, rng) => (peekRollIntercept(ctx.state, ctx.attackerId, rollDie(rng), rng) >= 4 ? { splashDamage: 1 } : {}) },
+    1: {
+      custom: (ctx, rng) => {
+        const roll = peekRollIntercept(ctx.state, ctx.attackerId, rollDie(rng), rng);
+        const triggered = roll >= 4;
+        return { ...(triggered ? { splashDamage: 1 } : {}), rollLog: [{ kind: 'predatorEffect', roll, triggered, effectText: null }] };
+      },
+    },
     2: {
       custom: (ctx, rng) => {
         const roll = peekRollIntercept(ctx.state, ctx.attackerId, rollDie(rng), rng);
-        if (roll <= 2) return { splashDamage: 1 };
-        if (roll <= 5) return { splashDamage: 2 };
-        return { splashDamage: 3 };
+        const rollLog: CombatStageResult['rollLog'] = [{ kind: 'predatorEffect', roll, triggered: true, effectText: null }];
+        if (roll <= 2) return { splashDamage: 1, rollLog };
+        if (roll <= 5) return { splashDamage: 2, rollLog };
+        return { splashDamage: 3, rollLog };
       },
     },
     3: {
       custom: (ctx, rng) => {
         const roll = peekRollIntercept(ctx.state, ctx.attackerId, rollDie(rng), rng);
-        if (roll === 1) return { splashDamage: 1 };
-        if (roll <= 4) return { splashDamage: 2 };
-        return { splashDamage: 3 };
+        const rollLog: CombatStageResult['rollLog'] = [{ kind: 'predatorEffect', roll, triggered: true, effectText: null }];
+        if (roll === 1) return { splashDamage: 1, rollLog };
+        if (roll <= 4) return { splashDamage: 2, rollLog };
+        return { splashDamage: 3, rollLog };
       },
     },
   },
@@ -137,27 +148,38 @@ export const PREDATOR_EFFECTS: Record<string, Partial<Record<Stage, PredatorEffe
     // synchronous resolver can't pause mid-combat to ask, so it's resolved
     // afterward via actions.ts's completeForcedRelocation.
     1: {
-      custom: (ctx, rng) =>
-        peekRollIntercept(ctx.state, ctx.attackerId, rollDie(rng), rng) >= 4
-          ? { dodged: true, predatorDodges: true, forcedRelocation: { playerId: ctx.attackerId } }
-          : {},
+      custom: (ctx, rng) => {
+        const roll = peekRollIntercept(ctx.state, ctx.attackerId, rollDie(rng), rng);
+        const triggered = roll >= 4;
+        return {
+          ...(triggered ? { dodged: true, predatorDodges: true, forcedRelocation: { playerId: ctx.attackerId } } : {}),
+          rollLog: [{ kind: 'predatorEffect', roll, triggered, effectText: null }],
+        };
+      },
     },
     2: {
-      custom: (ctx, rng) =>
-        peekRollIntercept(ctx.state, ctx.attackerId, rollDie(rng), rng) >= 3
-          ? { dodged: true, predatorDodges: true, forcedRelocation: { playerId: ctx.attackerId } }
-          : {},
+      custom: (ctx, rng) => {
+        const roll = peekRollIntercept(ctx.state, ctx.attackerId, rollDie(rng), rng);
+        const triggered = roll >= 3;
+        return {
+          ...(triggered ? { dodged: true, predatorDodges: true, forcedRelocation: { playerId: ctx.attackerId } } : {}),
+          rollLog: [{ kind: 'predatorEffect', roll, triggered, effectText: null }],
+        };
+      },
     },
     3: {
       custom: (ctx, rng) => {
         const roll = peekRollIntercept(ctx.state, ctx.attackerId, rollDie(rng), rng);
-        if (roll > 3) return { dodged: true, predatorDodges: true, forcedRelocation: { playerId: ctx.attackerId } };
+        // Someone always moves (either the attacker or a random teammate)
+        // — this roll only decides who, so it always counts as triggered.
+        const rollLog: CombatStageResult['rollLog'] = [{ kind: 'predatorEffect', roll, triggered: true, effectText: null }];
+        if (roll > 3) return { dodged: true, predatorDodges: true, forcedRelocation: { playerId: ctx.attackerId }, rollLog };
         // "A teammate moves out" — a random other alive player at this
         // location, if any; falls back to the attacker if they're alone.
         const attacker = ctx.state.players.find((p) => p.id === ctx.attackerId)!;
         const teammates = ctx.state.players.filter((p) => p.alive && p.id !== attacker.id && p.location === attacker.location);
         const mover = teammates.length > 0 ? teammates[Math.floor(rng() * teammates.length)] : attacker;
-        return { dodged: true, predatorDodges: true, forcedRelocation: { playerId: mover.id } };
+        return { dodged: true, predatorDodges: true, forcedRelocation: { playerId: mover.id }, rollLog };
       },
     },
   },
@@ -242,13 +264,19 @@ export const PREDATOR_EFFECTS: Record<string, Partial<Record<Stage, PredatorEffe
     1: {
       custom: (ctx, rng) => {
         const roll = peekRollIntercept(ctx.state, ctx.attackerId, rollDie(rng), rng);
-        return { returnAttackOverride: grubMaxHealth(ctx.state.grubDecks[roll <= 3 ? 'inside' : 'outside'].faceUp) };
+        return {
+          returnAttackOverride: grubMaxHealth(ctx.state.grubDecks[roll <= 3 ? 'inside' : 'outside'].faceUp),
+          rollLog: [{ kind: 'predatorEffect', roll, triggered: true, effectText: null }],
+        };
       },
     },
     2: {
       custom: (ctx, rng) => {
         const roll = peekRollIntercept(ctx.state, ctx.attackerId, rollDie(rng), rng);
-        return { returnAttackDelta: grubMaxHealth(ctx.state.grubDecks[roll <= 3 ? 'inside' : 'outside'].faceUp) };
+        return {
+          returnAttackDelta: grubMaxHealth(ctx.state.grubDecks[roll <= 3 ? 'inside' : 'outside'].faceUp),
+          rollLog: [{ kind: 'predatorEffect', roll, triggered: true, effectText: null }],
+        };
       },
     },
     3: {

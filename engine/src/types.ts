@@ -94,6 +94,9 @@ export interface CombatStageResult {
   // every player]," the roll-gated fork of the same effect.
   attackerEggDelta?: number; // negative = taken from the attacker only
   takesEggsFromEveryone?: number;
+  // Dice-roll transparency: any rolls this stage's hook made, so
+  // resolveCombat can surface them in actionLog — see CombatRollLogItem.
+  rollLog?: CombatRollLogItem[];
 }
 
 export interface CombatHooks {
@@ -328,7 +331,7 @@ export interface GameState {
   // (never dispatched, so reducer.ts's switch never needs a case for them) —
   // every stage 2/3 player's production roll, visible in the UI's toast/log
   // for trust, whether or not it paused for a reveal decision.
-  actionLog: (Action | ProductionRollLogEntry)[];
+  actionLog: (Action | ProductionRollLogEntry | CombatRollLogEntry)[];
   // Phase 11j: board-placed eggs anyone at that location can collect
   // (Bacaw!, Dedication) — a shared resource on the map, not a per-player one.
   boardEggs: Partial<Record<Location, number>>;
@@ -472,6 +475,36 @@ export interface ProductionRollLogEntry {
   eggAmount: number;
   gained: boolean;
   method?: 'rerolled' | 'adjusted';
+}
+
+// One roll made while resolving a single Attack — the target's own
+// defend/effect roll (a Predator's roll-table or bespoke `custom` effect,
+// a Grub's defend table) or Fog's dodge roll. Collected on
+// CombatStageResult.rollLog by whichever combat.ts/abilities hook made the
+// roll (both the table-driven and bespoke `custom` predator effects, so
+// the log is complete either way — see combat.ts's defaultTargetEffect),
+// then turned into a CombatRollLogEntry by combat.ts's resolveCombat,
+// which fills in playerId/targetType/targetName once per attack.
+export interface CombatRollLogItem {
+  kind: 'predatorEffect' | 'grubDefend' | 'fogDodge';
+  roll: number;
+  // Whether this roll actually produced a game effect (matched a roll-
+  // table bracket, or a bespoke custom effect returned anything beyond
+  // rollLog itself) — a roll can legitimately do nothing (e.g. a 2 against
+  // Eggsmeralda's "4-6: heals 1 health").
+  triggered: boolean;
+  // The rules text being rolled against (a Predator's stage effect, or a
+  // Grub's defend effect) — null for fogDodge, which has no per-target text.
+  effectText: string | null;
+}
+
+// Same convention as ProductionRollLogEntry — appended directly to
+// GameState.actionLog by combat.ts's resolveCombat, never through reducer.ts.
+export interface CombatRollLogEntry extends CombatRollLogItem {
+  type: 'combatRoll';
+  playerId: string; // the attacker
+  targetType: 'predator' | 'grub';
+  targetName: string; // predator name, or the Grub card's own name
 }
 
 export function rollDie(rng: RNG): number {

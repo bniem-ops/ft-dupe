@@ -1788,6 +1788,68 @@ input.entry-code-box:focus {
   min-height: 0;
 }
 
+/* On-board die animation (dieRoll.js) — a transient overlay for the most
+   recent production/combat roll (see app.js's rollCaption + the
+   seenLogLengthRef effect). Re-keyed by the caller on every new roll so
+   the whole animation restarts; otherwise sits invisible (opacity 0 at
+   100%) until the next one, no JS timer needed to dismiss it. */
+.die-roll-overlay {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+  animation: die-roll-life 2.4s ease-out forwards;
+}
+
+.die-roll-face {
+  font-size: 56px;
+  line-height: 1;
+  color: #f4ecd6;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.5));
+}
+
+.die-roll-label {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(20, 13, 6, 0.75);
+  border: 1px solid rgba(240, 227, 196, 0.35);
+  font: 700 10px var(--font-ui);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #f0e3c4;
+  white-space: nowrap;
+}
+
+@keyframes die-roll-life {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -14px) scale(0.4) rotate(-35deg);
+  }
+  12% {
+    opacity: 1;
+    transform: translate(-50%, 4px) scale(1.15) rotate(20deg);
+  }
+  22% {
+    transform: translate(-50%, 0) scale(1) rotate(-8deg);
+  }
+  30% {
+    transform: translate(-50%, 0) scale(1) rotate(0deg);
+  }
+  78% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -8px) scale(0.9) rotate(0deg);
+  }
+}
+
 .gs-board {
   flex: 1;
   position: relative;
@@ -1827,10 +1889,15 @@ input.entry-code-box:focus {
   height: 100%;
 }
 
+/* 240px (was 190px) and a top-biased crop, same fix as the chicken draft
+   booklet's portrait art (.draft-book-art) — the generated portraits are
+   tall head-and-shoulders shots, and a short landscape crop centered on
+   the middle was cutting off the head. .rail-scroll-body below absorbs
+   the extra height (flex:1 + overflow-y:auto), so nothing overflows. */
 .rail-hero {
   position: relative;
   flex: none;
-  height: 190px;
+  height: 240px;
   background: var(--gs-teal);
   border-bottom: 2px solid #f0e3c4;
   overflow: hidden;
@@ -1842,6 +1909,7 @@ input.entry-code-box:focus {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: 50% 20%;
 }
 
 .rail-hero-kicker {
