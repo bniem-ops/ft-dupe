@@ -15,15 +15,26 @@
 // elsewhere, so that one write goes through a Firestore transaction.
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
 import {
-  getFirestore, doc, setDoc, updateDoc, getDoc, onSnapshot, runTransaction,
+  initializeFirestore, doc, setDoc, updateDoc, getDoc, onSnapshot, runTransaction,
 } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
 
 const cfg = window.FLOCK_FIREBASE_CONFIG;
 const configured = !!(cfg && cfg.apiKey && cfg.apiKey !== 'YOUR_API_KEY');
 let db = null;
+// playtest-feedback.md 2026-09-14 "Grub Card Slug Effect": playing a card
+// whose CardEffect doesn't need every param (most of them) leaves the
+// unused fields as literal `undefined` in the dispatched action object
+// (playerPanel.js's PlayCardControls/RailPlayPrompt build params that way
+// on purpose, one flag per shape). That action rides along in
+// state.actionLog, which toSyncedState below ships to Firestore as-is —
+// and the Firestore SDK rejects any `undefined` field value in a setDoc
+// unless told not to, throwing after the local engine effect had already
+// applied (hence "the heart still healed" in that report). Rather than
+// chase every params-builder call site, tell Firestore to just drop
+// undefined fields, same as JSON.stringify already would.
 function getDb() {
   if (!configured) return null;
-  if (!db) db = getFirestore(initializeApp(cfg));
+  if (!db) db = initializeFirestore(initializeApp(cfg), { ignoreUndefinedProperties: true });
   return db;
 }
 
@@ -65,6 +76,7 @@ async function createSession(hostConfig) {
     startingLocations: {}, // { [playerId]: Location } — set alongside chosenChicken, for chickens with mayChooseStartingLocation (Traveler, Free Range)
     state: null, // synced GameState — set once every seat has chosenChicken
     dayEndPending: false,
+    pendingExchanges: {}, // { [playerId]: amount } — see setPendingExchange below
   });
   return code;
 }
@@ -158,6 +170,30 @@ async function pushState(code, gameState, dayEndPending) {
   await setDoc(doc(database, 'sessions', code), { state: toSyncedState(gameState), dayEndPending }, { merge: true });
 }
 
+// playtest-feedback.md 2026-09-14 "Egg Exchange": the day-end Egg Exchange
+// used to be plain per-device useState inside TurnControls — only the
+// device that actually clicked Confirm ever sent anything, so any other
+// player typing an amount into their own row was editing state nobody read.
+// Each player now writes their own amount here as they type (their own key
+// only, so no two players ever race on the same field), and the day's last
+// player's Confirm reads this synced map instead of fabricating it from
+// local-only state that only reflected their own edits.
+async function setPendingExchange(code, playerId, amount) {
+  const database = getDb();
+  if (!database) throw new Error('Firebase not configured');
+  await updateDoc(doc(database, 'sessions', code), { [`pendingExchanges.${playerId}`]: amount });
+}
+
+// Called once the day actually advances (never on cancel — a cancelled
+// day-end returns to the board with whatever amounts were already entered
+// still in place, ready to resubmit) so next time this comes up it starts
+// from a clean slate instead of carrying stale amounts from today.
+async function clearPendingExchanges(code) {
+  const database = getDb();
+  if (!database) throw new Error('Firebase not configured');
+  await setDoc(doc(database, 'sessions', code), { pendingExchanges: {} }, { merge: true });
+}
+
 function subscribe(code, callback) {
   const database = getDb();
   if (!database) return () => {};
@@ -188,6 +224,8 @@ export const remoteSession = {
   startDraft,
   lockInChicken,
   pushState,
+  setPendingExchange,
+  clearPendingExchanges,
   subscribe,
   getMySeat,
   setMySeat,

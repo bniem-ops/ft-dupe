@@ -40,15 +40,15 @@ function GrubChoiceCard({ side, deckSide, selected, onSelect }) {
   `;
 }
 
-export function TurnControls({ state, onSubmitDayEnd, myPlayerId, playerNames }) {
+export function TurnControls({ state, onSubmitDayEnd, onCancel, myPlayerId, playerNames, pendingExchanges, onSetExchangeAmount }) {
   const [discardSide, setDiscardSide] = useState('inside');
-  const [exchanges, setExchanges] = useState({});
 
   // Day-end is a continuation of the last player's turn in the day — same
   // seat-gating rule as ActionBar (see actionBar.js for why this is a UX
   // nicety, not a security boundary).
   const lastPlayerId = state.turnOrder[state.currentPlayerIndex];
   const canAct = myPlayerId == null || myPlayerId === lastPlayerId;
+  const lastPlayerName = playerNames?.[lastPlayerId] ?? lastPlayerId;
 
   // The discard is mandatory, not a free pick of an already-empty pile — if
   // the selected side has no face-up Grub but the other one does, the
@@ -79,16 +79,12 @@ export function TurnControls({ state, onSubmitDayEnd, myPlayerId, playerNames })
   const exchangeBonus = outgoingWeatherEffect?.eggExchangeBonusFoodIfParticipating ?? 0;
   const snowAdHocAvailable = !exchangeApplies && outgoingWeatherName === 'Snow' && state.phase === 3;
 
-  function setExchangeAmount(playerId, amount) {
-    setExchanges((prev) => ({ ...prev, [playerId]: amount }));
-  }
-
   function submit() {
     onSubmitDayEnd({
       discardSide: effectiveSide,
       exchanges: state.players
-        .filter((p) => p.alive && exchanges[p.id] > 0)
-        .map((p) => ({ playerId: p.id, amount: exchanges[p.id] })),
+        .filter((p) => p.alive && pendingExchanges[p.id] > 0)
+        .map((p) => ({ playerId: p.id, amount: pendingExchanges[p.id] })),
     });
   }
 
@@ -126,27 +122,31 @@ export function TurnControls({ state, onSubmitDayEnd, myPlayerId, playerNames })
             <div class="dossier-section">
               <span class="dossier-section-title">EGG EXCHANGE</span>
               <div class="dossier-flavor-text">
-                Trade any number of eggs for equal food.
+                Trade any number of eggs for equal food. Everyone sets their own amount from their
+                own device — only ${lastPlayerName} confirms once everyone's set.
                 ${exchangeBonus > 0 &&
                 html` <b>${outgoingWeatherName} bonus: +${exchangeBonus} food to anyone who trades at least 1 egg.</b>`}
               </div>
               <div class="egg-exchange-rows">
                 ${state.players
                   .filter((p) => p.alive)
-                  .map(
-                    (p) => html`
+                  .map((p) => {
+                    const mine = myPlayerId == null || p.id === myPlayerId;
+                    return html`
                       <label class="egg-exchange-row" key=${p.id}>
                         <span>${playerNames?.[p.id] ?? p.id} <span class="dossier-flavor">(${p.eggs} eggs)</span></span>
-                        <input
-                          type="number"
-                          min="0"
-                          max=${p.eggs}
-                          value=${exchanges[p.id] ?? 0}
-                          onInput=${(e) => setExchangeAmount(p.id, Number(e.target.value))}
-                        />
+                        ${mine
+                          ? html`<input
+                              type="number"
+                              min="0"
+                              max=${p.eggs}
+                              value=${pendingExchanges[p.id] ?? 0}
+                              onInput=${(e) => onSetExchangeAmount(p.id, Number(e.target.value))}
+                            />`
+                          : html`<span class="egg-exchange-readonly">${pendingExchanges[p.id] ?? 0}</span>`}
                       </label>
-                    `,
-                  )}
+                    `;
+                  })}
               </div>
             </div>
           `}
@@ -165,6 +165,7 @@ export function TurnControls({ state, onSubmitDayEnd, myPlayerId, playerNames })
         </div>
 
         <div class="dossier-footer">
+          <button type="button" class="dossier-btn-secondary" disabled=${!canAct} onClick=${onCancel}>Back to board</button>
           <div class="dossier-spacer"></div>
           <button type="button" class="dossier-btn-confirm" disabled=${!canAct} onClick=${submit}>Confirm and Advance</button>
         </div>

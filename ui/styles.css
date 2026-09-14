@@ -4511,6 +4511,17 @@ input.entry-code-box:focus {
   font-family: var(--font-ui);
 }
 
+/* Another player's own row — read-only, they set it from their own device
+   (playtest-feedback.md 2026-09-14 "Egg Exchange"). */
+.egg-exchange-readonly {
+  width: 60px;
+  padding: 6px 8px;
+  text-align: center;
+  color: var(--gs-notebook-text);
+  opacity: 0.7;
+  font-family: var(--font-ui);
+}
+
 /* --- Mobile bottom sheet (hidden ≥901px) --- */
 
 /* Mobile play (design mockups 7a "Play" / 7b "Place focus" / 7c "Player

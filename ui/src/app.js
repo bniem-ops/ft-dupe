@@ -175,6 +175,11 @@ function App() {
   const [gameState, setGameState] = useState(null);
   const [error, setError] = useState(null);
   const [dayEndPending, setDayEndPending] = useState(false);
+  // { [playerId]: amount } — each player's own Egg Exchange amount for the
+  // day-end dossier, synced via Firestore so it isn't just local state only
+  // the submitting device ever reads (playtest-feedback.md 2026-09-14 "Egg
+  // Exchange").
+  const [pendingExchanges, setPendingExchangesState] = useState({});
   const [pendingPick, setPendingPick] = useState(null);
   // Mobile UI state (≤900px — see styles.css's .mobile-play-*, design
   // mockups 7a-7c). Purely local presentation state, not synced.
@@ -300,6 +305,7 @@ function App() {
         const synced = fromSyncedDoc(doc.state);
         setGameState(synced);
         setDayEndPending(!!doc.dayEndPending);
+        setPendingExchangesState(doc.pendingExchanges ?? {});
         setScreen(synced.gameOver ? 'gameOver' : 'game');
         return;
       }
@@ -407,9 +413,23 @@ function App() {
     }
   }
 
+  // playtest-feedback.md 2026-09-14 "End Turn/Cancel": clicking End Turn as
+  // the day's last player immediately shows the day-end dossier (grub
+  // discard + Egg Exchange) with no way back — an accidental click there
+  // stranded the player. Safe to just flip dayEndPending back off: unlike
+  // handleDayEndSubmit, nothing about turn/action state was ever touched
+  // when it was set (see the `else` branch of handleEndTurn below), so
+  // canceling restores exactly the board the player was on, actions intact.
+  function handleCancelDayEnd() {
+    setDayEndPending(false);
+    remoteSession.pushState(sessionCode, gameState, false).catch((e) => setError(e.message));
+  }
+
   function handleDayEndSubmit({ discardSide, exchanges }) {
     try {
       let s = advanceDay(gameState, { discardSide, exchanges });
+      remoteSession.clearPendingExchanges(sessionCode).catch((e) => setError(e.message));
+      setPendingExchangesState({});
       if (s.gameOver) {
         applyStateUpdate(s, false);
         setDayEndPending(false);
@@ -423,6 +443,14 @@ function App() {
     } catch (e) {
       setError(e.message);
     }
+  }
+
+  // Optimistic-local + fire-and-forget sync, same pattern as everywhere
+  // else here — each player only ever writes their own key (see
+  // remoteSession.setPendingExchange), so there's nothing to race.
+  function handleSetExchangeAmount(playerId, amount) {
+    setPendingExchangesState((prev) => ({ ...prev, [playerId]: amount }));
+    remoteSession.setPendingExchange(sessionCode, playerId, amount).catch((e) => setError(e.message));
   }
 
   function handleUseExtraAction(playerId) {
@@ -742,7 +770,15 @@ function App() {
       ${pendingPick?.type === 'drawTwoKeepOne' &&
       html`<${ForesightPicker} state=${gameState} dispatch=${dispatch} pendingPick=${pendingPick} setPendingPick=${setPendingPick} myPlayerId=${myPlayerId} />`}
       ${dayEndPending &&
-      html`<${TurnControls} state=${gameState} onSubmitDayEnd=${handleDayEndSubmit} myPlayerId=${myPlayerId} playerNames=${playerNames} />`}
+      html`<${TurnControls}
+        state=${gameState}
+        onSubmitDayEnd=${handleDayEndSubmit}
+        onCancel=${handleCancelDayEnd}
+        myPlayerId=${myPlayerId}
+        playerNames=${playerNames}
+        pendingExchanges=${pendingExchanges}
+        onSetExchangeAmount=${handleSetExchangeAmount}
+      />`}
 
       <div class="gs-topbar">
         <span class="gs-title">FLOCK TOGETHER</span>
