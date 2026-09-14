@@ -5,7 +5,7 @@ import { startTurn, endTurn, resolveProduction, advanceDay, useWeatherActionAdju
 import { forage, move, attack } from '../src/actions.js';
 import { resolveCombat } from '../src/combat.js';
 import { seasonCardList } from '../src/data.js';
-import { GameState, Season } from '../src/types.js';
+import { GameState, Season, WeatherRollLogEntry } from '../src/types.js';
 import { baseConfig, constantRng } from './testHelpers.js';
 
 function withWeather(state: GameState, season: Season, cardName: string): GameState {
@@ -17,6 +17,10 @@ function withWeather(state: GameState, season: Season, cardName: string): GameSt
 
 function withPlayer(state: GameState, playerId: string, patch: Partial<GameState['players'][number]>): GameState {
   return { ...state, players: state.players.map((p) => (p.id === playerId ? { ...p, ...patch } : p)) };
+}
+
+function weatherRollEntries(state: GameState): WeatherRollLogEntry[] {
+  return state.actionLog.filter((e): e is WeatherRollLogEntry => e.type === 'weatherRoll');
 }
 
 test('Fair: bonus food on the first Forage of the turn only', () => {
@@ -110,10 +114,19 @@ test('Lightning Storm: ending your turn Outside can cost 1 health on a 1-2 roll'
   const hitConfig = { ...outside.config, rng: constantRng(0) }; // roll 1
   const hit = endTurn({ ...outside, config: hitConfig });
   assert.equal(hit.players.find((p) => p.id === 'p1')!.health, outside.players.find((p) => p.id === 'p1')!.health - 1);
+  const [hitEntry] = weatherRollEntries(hit);
+  assert.ok(hitEntry);
+  assert.equal(hitEntry.playerId, 'p1');
+  assert.equal(hitEntry.cardName, 'Lightning Storm');
+  assert.equal(hitEntry.roll, 1);
+  assert.equal(hitEntry.triggered, true);
 
   const missConfig = { ...outside.config, rng: constantRng(0.999) }; // roll 6
   const miss = endTurn({ ...outside, config: missConfig });
   assert.equal(miss.players.find((p) => p.id === 'p1')!.health, outside.players.find((p) => p.id === 'p1')!.health);
+  const [missEntry] = weatherRollEntries(miss);
+  assert.equal(missEntry.roll, 6);
+  assert.equal(missEntry.triggered, false);
 });
 
 test('Flash Flood: all food discarded at the outgoing phase boundary', () => {
@@ -128,8 +141,17 @@ test('Tornado: at turn start, roll 1-2 takes 1 less action', () => {
   const state = withWeather(createGame(baseConfig()), 'Summer', 'Tornado');
   const hit = startTurn({ ...state, config: { ...state.config, rng: constantRng(0) } });
   assert.equal(hit.actionsRemainingThisTurn, 1);
+  const [hitEntry] = weatherRollEntries(hit);
+  assert.ok(hitEntry);
+  assert.equal(hitEntry.cardName, 'Tornado');
+  assert.equal(hitEntry.roll, 1);
+  assert.equal(hitEntry.triggered, true);
+
   const miss = startTurn({ ...state, config: { ...state.config, rng: constantRng(0.999) } });
   assert.equal(miss.actionsRemainingThisTurn, 2);
+  const [missEntry] = weatherRollEntries(miss);
+  assert.equal(missEntry.roll, 6);
+  assert.equal(missEntry.triggered, false);
 });
 
 test('Pouring Rain: skips the outgoing phase boundary Egg Exchange', () => {

@@ -236,6 +236,22 @@ export function startTurn(state: GameState): GameState {
       if (result.rollIntercepted) {
         next = { ...next, players: replacePlayer(next.players, { ...getPlayer(next.players, playerId), pendingRollIntercept: null }) };
       }
+      if (result.roll != null) {
+        next = {
+          ...next,
+          actionLog: [
+            ...next.actionLog,
+            {
+              type: 'weatherRoll',
+              playerId,
+              cardName: activeWeatherName(next, playerId) ?? '',
+              roll: result.roll,
+              triggered: !!result.triggered,
+              effectText: '-1 action',
+            },
+          ],
+        };
+      }
     }
   }
 
@@ -359,6 +375,22 @@ export function endTurn(state: GameState, options?: EndTurnOptions): GameState {
     }
     if (result.rollIntercepted) updated = { ...updated, pendingRollIntercept: null };
     next = { ...next, players: replacePlayer(next.players, updated) };
+    if (result.roll != null) {
+      next = {
+        ...next,
+        actionLog: [
+          ...next.actionLog,
+          {
+            type: 'weatherRoll',
+            playerId,
+            cardName: activeWeatherName(next, playerId) ?? '',
+            roll: result.roll,
+            triggered: !!result.triggered,
+            effectText: '-1 health',
+          },
+        ],
+      };
+    }
   }
 
   // core_rules.md's revival clause: a just-revived player must complete

@@ -68,7 +68,14 @@ export const CHICKEN_ABILITIES: Record<string, Partial<Record<Stage, ChickenAbil
       damageMitigation: { resource: 'bonusCards', compute: (damage, spent) => (spent >= 2 ? Math.floor(damage / 2) : 0) },
     },
     2: { tagAlongUnlocked: true }, // Smallest Chicken
-    3: { onAttack: (ctx, rng) => (peekRollIntercept(ctx.state, ctx.attackerId, rollDie(rng), rng) >= 3 ? { dodged: true } : {}) }, // Evasion
+    3: {
+      // Evasion
+      onAttack: (ctx, rng) => {
+        const roll = peekRollIntercept(ctx.state, ctx.attackerId, rollDie(rng), rng);
+        const triggered = roll >= 3;
+        return { ...(triggered ? { dodged: true } : {}), rollLog: [{ kind: 'evasion', roll, triggered, effectText: null }] };
+      },
+    },
   },
   'Atilla the Hen': {
     1: { weatherImmunity: ['Tornado'], startingFood: 2 }, // Big-Boned

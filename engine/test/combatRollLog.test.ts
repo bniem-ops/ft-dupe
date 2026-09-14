@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame } from '../src/setup.js';
-import { resolveCombat } from '../src/combat.js';
+import { resolveCombat, applyDirectPredatorDamage } from '../src/combat.js';
 import { loadGrubCards, seasonCardList } from '../src/data.js';
 import { CombatRollLogEntry, GameState, Season } from '../src/types.js';
 import { baseConfig, constantRng } from './testHelpers.js';
@@ -107,4 +107,54 @@ test('no combatRoll entry when the target effect never rolls', () => {
   );
   const result = resolveCombat(state, 'p1', 'predator', 'Gravekeeper Fowl', 1);
   assert.equal(combatRollEntries(result).length, 0);
+});
+
+test('logs the chicken Evasion dodge roll', () => {
+  // Wingston Coophill stage 3: Evasion — roll >= 3 dodges the attack entirely.
+  const state = withPlayer(createGame(baseConfig()), 'p2', { stage: 3 });
+  const hit = resolveCombat({ ...state, config: { ...state.config, rng: constantRng(0.999) } }, 'p2', 'predator', 'Eggsmeralda', 1); // roll 6
+  const evasionHit = combatRollEntries(hit).find((e) => e.kind === 'evasion');
+  assert.ok(evasionHit);
+  assert.equal(evasionHit.roll, 6);
+  assert.equal(evasionHit.triggered, true);
+  assert.equal(evasionHit.targetName, 'Eggsmeralda');
+
+  const miss = resolveCombat({ ...state, config: { ...state.config, rng: constantRng(0) } }, 'p2', 'predator', 'Eggsmeralda', 1); // roll 1
+  const evasionMiss = combatRollEntries(miss).find((e) => e.kind === 'evasion');
+  assert.ok(evasionMiss);
+  assert.equal(evasionMiss.roll, 1);
+  assert.equal(evasionMiss.triggered, false);
+});
+
+test("logs the Gravekeeper Fowl revive roll on defeat", () => {
+  const state = createGame(
+    baseConfig({ predators: { regular: ['Gravekeeper Fowl', 'Sal Moe Nella', 'Professor Moltiarty'], boss: 'Ursula Bone' } }),
+  );
+  const predator = state.predators.find((p) => p.name === 'Gravekeeper Fowl')!;
+
+  const revived = applyDirectPredatorDamage(
+    { ...state, config: { ...state.config, rng: constantRng(0.999) } }, // roll 6 -> revives (threshold 5)
+    'Gravekeeper Fowl',
+    predator.health,
+    'p1',
+  );
+  const [reviveEntry] = combatRollEntries(revived);
+  assert.ok(reviveEntry);
+  assert.equal(reviveEntry.kind, 'revive');
+  assert.equal(reviveEntry.roll, 6);
+  assert.equal(reviveEntry.triggered, true);
+  assert.equal(reviveEntry.targetType, 'predator');
+  assert.equal(reviveEntry.targetName, 'Gravekeeper Fowl');
+  assert.equal(revived.predators.find((p) => p.name === 'Gravekeeper Fowl')!.defeated, false);
+
+  const notRevived = applyDirectPredatorDamage(
+    { ...state, config: { ...state.config, rng: constantRng(0) } }, // roll 1 -> stays defeated
+    'Gravekeeper Fowl',
+    predator.health,
+    'p1',
+  );
+  const [missEntry] = combatRollEntries(notRevived);
+  assert.equal(missEntry.roll, 1);
+  assert.equal(missEntry.triggered, false);
+  assert.equal(notRevived.predators.find((p) => p.name === 'Gravekeeper Fowl')!.defeated, true);
 });

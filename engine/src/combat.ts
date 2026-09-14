@@ -478,6 +478,7 @@ function grantPredatorDefeatConsequences(
   const defeatedPredator = state.predators.find((p) => p.name === predatorName)!;
   const reviveRule = PREDATOR_EFFECTS[predatorName]?.[defeatedPredator.stage]?.onDefeatRevive;
   let revives = false;
+  let revivedRoll: number | null = null;
   if (reviveRule) {
     const rolled = rollDie(state.config.rng);
     if (killer.pendingRollIntercept) {
@@ -485,8 +486,10 @@ function grantPredatorDefeatConsequences(
       killer = applied.player;
       players = replacePlayer(players, killer);
       revives = applied.roll >= reviveRule.threshold;
+      revivedRoll = applied.roll;
     } else {
       revives = rolled >= reviveRule.threshold;
+      revivedRoll = rolled;
     }
   }
   const afterRevive = revives
@@ -497,7 +500,24 @@ function grantPredatorDefeatConsequences(
   const anyRegularSurviving = afterRevive.some((p) => !p.isBoss && !p.defeated);
   const predators = anyRegularSurviving ? afterRevive : afterRevive.map((p) => (p.isBoss ? { ...p, revealed: true } : p));
 
-  return { ...state, predators, bonusDeck, players };
+  const actionLog =
+    revivedRoll != null
+      ? [
+          ...state.actionLog,
+          {
+            type: 'combatRoll' as const,
+            playerId: killerId,
+            targetType: 'predator' as const,
+            targetName: predatorName,
+            kind: 'revive' as const,
+            roll: revivedRoll,
+            triggered: revives,
+            effectText: `revives with ${reviveRule!.health} health`,
+          },
+        ]
+      : state.actionLog;
+
+  return { ...state, predators, bonusDeck, players, actionLog };
 }
 
 // Direct damage to a Predator with no return attack and no Predator-roll

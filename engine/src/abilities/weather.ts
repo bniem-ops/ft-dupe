@@ -41,7 +41,8 @@ export const WEATHER_EFFECTS: Record<string, WeatherEffect> = {
     onTurnEnd: (ctx, rng: RNG) => {
       const rollIntercepted = !!ctx.state.players.find((p) => p.id === ctx.playerId)?.pendingRollIntercept;
       const roll = peekRollIntercept(ctx.state, ctx.playerId, rollDie(rng), rng);
-      return { ...(roll <= 2 ? { healthLoss: 1 } : {}), rollIntercepted };
+      const triggered = roll <= 2;
+      return { ...(triggered ? { healthLoss: 1 } : {}), rollIntercepted, roll, triggered };
     },
   },
   'Flash Flood': {
@@ -51,7 +52,8 @@ export const WEATHER_EFFECTS: Record<string, WeatherEffect> = {
     onTurnStart: (ctx, rng: RNG) => {
       const rollIntercepted = !!ctx.state.players.find((p) => p.id === ctx.playerId)?.pendingRollIntercept;
       const roll = peekRollIntercept(ctx.state, ctx.playerId, rollDie(rng), rng);
-      return { ...(roll <= 2 ? { actionsDelta: -1 } : {}), rollIntercepted };
+      const triggered = roll <= 2;
+      return { ...(triggered ? { actionsDelta: -1 } : {}), rollIntercepted, roll, triggered };
     },
   },
   'Pouring Rain': {

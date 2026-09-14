@@ -260,7 +260,12 @@ export interface WeatherEffect {
   // pending roll intercept (Strategem/Deus Eggs Machina/etc.) — Tornado
   // rolls, Earthquake doesn't, so the caller (turn.ts) needs this to know
   // whether to clear PlayerState.pendingRollIntercept afterward.
-  onTurnStart?: (ctx: AbilityContext, rng: RNG) => { actionsDelta?: number; discardAndRedrawBonusCard?: boolean; rollIntercepted?: boolean };
+  // roll: set when this hook actually rolled a die (Tornado) — turn.ts logs
+  // it as a WeatherRollLogEntry. Omitted for hooks that don't roll (Earthquake).
+  onTurnStart?: (
+    ctx: AbilityContext,
+    rng: RNG,
+  ) => { actionsDelta?: number; discardAndRedrawBonusCard?: boolean; rollIntercepted?: boolean; roll?: number; triggered?: boolean };
   // Nighttime/Sunny: "once during this phase," not every turn — gated by
   // PlayerState.weatherAdjustmentUsedThisPhase, reset when a new card is drawn.
   turnStartOncePerPhase?: boolean;
@@ -268,10 +273,19 @@ export interface WeatherEffect {
   onForageCost?: number; // Drought — action cost override (default 1)
   onFirstForageThisTurn?: { bonusFood: number }; // Fair
   onAttack?: (ctx: CombatContext, rng: RNG) => CombatStageResult; // Fog
+  // roll/triggered: set when this hook actually rolled a die (Lightning
+  // Storm) — turn.ts logs it as a WeatherRollLogEntry. Omitted for hooks
+  // that don't roll (Hail, Severe Wind).
   onTurnEnd?: (
     ctx: AbilityContext,
     rng: RNG,
-  ) => { healthLoss?: number; discardChoice?: ('food' | 'egg')[]; rollIntercepted?: boolean }; // Hail/Lightning Storm/Severe Wind — gated by ending Outside, checked by the caller
+  ) => {
+    healthLoss?: number;
+    discardChoice?: ('food' | 'egg')[];
+    rollIntercepted?: boolean;
+    roll?: number;
+    triggered?: boolean;
+  }; // Hail/Lightning Storm/Severe Wind — gated by ending Outside, checked by the caller
   onTurnEndRequiresOutside?: boolean;
   onPhaseEnd?: () => { discardAllFood?: boolean }; // Flash Flood — group-wide, no per-player context needed
   skipNextEggExchange?: boolean; // Pouring Rain

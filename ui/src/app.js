@@ -35,7 +35,12 @@ const SEASON_ORDER = ['Spring', 'Summer', 'Fall'];
 // non-roll entries entirely.
 function rollCaption(entry) {
   if (entry.type === 'productionRoll') return 'Production';
-  if (entry.type === 'combatRoll') return entry.kind === 'fogDodge' ? 'Fog' : entry.targetName;
+  if (entry.type === 'weatherRoll') return entry.cardName;
+  if (entry.type === 'combatRoll') {
+    if (entry.kind === 'fogDodge') return 'Fog';
+    if (entry.kind === 'evasion') return 'Evasion';
+    return entry.targetName;
+  }
   return null;
 }
 const SESSION_STORAGE_KEY = 'flockSessionCode';
@@ -111,6 +116,16 @@ function formatLogEntry(action, playerNames) {
           ? html`${name(action.playerId)} rolled a <b>${action.roll}</b> in the Fog — the attack missed entirely.`
           : html`${name(action.playerId)} rolled a <b>${action.roll}</b> in the Fog — no effect, the attack landed normally.`;
       }
+      if (action.kind === 'evasion') {
+        return action.triggered
+          ? html`${name(action.playerId)} rolled a <b>${action.roll}</b> to dodge — the attack missed entirely.`
+          : html`${name(action.playerId)} rolled a <b>${action.roll}</b> to dodge — no luck, the attack landed.`;
+      }
+      if (action.kind === 'revive') {
+        return action.triggered
+          ? html`${name(action.playerId)} rolled a <b>${action.roll}</b> — ${action.targetName} ${action.effectText}!`
+          : html`${name(action.playerId)} rolled a <b>${action.roll}</b> for ${action.targetName}'s revive roll — it stays down.`;
+      }
       // The stored effect text is inconsistently self-quoted already (some
       // are "4-6: heals 1 health", some aren't quoted at all) — shown bare,
       // same as the dossier's own effect card, rather than double-quoting it.
@@ -119,6 +134,12 @@ function formatLogEntry(action, playerNames) {
         ? html`${name(action.playerId)} rolled a <b>${action.roll}</b> for ${action.targetName}'s ${kindLabel}${action.effectText ? html` — ${action.effectText}` : ''}`
         : html`${name(action.playerId)} rolled a <b>${action.roll}</b> for ${action.targetName}'s ${kindLabel} — no effect.`;
     }
+    // Tornado's turn-start action-loss roll, Lightning Storm's turn-end
+    // health-loss roll (see engine/src/types.ts's WeatherRollLogEntry).
+    case 'weatherRoll':
+      return action.triggered
+        ? html`${name(action.playerId)} rolled a <b>${action.roll}</b> in the ${action.cardName} — ${action.effectText}.`
+        : html`${name(action.playerId)} rolled a <b>${action.roll}</b> in the ${action.cardName} — no effect.`;
     // Superseded by the productionRoll entry the same dispatch also
     // appends (actions.ts's resolveProductionReveal) — the raw action
     // object has no roll value to show, so it'd just be a duplicate,

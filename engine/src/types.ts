@@ -331,7 +331,7 @@ export interface GameState {
   // (never dispatched, so reducer.ts's switch never needs a case for them) —
   // every stage 2/3 player's production roll, visible in the UI's toast/log
   // for trust, whether or not it paused for a reveal decision.
-  actionLog: (Action | ProductionRollLogEntry | CombatRollLogEntry)[];
+  actionLog: (Action | ProductionRollLogEntry | CombatRollLogEntry | WeatherRollLogEntry)[];
   // Phase 11j: board-placed eggs anyone at that location can collect
   // (Bacaw!, Dedication) — a shared resource on the map, not a per-player one.
   boardEggs: Partial<Record<Location, number>>;
@@ -486,7 +486,7 @@ export interface ProductionRollLogEntry {
 // then turned into a CombatRollLogEntry by combat.ts's resolveCombat,
 // which fills in playerId/targetType/targetName once per attack.
 export interface CombatRollLogItem {
-  kind: 'predatorEffect' | 'grubDefend' | 'fogDodge';
+  kind: 'predatorEffect' | 'grubDefend' | 'fogDodge' | 'evasion' | 'revive';
   roll: number;
   // Whether this roll actually produced a game effect (matched a roll-
   // table bracket, or a bespoke custom effect returned anything beyond
@@ -505,6 +505,20 @@ export interface CombatRollLogEntry extends CombatRollLogItem {
   playerId: string; // the attacker
   targetType: 'predator' | 'grub';
   targetName: string; // predator name, or the Grub card's own name
+}
+
+// A per-turn Weather roll made outside of combat — Tornado's onTurnStart
+// action-loss roll, Lightning Storm's onTurnEnd health-loss roll. Same
+// convention as ProductionRollLogEntry/CombatRollLogEntry — appended
+// directly to GameState.actionLog by turn.ts's startTurn/endTurn, never
+// through reducer.ts.
+export interface WeatherRollLogEntry {
+  type: 'weatherRoll';
+  playerId: string;
+  cardName: string;
+  roll: number;
+  triggered: boolean;
+  effectText: string; // what the card does when triggered (e.g. "-1 action")
 }
 
 export function rollDie(rng: RNG): number {
