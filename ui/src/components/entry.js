@@ -1,5 +1,6 @@
 import { html } from 'htm/preact';
 import { useRef, useState } from 'preact/hooks';
+import { HowToPlay } from './howToPlay.js';
 
 const CODE_LENGTH = 4;
 const NAME_STORAGE_KEY = 'flockName';
@@ -11,6 +12,7 @@ const NAME_STORAGE_KEY = 'flockName';
 export function Entry({ onHost, onJoin, onSolo, error }) {
   const [name, setName] = useState(() => localStorage.getItem(NAME_STORAGE_KEY) ?? '');
   const [code, setCode] = useState(['', '', '', '']);
+  const [showHowToPlay, setShowHowToPlay] = useState(false);
   const boxRefs = [useRef(null), useRef(null), useRef(null), useRef(null)];
 
   const trimmedName = name.trim();
@@ -80,6 +82,7 @@ export function Entry({ onHost, onJoin, onSolo, error }) {
       <div class="entry-backdrop"></div>
       <div class="entry-scrim"></div>
       <div class="entry-card">
+        <button type="button" class="entry-howto-btn" onClick=${() => setShowHowToPlay(true)}>How to Play</button>
         <div class="entry-title">
           <div class="entry-wordmark">FLOCK TOGETHER</div>
           <div class="entry-tagline">Survive the season. Keep the flock fed.</div>
@@ -138,6 +141,7 @@ export function Entry({ onHost, onJoin, onSolo, error }) {
           <a href="#" onClick=${handleSolo}>Start a solo roost →</a>
         </div>
       </div>
+      ${showHowToPlay && html`<${HowToPlay} onClose=${() => setShowHowToPlay(false)} />`}
     </div>
   `;
 }

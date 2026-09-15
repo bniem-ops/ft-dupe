@@ -34,6 +34,7 @@ import { ForesightPicker } from './components/foresightPicker.js';
 import { MobilePlay } from './components/mobilePlay.js';
 import { MobilePlayerSheet } from './components/mobilePlayerSheet.js';
 import { DieRoll } from './components/dieRoll.js';
+import { HowToPlay } from './components/howToPlay.js';
 
 const SEASON_ORDER = ['Spring', 'Summer', 'Fall'];
 
@@ -288,6 +289,9 @@ function App() {
   // Desktop-only UI state (≥901px — see styles.css's .gs-side-panel/
   // .avatar-strip). Purely local presentation state, not synced.
   const [tableView, setTableView] = useState(false);
+  // The How to Play reference — purely local presentation state, every
+  // device opens its own copy, nothing to sync.
+  const [showHowToPlay, setShowHowToPlay] = useState(false);
   // A Predator or Grub inspected read-only (no attack armed) — design
   // mockup 6a's dossier doubling as a reference card. Separate from
   // pendingPick since it's a non-committal peek, not part of the action
@@ -939,10 +943,12 @@ function App() {
           )}
         </div>
         <div class="gs-spacer"></div>
+        <button type="button" class="howto-icon-btn" title="How to Play" onClick=${() => setShowHowToPlay(true)}>?</button>
         <button type="button" class="table-view-toggle" onClick=${() => setTableView((v) => !v)}>
           ⤢ ${tableView ? 'Exit table view' : 'Table view'}
         </button>
       </div>
+      ${showHowToPlay && html`<${HowToPlay} onClose=${() => setShowHowToPlay(false)} />`}
 
       <div class="gs-mid">
         ${!tableView && html`<div class="gs-side-panel">${sidebarPanel()}</div>`}
