@@ -4382,9 +4382,43 @@ input.entry-code-box:focus {
   padding: 20px 22px;
 }
 
+/* Section head (title + one-line flavor sub-line) shared by the numbered
+   Grub/Exchange sections — README "Sections are numbered ... Numbering
+   matters: it tells the table this is a sequence with a payoff at the
+   end." */
+.dayend-section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  flex-wrap: wrap;
+  margin-bottom: 9px;
+}
+
+/* Status chip in the day-end header, right-aligned via .dossier-spacer.
+   `.rollover` swaps the neutral tint for ochre on a season-boundary day
+   (README "Season rollover"). */
+.dayend-chip {
+  padding: 4px 9px;
+  border-radius: 5px;
+  background: rgba(74, 53, 39, 0.12);
+  border: 1px solid rgba(74, 53, 39, 0.25);
+  font: 700 9px var(--font-ui);
+  letter-spacing: 0.12em;
+  color: rgba(74, 53, 39, 0.7);
+  white-space: nowrap;
+}
+
+.dayend-chip.rollover {
+  background: rgba(201, 135, 63, 0.2);
+  border-color: rgba(201, 135, 63, 0.55);
+  color: #8a5a2a;
+}
+
 /* Two selectable Grub cards side by side — health/effect/reward for both,
    so the discard decision doesn't require remembering what the other side
-   held (playtest feedback, 2026-08-23). */
+   held (playtest feedback, 2026-08-23). Grid-laid-out so the same four
+   pieces (side label, hearts, art, name) can be rearranged between
+   breakpoints via grid-template-areas — see the ≤560px block below. */
 .grub-choice-row {
   display: flex;
   gap: 12px;
@@ -4415,62 +4449,92 @@ input.entry-code-box:focus {
   box-shadow: 0 0 0 2px rgba(138, 90, 42, 0.3);
 }
 
-.grub-choice-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.grub-choice-content {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    'side hearts'
+    'art art'
+    'name name'
+    'deflabel deflabel'
+    'deftext deftext'
+    'rewlabel rewlabel'
+    'rewtext rewtext'
+    'tag tag';
+}
+
+.gc-side {
+  grid-area: side;
   font-family: var(--font-display);
   font-size: 10.5px;
   letter-spacing: 0.1em;
-  margin-bottom: 8px;
+  align-self: center;
 }
 
-.grub-choice-header .hearts {
+.gc-hearts {
+  grid-area: hearts;
+  align-self: center;
+  justify-self: end;
+}
+
+.gc-hearts .hearts {
   margin: 0;
 }
 
-.grub-choice-header .heart.full {
+.gc-hearts .heart.full {
   color: var(--gs-blood);
 }
 
-.grub-choice-header .heart.empty {
+.gc-hearts .heart.empty {
   color: rgba(74, 53, 39, 0.25);
 }
 
-.grub-choice-art {
+.gc-art {
+  grid-area: art;
   height: 56px;
   border-radius: 8px;
   background: radial-gradient(circle at 50% 40%, #d8c69a, #c9b48a);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 8px;
+  margin: 8px 0;
 }
 
-.grub-choice-art .monogram {
+.gc-art .monogram {
   font-family: var(--font-display);
   font-size: 22px;
   color: var(--gs-notebook-text);
 }
 
-.grub-choice-name {
+.gc-name {
+  grid-area: name;
   font-family: var(--font-display);
   font-size: 13px;
   margin-bottom: 6px;
 }
 
 .grub-choice-label {
+  grid-area: deflabel;
   font-size: 9px;
   letter-spacing: 0.1em;
   color: rgba(74, 53, 39, 0.55);
   margin-top: 6px;
 }
 
+.grub-choice-label ~ .grub-choice-label {
+  grid-area: rewlabel;
+}
+
 .grub-choice-text {
+  grid-area: deftext;
   font-family: var(--font-flavor);
   font-size: 12px;
   line-height: 1.4;
   color: rgba(74, 53, 39, 0.85);
+}
+
+.grub-choice-text ~ .grub-choice-text {
+  grid-area: rewtext;
 }
 
 .grub-choice-empty {
@@ -4480,6 +4544,7 @@ input.entry-code-box:focus {
 }
 
 .grub-choice-tag {
+  grid-area: tag;
   margin-top: 8px;
   font-size: 9px;
   letter-spacing: 0.08em;
@@ -4487,39 +4552,630 @@ input.entry-code-box:focus {
   color: #8a5a2a;
 }
 
+/* --- Egg Exchange: the table's shared ledger (README "Egg Exchange —
+   rebuilt as the table's shared ledger") --- */
+
+.dayend-weather-callout {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  margin-bottom: 10px;
+}
+
+.dayend-weather-callout.boon {
+  background: rgba(95, 127, 78, 0.16);
+  border: 1.5px solid rgba(95, 127, 78, 0.5);
+}
+
+.dayend-weather-callout.hazard {
+  background: rgba(140, 59, 52, 0.14);
+  border: 1.5px solid rgba(140, 59, 52, 0.45);
+}
+
+.dayend-weather-chip {
+  flex: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font: 700 8.5px var(--font-ui);
+  letter-spacing: 0.12em;
+}
+
+.dayend-weather-callout.boon .dayend-weather-chip {
+  background: var(--gs-field);
+  color: #f4ecd6;
+}
+
+.dayend-weather-callout.hazard .dayend-weather-chip {
+  background: var(--gs-blood);
+  color: #f4ecd6;
+}
+
 .egg-exchange-rows {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 7px;
 }
 
 .egg-exchange-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  font-size: 13px;
+  gap: 11px;
+  padding: 9px 11px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.34);
+  border: 1.5px solid rgba(74, 53, 39, 0.2);
 }
 
-.egg-exchange-row input {
-  width: 60px;
-  padding: 6px 8px;
-  border-radius: 6px;
-  border: 1px solid rgba(74, 53, 39, 0.3);
-  background: rgba(255, 255, 255, 0.6);
+.egg-exchange-row.mine {
+  background: rgba(255, 255, 255, 0.62);
+  border-color: #8a5a2a;
+}
+
+.egg-exchange-avatar-wrap {
+  position: relative;
+  flex: none;
+}
+
+.egg-exchange-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--gs-notebook-text);
+  color: #f4ecd6;
+  font: 700 11px var(--font-ui);
+}
+
+.egg-exchange-avatar.mine {
+  background: #c9873f;
+}
+
+/* Below 380px the status tag is dropped in favor of this dot (README
+   Mobile: "Drop the status tag to a 6px dot ... rather than truncating
+   names") — hidden above that width, see the media query below. */
+.egg-exchange-dot {
+  display: none;
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(74, 53, 39, 0.35);
+  border: 1px solid var(--gs-notebook);
+}
+
+.egg-exchange-dot.set {
+  background: var(--gs-field);
+}
+
+.egg-exchange-dot.cannot {
+  background: var(--gs-blood);
+}
+
+.egg-exchange-info {
+  min-width: 132px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.egg-exchange-name {
+  font: 700 13px var(--font-ui);
   color: var(--gs-notebook-text);
-  font-family: var(--font-ui);
+}
+
+.egg-exchange-holding {
+  font: italic 11.5px var(--font-flavor);
+  color: rgba(74, 53, 39, 0.6);
+}
+
+.egg-exchange-stepper {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.egg-exchange-step-btn {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1.5px solid rgba(74, 53, 39, 0.35);
+  background: rgba(255, 255, 255, 0.5);
+  color: var(--gs-notebook-text);
+  font: 700 17px var(--font-ui);
+  cursor: pointer;
+}
+
+.egg-exchange-step-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.egg-exchange-amount {
+  min-width: 34px;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 18px;
+  color: var(--gs-notebook-text);
 }
 
 /* Another player's own row — read-only, they set it from their own device
-   (playtest-feedback.md 2026-09-14 "Egg Exchange"). */
+   (playtest-feedback.md 2026-09-14 "Egg Exchange"). Dashed, not solid: it
+   reads as "theirs, not yours." */
 .egg-exchange-readonly {
-  width: 60px;
-  padding: 6px 8px;
+  flex: none;
+  min-width: 40px;
   text-align: center;
+  padding: 6px 8px;
+  border-radius: 7px;
+  background: rgba(74, 53, 39, 0.08);
+  border: 1px dashed rgba(74, 53, 39, 0.3);
+  font-family: var(--font-display);
+  font-size: 15px;
   color: var(--gs-notebook-text);
-  opacity: 0.7;
+}
+
+.egg-exchange-yield {
+  font: italic 12.5px var(--font-flavor);
+  color: rgba(74, 53, 39, 0.55);
+}
+
+.egg-exchange-yield.active {
+  font: 700 13px var(--font-ui);
+  color: #3f5c34;
+}
+
+.egg-exchange-tag {
+  flex: none;
+  margin-left: auto;
+  font: 700 8.5px var(--font-ui);
+  letter-spacing: 0.12em;
+}
+
+.egg-exchange-tag.set {
+  color: var(--gs-field);
+}
+
+.egg-exchange-tag.deciding,
+.egg-exchange-tag.nothing {
+  color: rgba(74, 53, 39, 0.5);
+}
+
+.egg-exchange-tag.cannot {
+  color: var(--gs-blood);
+}
+
+.egg-exchange-footnote {
+  margin-top: 2px;
+  font: italic 12px/1.4 var(--font-flavor);
+  color: rgba(74, 53, 39, 0.6);
+}
+
+/* Step 3 — pure anticipation, no control (README "This section exists so
+   the reveal isn't a surprise modal"). */
+.dayend-weather-teaser {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+
+.dayend-weather-stub {
+  flex: none;
+  width: 56px;
+  height: 76px;
+  border-radius: 7px;
+  border: 1.5px dashed rgba(74, 53, 39, 0.45);
+  background-color: rgba(74, 53, 39, 0.08);
+  background-image: repeating-linear-gradient(135deg, rgba(43, 36, 28, 0.22) 0 2px, transparent 2px 7px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 19px;
+  color: rgba(74, 53, 39, 0.45);
+}
+
+.dayend-weather-teaser-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+/* --- Step 2 — Reveal: the face-down/face-up weather card + the ledger
+   receipt (README "Screen: End of Day overlay" / "Step 2 — Reveal"). --- */
+.dayend-reveal-body {
+  display: flex;
+  flex-direction: row;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+.dayend-reveal-card-col {
+  flex: none;
+}
+
+@keyframes wreveal {
+  from {
+    transform: scale(0.94);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+.dayend-weather-card {
+  position: relative;
+  flex: none;
+  width: 200px;
+  height: 270px;
+  padding: 0;
+  border-radius: 11px;
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-family: var(--font-ui);
+}
+
+.dayend-weather-card.face-down {
+  border: 2px solid var(--gs-wood-900);
+  background: var(--gs-wood-700);
+  cursor: pointer;
+}
+
+.dayend-weather-card.face-up {
+  border: 2px solid var(--gs-notebook-border);
+  background: var(--gs-page-light);
+  cursor: default;
+  animation: wreveal 0.42s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dayend-weather-card.face-up {
+    animation: none;
+  }
+}
+
+.dayend-card-hatch {
+  position: absolute;
+  inset: 0;
+  background-color: #4a3527;
+  background-image: repeating-linear-gradient(135deg, rgba(43, 36, 28, 0.22) 0 2px, transparent 2px 7px);
+}
+
+.dayend-card-back-text {
+  position: relative;
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  color: rgba(244, 236, 214, 0.85);
+  text-align: center;
+  line-height: 1.5;
+}
+
+.dayend-card-qmark {
+  font-size: 22px;
+}
+
+.dayend-card-prompt {
+  font: 600 9.5px var(--font-ui);
+  letter-spacing: 0.1em;
+}
+
+.dayend-card-inner {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  text-align: left;
+}
+
+.dayend-card-season-band {
+  display: block;
+  padding: 7px 10px;
+  color: #f4ecd6;
+  font-family: var(--font-display);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
+
+.dayend-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 12px 12px 14px;
+  flex: 1;
+  min-height: 0;
+}
+
+.dayend-card-name {
+  font-family: var(--font-display);
+  font-size: 19px;
+  color: var(--gs-notebook-text);
+  line-height: 1.05;
+}
+
+.dayend-card-valence {
+  align-self: flex-start;
+  padding: 3px 7px;
+  border-radius: 4px;
+  font: 700 8px var(--font-ui);
+  letter-spacing: 0.12em;
+}
+
+.dayend-card-valence.boon {
+  background: rgba(95, 127, 78, 0.18);
+  border: 1px solid rgba(95, 127, 78, 0.55);
+  color: #3f5c34;
+}
+
+.dayend-card-valence.hazard {
+  background: rgba(140, 59, 52, 0.18);
+  border: 1px solid rgba(140, 59, 52, 0.5);
+  color: var(--gs-blood);
+}
+
+.dayend-card-effect {
+  font: 14px/1.4 var(--font-flavor);
+  color: var(--gs-page-ink);
+}
+
+.dayend-card-range {
+  margin-top: auto;
+  font: 700 8.5px var(--font-ui);
+  letter-spacing: 0.12em;
+  color: rgba(74, 53, 39, 0.55);
+}
+
+.dayend-ledger-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.dayend-ledger-intro {
+  font-style: italic;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.dayend-ledger {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.dayend-ledger-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 7px 9px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(74, 53, 39, 0.16);
+}
+
+.dayend-ledger-mark {
+  flex: none;
+  font: 700 12px var(--font-ui);
+}
+
+.dayend-ledger-mark.good {
+  color: var(--gs-field);
+}
+
+.dayend-ledger-mark.bad {
+  color: var(--gs-blood);
+}
+
+.dayend-ledger-text {
+  font: 13.5px/1.35 var(--font-flavor);
+  color: var(--gs-page-ink);
+}
+
+.dossier-panel.kind-dayend .dossier-footer-note {
+  font: italic 12px var(--font-flavor);
+  color: rgba(74, 53, 39, 0.7);
+}
+
+/* Grid rather than the base .dossier-footer's flex row, so the same three
+   pieces (Back, waiting note, Confirm) can be rearranged at ≤560px (note
+   on its own line above a Back/Confirm row) without duplicating markup —
+   same trick as .grub-choice-content above. */
+.dossier-panel.kind-dayend .dayend-setup-footer {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+}
+
+.dossier-panel.kind-dayend .dayend-setup-footer .dossier-footer-note {
+  justify-self: end;
+  text-align: right;
+}
+
+.dossier-panel.kind-dayend .dayend-reveal-footer {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+}
+
+/* --- Day-end overlay at ≤560px (README "Mobile (≤560px) — explicitly
+   specified") — this overlay has no separate mobile component
+   (mobilePlay.js defers to app.js's TurnControls), so these rules are
+   load-bearing, not polish. Verified down to 360px. --- */
+@media (max-width: 560px) {
+  .dossier-backdrop {
+    padding: 10px;
+  }
+  .dossier-panel.kind-dayend {
+    max-height: 100%;
+    /* The base .dossier-panel sizes to its content and scrolls itself as a
+       whole once it hits max-height — that would scroll the header/footer
+       along with everything else. Giving the panel a real height (instead
+       of just a cap) lets .dossier-stack-body's own flex:1/overflow-y do
+       the scrolling instead, keeping header and footer pinned. */
+    height: calc(100vh - 20px);
+    overflow-y: hidden;
+    border-radius: 14px;
+  }
+  .dossier-panel.kind-dayend .dossier-header {
+    padding: 11px 13px;
+    gap: 8px;
+  }
+  .dossier-panel.kind-dayend .dossier-title {
+    font-size: 16px;
+  }
+  .dossier-panel.kind-dayend .dossier-stack-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 13px;
+    gap: 13px;
+  }
+
+  /* Grub cards stack, and the header row becomes a compact horizontal
+     tile — see .grub-choice-content's grid-template-areas above. */
+  .grub-choice-row {
+    flex-direction: column;
+  }
+  .grub-choice-content {
+    grid-template-columns: 44px 1fr auto;
+    grid-template-areas:
+      'art side hearts'
+      'art name name'
+      'deflabel deflabel deflabel'
+      'deftext deftext deftext'
+      'rewlabel rewlabel rewlabel'
+      'rewtext rewtext rewtext'
+      'tag tag tag';
+    column-gap: 9px;
+    align-items: center;
+  }
+  .gc-art {
+    width: 44px;
+    height: 44px;
+    margin: 0;
+  }
+  .gc-art .monogram {
+    font-size: 16px;
+  }
+  .gc-side {
+    align-self: end;
+    font: 700 9px var(--font-ui);
+    letter-spacing: 0.12em;
+    color: rgba(74, 53, 39, 0.55);
+  }
+  .gc-name {
+    align-self: start;
+    margin-bottom: 0;
+  }
+  .gc-hearts {
+    align-self: center;
+  }
+
+  /* Exchange rows become two lines: identity + status on line 1, stepper
+     + yield on line 2 — the row switches from a single flex line to block
+     flow so the second line can wrap under the first. */
+  .egg-exchange-row {
+    display: block;
+  }
+  .egg-exchange-row > .egg-exchange-avatar-wrap,
+  .egg-exchange-row > .egg-exchange-info,
+  .egg-exchange-row > .egg-exchange-tag {
+    display: inline-flex;
+    vertical-align: middle;
+  }
+  .egg-exchange-row > .egg-exchange-tag {
+    float: right;
+  }
+  .egg-exchange-row > .egg-exchange-stepper,
+  .egg-exchange-row > .egg-exchange-readonly,
+  .egg-exchange-row > .egg-exchange-yield {
+    display: inline-flex;
+    margin-top: 8px;
+    vertical-align: middle;
+  }
+  .egg-exchange-row > .egg-exchange-yield {
+    display: inline-block;
+    margin-left: 8px;
+  }
+  .egg-exchange-step-btn {
+    width: 46px;
+    height: 46px;
+  }
+
+  /* Below 380px the name and status tag compete for line 1 — drop the
+     text tag for a small dot on the avatar instead of truncating names. */
+  @media (max-width: 380px) {
+    .egg-exchange-row > .egg-exchange-tag {
+      display: none;
+    }
+    .egg-exchange-dot {
+      display: block;
+    }
+  }
+
+  /* Matching the desktop rules' .dossier-panel.kind-dayend prefix here
+     isn't just tidiness — without it these lose the specificity fight to
+     the desktop rules above (more chained classes beats media-query source
+     order) and silently never apply. */
+  .dossier-panel.kind-dayend .dayend-setup-footer {
+    grid-template-columns: auto 1fr;
+    grid-template-areas: 'note note' 'back confirm';
+    row-gap: 8px;
+    column-gap: 8px;
+  }
+  .dossier-panel.kind-dayend .dayend-setup-footer .dossier-footer-note {
+    grid-area: note;
+    justify-self: start;
+    text-align: left;
+  }
+  .dossier-panel.kind-dayend .dayend-setup-footer .dossier-btn-secondary {
+    grid-area: back;
+    justify-self: start;
+    min-height: 46px;
+  }
+  .dossier-panel.kind-dayend .dayend-setup-footer .dossier-btn-confirm {
+    grid-area: confirm;
+    min-height: 46px;
+  }
+  .dossier-panel.kind-dayend .dayend-reveal-footer {
+    grid-template-columns: 1fr;
+  }
+  .dossier-panel.kind-dayend .dayend-reveal-footer .dossier-footer-note {
+    margin-bottom: 8px;
+  }
+  .dossier-panel.kind-dayend .dayend-reveal-footer .dossier-btn-confirm {
+    width: 100%;
+    min-height: 46px;
+  }
+
+  /* Reveal step stacks: card centred above the ledger rather than beside
+     it (the two-column layout doesn't fit at this width). */
+  .dayend-reveal-body {
+    flex-direction: column;
+    align-items: center;
+  }
+  .dayend-weather-card {
+    width: 186px;
+    height: 254px;
+  }
+  .dayend-ledger-col {
+    width: 100%;
+  }
 }
 
 /* --- Mobile bottom sheet (hidden ≥901px) --- */

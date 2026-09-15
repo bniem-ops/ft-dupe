@@ -7,10 +7,17 @@ import {
   startTurn,
   endTurn,
   isLastPlayerOfDay,
+  isLastDayOfPhase,
   advanceDay,
   useExtraActionToken,
   randomizePredatorSelection,
   dealChickenChoices,
+  loadGrubCards,
+  activeWeatherName,
+  activeWeatherEffect,
+  isImmuneToWeather,
+  getActiveChickenAbilities,
+  seasonCardList,
 } from './engine.js';
 import { Entry } from './components/entry.js';
 import { SoloSetup } from './components/soloSetup.js';
@@ -170,6 +177,90 @@ function advanceToNextActor(state) {
   }
 }
 
+// Snapshots what advanceDay is about to do so the day-end reveal step can
+// narrate it afterward (design_handoff_day_end/README.md "Engine / data
+// changes required" #1) — advanceDay's own discard-and-redeal has already
+// overwritten the discarded Grub's identity by the time `after` exists
+// (turn.ts's performDailyGrubDiscard discards *and* deals a replacement in
+// one pass), and everyone's pre-trade eggs/food are gone too, so both have
+// to be read from `before`. Called with the state as it was right before
+// advanceDay and the state it returned; nothing here re-derives anything
+// advanceDay itself doesn't already compute — it just captures the same
+// facts a second time, in a form the reveal can hang copy on.
+function buildDayEndReveal(before, discardSide, exchanges, after) {
+  const insideHasCard = !!before.grubDecks.inside.faceUp;
+  const outsideHasCard = !!before.grubDecks.outside.faceUp;
+  const effectiveSide =
+    discardSide === 'inside' && !insideHasCard && outsideHasCard
+      ? 'outside'
+      : discardSide === 'outside' && !outsideHasCard && insideHasCard
+        ? 'inside'
+        : discardSide;
+  const discardedFaceUp = before.grubDecks[effectiveSide].faceUp;
+  const discardedGrub = discardedFaceUp
+    ? { side: effectiveSide, cardName: loadGrubCards()[discardedFaceUp.cardId]?.name ?? null }
+    : null;
+
+  const exchangeApplies = isLastDayOfPhase(before.day) && !(before.season === 'Fall' && before.day === 7);
+  const exchangeEntries = exchangeApplies
+    ? before.players
+        .filter((p) => p.alive)
+        .map((p) => {
+          const amount = exchanges.find((e) => e.playerId === p.id)?.amount ?? 0;
+          const weatherEffect = activeWeatherEffect(before, p.id);
+          const weatherName = activeWeatherName(before, p.id) ?? '';
+          const rate = getActiveChickenAbilities(p.chickenName, p.stage).reduce((r, a) => a.eggExchangeRate ?? r, 1);
+          let blockedReason = null;
+          if (p.statusEffectsUntilNextEggExchange.includes('cannotParticipateInEggExchange')) {
+            blockedReason = 'predator';
+          } else if (
+            weatherEffect?.skipNextEggExchange &&
+            !isImmuneToWeather(p.chickenName, p.stage, weatherName, weatherEffect.positive ?? false) &&
+            !p.pendingWeatherImmuneUntilNextTurn &&
+            !p.permanentWeatherImmuneUntilNextCard
+          ) {
+            blockedReason = 'pouringRain';
+          }
+          const bonus = weatherEffect?.eggExchangeBonusFoodIfParticipating ?? 0;
+          const food = blockedReason ? 0 : amount * rate + (amount > 0 ? bonus : 0);
+          return { playerId: p.id, eggs: amount, food, rate, bonus: amount > 0 ? bonus : 0, blockedReason };
+        })
+    : [];
+
+  const seasonRolledOver = after.season !== before.season;
+  const predatorLevelUps = seasonRolledOver
+    ? after.predators.filter((p, i) => !p.defeated && p.stage !== before.predators[i].stage).map((p) => p.name)
+    : [];
+
+  const personalCards = exchangeApplies
+    ? after.players
+        .filter((p) => p.alive && p.personalWeatherOverride)
+        .map((p) => ({
+          playerId: p.id,
+          // The override carries its own season (usually `after.season`,
+          // but read from the override itself to match how the engine's
+          // own cardNameAt resolves it — see abilities/weather.ts).
+          cardName:
+            seasonCardList(p.personalWeatherOverride.season.toLowerCase(), after.config.eggspansion)[p.personalWeatherOverride.cardIndex]?.name ?? null,
+        }))
+    : [];
+
+  return {
+    day: after.day,
+    season: after.season,
+    phase: after.phase,
+    fromSeason: before.season,
+    fromWeather: activeWeatherName(before),
+    toWeather: activeWeatherName(after),
+    discardedGrub,
+    exchanges: exchangeEntries,
+    flashFloodFired: exchangeApplies && !!activeWeatherEffect(before)?.onPhaseEnd?.()?.discardAllFood,
+    seasonRolledOver,
+    predatorLevelUps,
+    personalCards,
+  };
+}
+
 function App() {
   const [screen, setScreen] = useState('entry');
   const [gameState, setGameState] = useState(null);
@@ -180,6 +271,16 @@ function App() {
   // the submitting device ever reads (playtest-feedback.md 2026-09-14 "Egg
   // Exchange").
   const [pendingExchanges, setPendingExchangesState] = useState({});
+  // The day-end reveal step's ledger data (README "dayEndReveal"), synced
+  // alongside `state`/`dayEndPending` — null means the day-end overlay (if
+  // showing at all) is still on the setup step. Dismissing the reveal is
+  // deliberately NOT a synced write (see handleDismissDayEndReveal) — each
+  // device dismisses on its own tap — so dismissedRevealKeyRef remembers
+  // which reveal THIS device already dismissed, to stop the next unrelated
+  // Firestore snapshot (which still carries the old dayEndPending/
+  // dayEndReveal until the next real day-end opens) from resurrecting it.
+  const [dayEndReveal, setDayEndReveal] = useState(null);
+  const dismissedRevealKeyRef = useRef(null);
   const [pendingPick, setPendingPick] = useState(null);
   // Mobile UI state (≤900px — see styles.css's .mobile-play-*, design
   // mockups 7a-7c). Purely local presentation state, not synced.
@@ -304,7 +405,10 @@ function App() {
       if (doc.state) {
         const synced = fromSyncedDoc(doc.state);
         setGameState(synced);
-        setDayEndPending(!!doc.dayEndPending);
+        const reveal = doc.dayEndReveal ?? null;
+        const revealKey = reveal ? `${reveal.day}|${reveal.season}` : null;
+        setDayEndReveal(reveal);
+        setDayEndPending(dismissedRevealKeyRef.current && dismissedRevealKeyRef.current === revealKey ? false : !!doc.dayEndPending);
         setPendingExchangesState(doc.pendingExchanges ?? {});
         setScreen(synced.gameOver ? 'gameOver' : 'game');
         return;
@@ -385,10 +489,10 @@ function App() {
   // Firestore; every device (including this one) then re-renders from
   // whatever onSnapshot delivers back, so this local setGameState is just
   // an optimistic preview, not the final word.
-  function applyStateUpdate(next, dayEnd = dayEndPending) {
+  function applyStateUpdate(next, dayEnd = dayEndPending, reveal) {
     setGameState(next);
     if (next.gameOver) setScreen('gameOver');
-    remoteSession.pushState(sessionCode, next, dayEnd).catch((e) => setError(e.message));
+    remoteSession.pushState(sessionCode, next, dayEnd, reveal).catch((e) => setError(e.message));
     return next;
   }
 
@@ -405,11 +509,16 @@ function App() {
     setPendingPick(null);
     if (!isLastPlayerOfDay(gameState)) {
       const { state, dayEnd } = advanceToNextActor(endTurn(gameState));
-      applyStateUpdate(state, dayEnd);
+      // Clear any lingering reveal the moment a new day-end opens — `step`
+      // in TurnControls is derived from dayEndReveal, so a stale one here
+      // would show yesterday's ledger instead of today's setup step.
+      applyStateUpdate(state, dayEnd, dayEnd ? null : undefined);
       setDayEndPending(dayEnd);
+      if (dayEnd) setDayEndReveal(null);
     } else {
       setDayEndPending(true);
-      remoteSession.pushState(sessionCode, gameState, true).catch((e) => setError(e.message));
+      setDayEndReveal(null);
+      remoteSession.pushState(sessionCode, gameState, true, null).catch((e) => setError(e.message));
     }
   }
 
@@ -427,22 +536,47 @@ function App() {
 
   function handleDayEndSubmit({ discardSide, exchanges }) {
     try {
-      let s = advanceDay(gameState, { discardSide, exchanges });
+      const before = gameState;
+      let s = advanceDay(before, { discardSide, exchanges });
       remoteSession.clearPendingExchanges(sessionCode).catch((e) => setError(e.message));
       setPendingExchangesState({});
       if (s.gameOver) {
-        applyStateUpdate(s, false);
+        // Fall day 7 — advanceDay ends the game before the exchange block
+        // ever runs, so there's no reveal to show; the outcome dossier
+        // takes over instead (README "Fall day 7 — no day-end screen worth
+        // designing").
+        applyStateUpdate(s, false, null);
         setDayEndPending(false);
+        setDayEndReveal(null);
         return;
       }
+      const reveal = buildDayEndReveal(before, discardSide, exchanges, s);
       s = endTurn(s); // advanceDay doesn't reset currentPlayerIndex itself
-      const { state, dayEnd } = advanceToNextActor(s);
-      applyStateUpdate(state, dayEnd);
-      setDayEndPending(dayEnd);
+      const { state } = advanceToNextActor(s);
+      // The overlay stays up for the reveal step regardless of whether the
+      // fresh day would itself immediately need another day-end prompt —
+      // handleDismissDayEndReveal resolves that for real once the reveal
+      // is dismissed, from whatever `state` looks like by then.
+      applyStateUpdate(state, true, reveal);
+      setDayEndPending(true);
+      setDayEndReveal(reveal);
       setError(null);
     } catch (e) {
       setError(e.message);
     }
+  }
+
+  // Local-only dismissal (README "Dismissal"): the reveal is informational
+  // and nothing at the table waits on it, so tapping past it never writes
+  // to Firestore — it just stops showing it on this device, and records
+  // which reveal was dismissed so the snapshot handler above doesn't
+  // reopen the same one from a later, unrelated write. Recomputes whether
+  // a day-end prompt is needed from the current state rather than trusting
+  // a value stashed at submit time, since dismissal can happen well after.
+  function handleDismissDayEndReveal() {
+    dismissedRevealKeyRef.current = dayEndReveal ? `${dayEndReveal.day}|${dayEndReveal.season}` : null;
+    setDayEndReveal(null);
+    setDayEndPending(isLastPlayerOfDay(gameState));
   }
 
   // Optimistic-local + fire-and-forget sync, same pattern as everywhere
@@ -778,6 +912,8 @@ function App() {
         playerNames=${playerNames}
         pendingExchanges=${pendingExchanges}
         onSetExchangeAmount=${handleSetExchangeAmount}
+        dayEndReveal=${dayEndReveal}
+        onDismissReveal=${handleDismissDayEndReveal}
       />`}
 
       <div class="gs-topbar">

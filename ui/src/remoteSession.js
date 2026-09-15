@@ -76,6 +76,7 @@ async function createSession(hostConfig) {
     startingLocations: {}, // { [playerId]: Location } — set alongside chosenChicken, for chickens with mayChooseStartingLocation (Traveler, Free Range)
     state: null, // synced GameState — set once every seat has chosenChicken
     dayEndPending: false,
+    dayEndReveal: null, // day-end overlay's reveal-step ledger — see pushState below
     pendingExchanges: {}, // { [playerId]: amount } — see setPendingExchange below
   });
   return code;
@@ -164,10 +165,20 @@ async function setReady(code, playerId, ready) {
 // player's turn and is now waiting on the Egg Exchange/Grub-discard
 // prompt?), not something recoverable from GameState alone (currentPlayerIndex
 // stays "last player" for that player's whole turn, not just its end).
-async function pushState(code, gameState, dayEndPending) {
+//
+// `dayEndReveal` (design_handoff_day_end/README.md) is the day-end
+// overlay's second step's ledger data — same shape of transient flow
+// state as dayEndPending, so it rides along the same way. `undefined`
+// (the default — every existing call site that doesn't pass a 4th arg)
+// leaves whatever's already in Firestore alone, same as
+// ignoreUndefinedProperties already does for any other field; pass `null`
+// explicitly to clear it, or the reveal object to set it.
+async function pushState(code, gameState, dayEndPending, dayEndReveal) {
   const database = getDb();
   if (!database) throw new Error('Firebase not configured');
-  await setDoc(doc(database, 'sessions', code), { state: toSyncedState(gameState), dayEndPending }, { merge: true });
+  const payload = { state: toSyncedState(gameState), dayEndPending };
+  if (dayEndReveal !== undefined) payload.dayEndReveal = dayEndReveal;
+  await setDoc(doc(database, 'sessions', code), payload, { merge: true });
 }
 
 // playtest-feedback.md 2026-09-14 "Egg Exchange": the day-end Egg Exchange
