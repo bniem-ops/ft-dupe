@@ -81,65 +81,68 @@ export function Entry({ onHost, onJoin, onSolo, error }) {
     <div class="entry-screen">
       <div class="entry-backdrop"></div>
       <div class="entry-scrim"></div>
-      <div class="entry-card">
-        <button type="button" class="entry-howto-btn" onClick=${() => setShowHowToPlay(true)}>How to Play</button>
-        <div class="entry-title">
-          <div class="entry-wordmark">FLOCK TOGETHER</div>
-          <div class="entry-tagline">Survive the season. Keep the flock fed.</div>
-        </div>
+      <div class="entry-stack">
+        <div class="entry-card">
+          <div class="entry-title">
+            <div class="entry-wordmark">FLOCK TOGETHER</div>
+            <div class="entry-tagline">Survive the season. Keep the flock fed.</div>
+          </div>
 
-        ${error && html`<div class="error-banner">${error}</div>`}
+          ${error && html`<div class="error-banner">${error}</div>`}
 
-        <div class="field entry-name-field">
-          <label>YOUR NAME</label>
-          <input
-            type="text"
-            value=${name}
-            onInput=${(e) => setName(e.target.value)}
-            onBlur=${saveName}
-            placeholder="Enter your name"
-            maxlength="20"
-          />
-        </div>
+          <div class="field entry-name-field">
+            <label>YOUR NAME</label>
+            <input
+              type="text"
+              value=${name}
+              onInput=${(e) => setName(e.target.value)}
+              onBlur=${saveName}
+              placeholder="Enter your name"
+              maxlength="20"
+            />
+          </div>
 
-        <div class="entry-actions">
-          <button type="button" class="entry-host-btn" disabled=${!trimmedName} onClick=${handleHost}>
-            HOST A FLOCK
-          </button>
-          <div class="entry-host-hint">Opens a lobby — you pick the settings while others arrive.</div>
-
-          <div class="entry-divider"><span>OR JOIN ONE</span></div>
-
-          <div class="entry-join-row">
-            <div class="entry-code-boxes">
-              ${code.map(
-                (char, i) => html`<input
-                  key=${i}
-                  ref=${boxRefs[i]}
-                  type="text"
-                  class="entry-code-box"
-                  maxlength=${CODE_LENGTH}
-                  value=${char}
-                  onInput=${(e) => handleBoxInput(i, e)}
-                  onKeyDown=${(e) => handleBoxKeyDown(i, e)}
-                />`,
-              )}
-            </div>
-            <button
-              type="button"
-              class="entry-join-btn"
-              disabled=${!trimmedName || fullCode.length !== CODE_LENGTH}
-              onClick=${handleJoin}
-            >
-              JOIN
+          <div class="entry-actions">
+            <button type="button" class="entry-host-btn" disabled=${!trimmedName} onClick=${handleHost}>
+              HOST A FLOCK
             </button>
+            <div class="entry-host-hint">Opens a lobby — you pick the settings while others arrive.</div>
+
+            <div class="entry-divider"><span>OR JOIN ONE</span></div>
+
+            <div class="entry-join-row">
+              <div class="entry-code-boxes">
+                ${code.map(
+                  (char, i) => html`<input
+                    key=${i}
+                    ref=${boxRefs[i]}
+                    type="text"
+                    class="entry-code-box"
+                    maxlength=${CODE_LENGTH}
+                    value=${char}
+                    onInput=${(e) => handleBoxInput(i, e)}
+                    onKeyDown=${(e) => handleBoxKeyDown(i, e)}
+                  />`,
+                )}
+              </div>
+              <button
+                type="button"
+                class="entry-join-btn"
+                disabled=${!trimmedName || fullCode.length !== CODE_LENGTH}
+                onClick=${handleJoin}
+              >
+                JOIN
+              </button>
+            </div>
+          </div>
+
+          <div class="entry-solo">
+            Playing alone?
+            <a href="#" onClick=${handleSolo}>Start a solo roost →</a>
           </div>
         </div>
 
-        <div class="entry-solo">
-          Playing alone?
-          <a href="#" onClick=${handleSolo}>Start a solo roost →</a>
-        </div>
+        <button type="button" class="entry-howto-btn" onClick=${() => setShowHowToPlay(true)}>How to Play</button>
       </div>
       ${showHowToPlay && html`<${HowToPlay} onClose=${() => setShowHowToPlay(false)} />`}
     </div>
