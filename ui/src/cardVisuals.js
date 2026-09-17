@@ -1,10 +1,12 @@
 // Shared "card anatomy" visual language (design mockup turn 3): every card
 // kind renders as the same frame — a colour band for its kind, a monogram
-// plate standing in for art, and rules text. Grubs/bonus/weather never get
-// real art; predators/chickens are the only kinds expected to eventually.
-// Used by both board.js (board-anchored decks/predators/weather) and
-// playerPanel.js (hand entries), so the same card reads the same way
-// whether it's on the table or in your hand.
+// plate standing in for art, and rules text. The monogram is always
+// rendered; real art (chickens, predators, grubs — see chickenArt.js/
+// predatorArt.js/grubArt.js) layers an <img> on top of it where a file
+// exists, falling back to the bare monogram via onError. Bonus/weather
+// cards have no real art. Used by both board.js (board-anchored decks/
+// predators/weather) and playerPanel.js (hand entries), so the same card
+// reads the same way whether it's on the table or in your hand.
 
 export function monogram(name) {
   if (!name) return '?';

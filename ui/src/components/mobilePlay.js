@@ -52,7 +52,7 @@ function placeInfo(state, location) {
 function MobileBoardOverview({ state, hereLocation, focusMoveTarget, onTapLocation }) {
   return html`
     <div class="mobile-board-overview">
-      <img class="mobile-board-img" src="assets/board-normal.jpg" alt="Flock Together board" />
+      <img class="mobile-board-img" src="assets/boards/board-normal.jpg" alt="Flock Together board" />
       <div class="mobile-board-scrim"></div>
       ${ALL_LOCATIONS.map((loc) => {
         const anchor = BOARD_ANCHORS[LOCATION_ANCHOR_KEY[loc]];

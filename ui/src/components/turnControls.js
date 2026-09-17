@@ -12,6 +12,7 @@ import {
 } from '../engine.js';
 import { monogram, SEASON_COLORS } from '../cardVisuals.js';
 import { Hearts } from './playerPanel.js';
+import { grubImagePath } from '../grubArt.js';
 
 // Fixed by core_rules.md's phase layout (days 1-2 / 3-5 / 6-7 every
 // season) — not derived from seasonPhaseForDay since that maps day->phase,
@@ -46,7 +47,16 @@ function GrubChoiceCard({ side, deckSide, selected, onSelect, readOnly }) {
         ${card && html`<span class="gc-hearts"><${Hearts} health=${health} maxHealth=${maxHealth} /></span>`}
         ${card
           ? html`
-              <div class="gc-art"><span class="monogram">${monogram(card.name)}</span></div>
+              <div class="gc-art">
+                <span class="monogram">${monogram(card.name)}</span>
+                ${grubImagePath(card.name) &&
+                html`<img
+                  class="gc-art-img"
+                  src=${grubImagePath(card.name)}
+                  alt=${card.name}
+                  onError=${(e) => { e.currentTarget.style.display = 'none'; }}
+                />`}
+              </div>
               <div class="gc-name">${card.name ?? 'Unnamed Grub'}</div>
               <div class="grub-choice-label">DEFEND EFFECT</div>
               <div class="grub-choice-text">${card.effect || 'No special effect.'}</div>

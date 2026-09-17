@@ -3,6 +3,7 @@ import { findPredator, loadGrubCards, seasonCardList, OUTSIDE_LOCATIONS, getOwnA
 import { monogram, SEASON_COLORS } from '../cardVisuals.js';
 import { chickenImagePath } from '../chickenArt.js';
 import { predatorImagePath } from '../predatorArt.js';
+import { grubImagePath } from '../grubArt.js';
 
 export const PLAYER_COLORS = ['#c0392b', '#2980b9', '#27ae60', '#8e44ad', '#e67e22', '#16a085'];
 
@@ -148,9 +149,9 @@ function slotStyle(anchorKey) {
 // lighting change), so the BOARD_ANCHORS table above needs no per-tier
 // variant — just the image file swaps.
 function boardImageForDifficulty(difficulty) {
-  if (difficulty <= 3) return 'assets/board-light.jpg';
-  if (difficulty <= 6) return 'assets/board-normal.jpg';
-  return 'assets/board-dark.jpg';
+  if (difficulty <= 3) return 'assets/boards/board-light.jpg';
+  if (difficulty <= 6) return 'assets/boards/board-normal.jpg';
+  return 'assets/boards/board-dark.jpg';
 }
 
 export function playerColor(state, playerId) {
@@ -383,7 +384,17 @@ function GrubDeckBadge({ side, deckSide, state, dispatch, pendingPick, setPendin
         <span>${side === 'inside' ? 'INSIDE GRUB' : 'OUTSIDE GRUB'}</span>
         ${card && html`<span>${deckSide.faceUp.currentHealth}/${card.health}</span>`}
       </div>
-      <div class="card-plate-art"><span class="monogram">${card ? monogram(card.name) : '—'}</span></div>
+      <div class="card-plate-art">
+        <span class="monogram">${card ? monogram(card.name) : '—'}</span>
+        ${card &&
+        grubImagePath(card.name) &&
+        html`<img
+          class="card-plate-portrait-img"
+          src=${grubImagePath(card.name)}
+          alt=${card.name}
+          onError=${(e) => { e.currentTarget.style.display = 'none'; }}
+        />`}
+      </div>
       <div class="card-plate-body">
         ${card ? html`<div class="card-plate-name">${card.name ?? 'Unnamed Grub'}</div>` : html`<div class="ref-text">empty</div>`}
         ${card && html`<div class="ref-text grub-reward-text">Reward: ${card.reward ?? '—'}</div>`}

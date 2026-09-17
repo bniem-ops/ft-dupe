@@ -4,6 +4,7 @@ import { findPredator, loadGrubCards, maxAttackStrengthFor, attackCostFor, parse
 import { monogram } from '../cardVisuals.js';
 import { Hearts } from './playerPanel.js';
 import { predatorImagePath } from '../predatorArt.js';
+import { grubImagePath } from '../grubArt.js';
 
 // Design mockup 6a, generalized to both Predators and Grubs: opens the
 // moment a target is selected during an armed Attack, and is itself the
@@ -80,6 +81,14 @@ export function TargetDossier({ state, dispatch, pendingPick, setPendingPick, my
                 html`<img
                   class="dossier-portrait-img"
                   src=${predatorImagePath(predator.name, predator.stage)}
+                  alt=${name}
+                  onError=${(e) => { e.currentTarget.style.display = 'none'; }}
+                />`}
+                ${!isPredator &&
+                grubImagePath(grubCard.name) &&
+                html`<img
+                  class="dossier-portrait-img"
+                  src=${grubImagePath(grubCard.name)}
                   alt=${name}
                   onError=${(e) => { e.currentTarget.style.display = 'none'; }}
                 />`}

@@ -431,7 +431,7 @@ details {
   inset: -6%;
   width: 112%;
   height: 112%;
-  background: url('assets/board-normal.jpg') center/cover;
+  background: url('assets/boards/board-normal.jpg') center/cover;
   filter: blur(9px) saturate(0.8);
   opacity: 0.5;
 }
@@ -4661,12 +4661,25 @@ input.entry-code-box:focus {
   align-items: center;
   justify-content: center;
   margin: 8px 0;
+  position: relative;
+  overflow: hidden;
 }
 
 .gc-art .monogram {
   font-family: var(--font-display);
   font-size: 22px;
   color: var(--gs-notebook-text);
+}
+
+/* Real Grub art, layered over the monogram fallback — if the image 404s,
+   onError hides it and the monogram shows through untouched, same pattern
+   as the board's predator/chicken portraits. */
+.gc-art-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .gc-name {
