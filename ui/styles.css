@@ -905,8 +905,7 @@ input.entry-code-box:focus {
 }
 
 .perch-name {
-  font-size: 14px;
-  font-weight: 700;
+  font: 600 16px var(--font-flavor);
   color: #f4ecd6;
 }
 
@@ -1100,10 +1099,7 @@ input.entry-code-box:focus {
 
 .draft-predators-label {
   flex: none;
-  font-family: var(--font-ui);
-  font-weight: 700;
-  font-size: 9px;
-  letter-spacing: 0.16em;
+  font: italic 600 12.5px var(--font-flavor);
   line-height: 1.25;
   color: rgba(239, 226, 198, 0.5);
 }
@@ -1311,11 +1307,8 @@ input.entry-code-box:focus {
 }
 
 .draft-stage-label {
-  font-family: var(--font-ui);
-  font-weight: 700;
-  font-size: 8.5px;
-  letter-spacing: 0.14em;
-  color: rgba(74, 53, 39, 0.55);
+  font: italic 600 12px var(--font-flavor);
+  color: #6a5940;
 }
 
 .draft-ability-text {
@@ -1342,11 +1335,8 @@ input.entry-code-box:focus {
   border-radius: 3px;
   background: rgba(74, 53, 39, 0.1);
   border: 1px solid rgba(74, 53, 39, 0.25);
-  font-family: var(--font-ui);
-  font-weight: 700;
-  font-size: 8.5px;
-  letter-spacing: 0.1em;
-  color: rgba(74, 53, 39, 0.7);
+  font: italic 600 12px var(--font-flavor);
+  color: #635437;
 }
 
 .draft-stat-pip b {
@@ -1394,10 +1384,7 @@ input.entry-code-box:focus {
 }
 
 .draft-book-art-kicker {
-  font-family: var(--font-ui);
-  font-weight: 700;
-  font-size: 8.5px;
-  letter-spacing: 0.18em;
+  font: italic 600 12px var(--font-flavor);
   color: rgba(244, 236, 214, 0.8);
 }
 
@@ -1483,10 +1470,7 @@ input.entry-code-box:focus {
 }
 
 .draft-start-at-label {
-  font-family: var(--font-ui);
-  font-weight: 700;
-  font-size: 9px;
-  letter-spacing: 0.12em;
+  font: italic 600 12.5px var(--font-flavor);
   color: rgba(239, 226, 198, 0.55);
 }
 
@@ -1645,19 +1629,14 @@ input.entry-code-box:focus {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: var(--font-ui);
-  font-weight: 700;
-  font-size: 12px;
+  font: 600 14px var(--font-flavor);
   color: #f0e3c4;
 }
 
 .draft-table-status {
   margin-left: auto;
   flex: none;
-  font-family: var(--font-ui);
-  font-weight: 700;
-  font-size: 8px;
-  letter-spacing: 0.12em;
+  font: italic 600 11.5px var(--font-flavor);
   color: rgba(239, 226, 198, 0.45);
 }
 
@@ -2085,8 +2064,7 @@ input.entry-code-box:focus {
   position: absolute;
   top: 9px;
   left: 10px;
-  font: 700 8.5px var(--font-ui);
-  letter-spacing: 0.18em;
+  font: italic 600 10.5px var(--font-flavor);
   color: rgba(244, 236, 214, 0.7);
 }
 
@@ -2112,8 +2090,7 @@ input.entry-code-box:focus {
 }
 
 .rail-badge-stage {
-  font: 700 9px var(--font-ui);
-  letter-spacing: 0.1em;
+  font: italic 600 11px var(--font-flavor);
   color: var(--gs-ochre);
 }
 
@@ -2185,8 +2162,7 @@ input.entry-code-box:focus {
 }
 
 .rail-resource-label {
-  font: 700 8px var(--font-ui);
-  letter-spacing: 0.14em;
+  font: italic 600 10px var(--font-flavor);
   color: rgba(240, 227, 196, 0.55);
 }
 
@@ -2236,8 +2212,7 @@ input.entry-code-box:focus {
 }
 
 .rail-section-label {
-  font: 700 9px var(--font-ui);
-  letter-spacing: 0.16em;
+  font: italic 600 11px var(--font-flavor);
   text-transform: uppercase;
   color: rgba(240, 227, 196, 0.55);
 }
@@ -2255,7 +2230,7 @@ input.entry-code-box:focus {
 
 .rail-location {
   margin-left: auto;
-  font: 700 10px var(--font-ui);
+  font: italic 600 12px var(--font-flavor);
   color: var(--gs-ochre);
 }
 
@@ -2311,8 +2286,7 @@ input.entry-code-box:focus {
 
 .rail-action-tag {
   margin-left: auto;
-  font: 700 7.5px var(--font-ui);
-  letter-spacing: 0.12em;
+  font: italic 600 9.5px var(--font-flavor);
   flex: none;
 }
 
@@ -2369,8 +2343,7 @@ input.entry-code-box:focus {
 }
 
 .rail-hand-kicker {
-  font: 700 7.5px var(--font-ui);
-  letter-spacing: 0.16em;
+  font: italic 600 9.5px var(--font-flavor);
 }
 
 .rail-hand-tile.kind-bonus .rail-hand-kicker {
@@ -2871,8 +2844,7 @@ input.entry-code-box:focus {
 }
 
 .dossier-label {
-  font-size: 9.5px;
-  letter-spacing: 0.13em;
+  font: italic 600 13px var(--font-flavor);
   color: var(--gs-parchment-dim);
   margin-bottom: 6px;
 }
@@ -2968,8 +2940,7 @@ input.entry-code-box:focus {
 }
 
 .dossier-strength-tag {
-  font-size: 9px;
-  letter-spacing: 0.06em;
+  font: italic 600 12.5px var(--font-flavor);
   color: #9dba6c;
 }
 
@@ -3198,13 +3169,13 @@ input.entry-code-box:focus {
 }
 
 .avatar-chip-hp {
-  font-size: 9px;
+  font: italic 600 12.5px var(--font-flavor);
   color: #e08a83;
   line-height: 1;
 }
 
 .avatar-chip-stat {
-  font-size: 8.5px;
+  font: italic 600 12px var(--font-flavor);
   color: rgba(240, 227, 196, 0.6);
   line-height: 1;
 }
@@ -4090,9 +4061,8 @@ input.entry-code-box:focus {
 }
 
 .notebook-row .row-meta {
-  font-size: 9.5px;
-  color: rgba(74, 53, 39, 0.65);
-  font-weight: 700;
+  font: italic 600 13px var(--font-flavor);
+  color: #635437;
   white-space: nowrap;
 }
 
@@ -4529,8 +4499,7 @@ input.entry-code-box:focus {
 }
 
 .production-reveal-outcome {
-  font-weight: 700;
-  font-size: 12px;
+  font: 600 14px var(--font-flavor);
 }
 
 .production-reveal-outcome.is-hit {
@@ -4790,9 +4759,8 @@ input.entry-code-box:focus {
   border-radius: 3px;
   background: rgba(74, 53, 39, 0.12);
   border: 1px solid rgba(74, 53, 39, 0.25);
-  font: 700 9px var(--font-ui);
-  letter-spacing: 0.12em;
-  color: rgba(74, 53, 39, 0.7);
+  font: italic 600 12.5px var(--font-flavor);
+  color: #635437;
   white-space: nowrap;
 }
 
@@ -4948,9 +4916,8 @@ input.entry-code-box:focus {
 
 .grub-choice-label {
   grid-area: deflabel;
-  font-size: 9px;
-  letter-spacing: 0.1em;
-  color: rgba(74, 53, 39, 0.55);
+  font: italic 600 12.5px var(--font-flavor);
+  color: #6a5940;
   margin-top: 6px;
 }
 
@@ -4979,9 +4946,7 @@ input.entry-code-box:focus {
 .grub-choice-tag {
   grid-area: tag;
   margin-top: 8px;
-  font-size: 9px;
-  letter-spacing: 0.08em;
-  font-weight: 700;
+  font: italic 600 12.5px var(--font-flavor);
   color: #8a5a2a;
 }
 
@@ -5011,8 +4976,7 @@ input.entry-code-box:focus {
   flex: none;
   padding: 4px 8px;
   border-radius: 3px;
-  font: 700 8.5px var(--font-ui);
-  letter-spacing: 0.12em;
+  font: italic 600 12px var(--font-flavor);
 }
 
 .dayend-weather-callout.boon .dayend-weather-chip {
@@ -5098,7 +5062,7 @@ input.entry-code-box:focus {
 }
 
 .egg-exchange-name {
-  font: 700 13px var(--font-ui);
+  font: 600 15px var(--font-flavor);
   color: var(--gs-notebook-text);
 }
 
@@ -5161,15 +5125,14 @@ input.entry-code-box:focus {
 }
 
 .egg-exchange-yield.active {
-  font: 700 13px var(--font-ui);
+  font: italic 600 13.5px var(--font-flavor);
   color: #3f5c34;
 }
 
 .egg-exchange-tag {
   flex: none;
   margin-left: auto;
-  font: 700 8.5px var(--font-ui);
-  letter-spacing: 0.12em;
+  font: italic 600 12px var(--font-flavor);
 }
 
 .egg-exchange-tag.set {
@@ -5178,7 +5141,7 @@ input.entry-code-box:focus {
 
 .egg-exchange-tag.deciding,
 .egg-exchange-tag.nothing {
-  color: rgba(74, 53, 39, 0.5);
+  color: #6a5940;
 }
 
 .egg-exchange-tag.cannot {
@@ -5341,8 +5304,7 @@ input.entry-code-box:focus {
   align-self: flex-start;
   padding: 3px 7px;
   border-radius: 3px;
-  font: 700 8px var(--font-ui);
-  letter-spacing: 0.12em;
+  font: italic 600 11.5px var(--font-flavor);
 }
 
 .dayend-card-valence.boon {
@@ -5364,9 +5326,8 @@ input.entry-code-box:focus {
 
 .dayend-card-range {
   margin-top: auto;
-  font: 700 8.5px var(--font-ui);
-  letter-spacing: 0.12em;
-  color: rgba(74, 53, 39, 0.55);
+  font: italic 600 12px var(--font-flavor);
+  color: #6a5940;
 }
 
 .dayend-ledger-col {
@@ -5507,9 +5468,10 @@ input.entry-code-box:focus {
   }
   .gc-side {
     align-self: end;
-    font: 700 9px var(--font-ui);
-    letter-spacing: 0.12em;
-    color: rgba(74, 53, 39, 0.55);
+    font-family: var(--font-display);
+    font-size: 9.5px;
+    letter-spacing: 0.1em;
+    color: #6a5940;
   }
   .gc-name {
     align-self: start;
@@ -5867,8 +5829,7 @@ input.entry-code-box:focus {
     display: flex;
     align-items: baseline;
     gap: 7px;
-    font-size: 13px;
-    font-weight: 700;
+    font: 600 15px var(--font-flavor);
     color: #f4ecd6;
   }
   .mobile-play-strip-stage {
@@ -6081,8 +6042,7 @@ input.entry-code-box:focus {
     border-color: rgba(217, 154, 146, 0.6);
   }
   .mobile-place-row-label {
-    font-size: 12px;
-    font-weight: 700;
+    font: 600 14px var(--font-flavor);
     color: #f4ecd6;
   }
   .mobile-place-row-sub {
@@ -6206,8 +6166,7 @@ input.entry-code-box:focus {
     gap: 7px;
   }
   .mobile-sheet-name {
-    font-size: 15px;
-    font-weight: 700;
+    font: 600 17px var(--font-flavor);
     color: #f4ecd6;
   }
   .mobile-sheet-breed {
