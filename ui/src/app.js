@@ -574,13 +574,18 @@ function App() {
   // and nothing at the table waits on it, so tapping past it never writes
   // to Firestore — it just stops showing it on this device, and records
   // which reveal was dismissed so the snapshot handler above doesn't
-  // reopen the same one from a later, unrelated write. Recomputes whether
-  // a day-end prompt is needed from the current state rather than trusting
-  // a value stashed at submit time, since dismissal can happen well after.
+  // reopen the same one from a later, unrelated write. Always clears
+  // dayEndPending rather than recomputing it: isLastPlayerOfDay checks the
+  // current actor's slot in turn order, not whether a turn has actually
+  // been taken, so in a solo game (turnOrder.length === 1) it was always
+  // true and reopened the day-end dossier before the player could act. If
+  // a real new day-end has already happened elsewhere while this reveal
+  // was up, the next Firestore snapshot (line ~415) reopens it correctly
+  // from doc.dayEndPending.
   function handleDismissDayEndReveal() {
     dismissedRevealKeyRef.current = dayEndReveal ? `${dayEndReveal.day}|${dayEndReveal.season}` : null;
     setDayEndReveal(null);
-    setDayEndPending(isLastPlayerOfDay(gameState));
+    setDayEndPending(false);
   }
 
   // Optimistic-local + fire-and-forget sync, same pattern as everywhere
