@@ -3342,8 +3342,8 @@ input.entry-code-box:focus {
 
 .day-cell {
   position: absolute;
-  width: 2cqw;
-  height: 1.85cqw;
+  width: 3.5cqw;
+  height: 3.2cqw;
   border-radius: 3px;
   border: 1px solid rgba(74, 50, 26, 0.45);
   background: rgba(255, 248, 232, 0.16);
@@ -3360,13 +3360,13 @@ input.entry-code-box:focus {
 
 .day-num {
   font-family: var(--font-display);
-  font-size: 0.6cqw;
+  font-size: 1cqw;
   color: rgba(240, 227, 196, 0.45);
 }
 
 .day-token {
-  width: 1.5cqw;
-  height: 1.5cqw;
+  width: 2.6cqw;
+  height: 2.6cqw;
   border-radius: 50%;
   background: var(--gs-ochre);
   border: 1.5px solid #f4ecd6;
@@ -3375,7 +3375,7 @@ input.entry-code-box:focus {
   align-items: center;
   justify-content: center;
   font-family: var(--font-display);
-  font-size: 0.65cqw;
+  font-size: 1.1cqw;
   color: #2b241c;
 }
 
