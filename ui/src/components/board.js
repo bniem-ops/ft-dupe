@@ -5,7 +5,10 @@ import { chickenImagePath } from '../chickenArt.js';
 import { predatorImagePath } from '../predatorArt.js';
 import { grubImagePath } from '../grubArt.js';
 
-export const PLAYER_COLORS = ['#c0392b', '#2980b9', '#27ae60', '#8e44ad', '#e67e22', '#16a085'];
+// Muted painted steps (docs/design-handoff: painterly, 5c) — off the old
+// saturated web hues, extended from the handoff's 4 to the full 6-player
+// roster with two more tones in the same desaturated-jewel-tone family.
+export const PLAYER_COLORS = ['#a8332a', '#2a6b91', '#3f7a48', '#6a4a6e', '#b8823f', '#4a7a6e'];
 
 // Percentage anchors on the board art (native ~1155x912, same layout across
 // all three difficulty-tier scans below). Pulled directly from the design
@@ -26,17 +29,22 @@ export const PLAYER_COLORS = ['#c0392b', '#2980b9', '#27ae60', '#8e44ad', '#e67e
 // oversized render of this same board without duplicating the ratio.
 export const BOARD_ASPECT_RATIO = 1155 / 912;
 
+// Oval heights bumped +1 across all five (docs/design-handoff: painterly,
+// 5c: "9.5%, up from 8.5%") — the new painted peg tokens are taller than
+// the old 26-30px circles they replace, so every oval that can hold one
+// needs the extra room, not just whichever happens to be occupied right
+// now (a peg can land anywhere on a Move).
 export const BOARD_ANCHORS = {
   bonusDeck: { x: 5, y: 10 },
   bonusDiscard: { x: 15.65, y: 10 },
   grubDiscard: { x: 95.2, y: 9.9 },
-  goldenGables: { x: 22, y: 47, w: 15.5, h: 8.5 },
-  badlands: { x: 65, y: 31, w: 15.5, h: 8.5 },
+  goldenGables: { x: 22, y: 47, w: 15.5, h: 9.5 },
+  badlands: { x: 65, y: 31, w: 15.5, h: 9.5 },
   grubsOutside: { x: 85.8, y: 42 },
   grubsInside: { x: 63.3, y: 50.2 },
-  coop: { x: 59.7, y: 66.5, w: 17.5, h: 8 },
-  hendredAcreWood: { x: 11, y: 87, w: 15.5, h: 8.5 },
-  gritStones: { x: 88, y: 84, w: 15.5, h: 8.5 },
+  coop: { x: 59.7, y: 66.5, w: 17.5, h: 9 },
+  hendredAcreWood: { x: 11, y: 87, w: 15.5, h: 9.5 },
+  gritStones: { x: 88, y: 84, w: 15.5, h: 9.5 },
   weatherTrack: { x: 27.2, y: 89.9 },
 };
 
@@ -165,6 +173,12 @@ function activeWeatherCard(state) {
   return cards[active.cardIndex] ?? null;
 }
 
+// Painted peg card (docs/design-handoff: painterly, 5c) — replaces the old
+// 26-30px circular .token, too small to read at desktop. A .paper backdrop
+// (::before, styles.css) behind a portrait circle with its own .grain
+// overlay, and the name on a painted strip (::before again) in the
+// player's color. Falls back to initials, same onError pattern as every
+// other art slot in this codebase, if the chicken's art file 404s.
 function PlayerTokens({ state, location, playerNames }) {
   const here = state.players.filter((p) => p.alive && p.location === location);
   return html`
@@ -173,9 +187,12 @@ function PlayerTokens({ state, location, playerNames }) {
         const name = playerNames?.[p.id] ?? p.id;
         const art = chickenImagePath(p.chickenName, p.stage);
         return html`
-          <span class="token" key=${p.id} title=${name} style=${{ background: playerColor(state, p.id) }}>
-            ${name.slice(0, 2)}
-            ${art && html`<img class="token-img" src=${art} alt=${name} onError=${(e) => { e.currentTarget.style.display = 'none'; }} />`}
+          <span class="peg" key=${p.id} title=${name}>
+            <span class="peg-portrait">
+              <span class="monogram">${name.slice(0, 2)}</span>
+              ${art && html`<img class="peg-portrait-img" src=${art} alt=${name} onError=${(e) => { e.currentTarget.style.display = 'none'; }} />`}
+            </span>
+            <span class="peg-name" style=${{ background: playerColor(state, p.id) }}>${name}</span>
           </span>
         `;
       })}

@@ -25,6 +25,28 @@
   </script>
 </head>
 <body>
+  <!-- Painterly chrome filters (docs/design-handoff: painterly) — inert,
+       0x0, referenced by url(#id) from styles.css. A displacement filter
+       must never sit on an element that contains text; it goes on a
+       backdrop layer (.paper/.brushfill) with text on an unfiltered layer
+       above it. -->
+  <svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden"><defs>
+    <filter id="deckle" x="-12%" y="-12%" width="124%" height="124%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.02 0.05" numOctaves="4" seed="7" result="t"/>
+      <feDisplacementMap in="SourceGraphic" in2="t" scale="7" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <filter id="deckle2" x="-12%" y="-12%" width="124%" height="124%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.035 0.06" numOctaves="3" seed="21" result="t"/>
+      <feDisplacementMap in="SourceGraphic" in2="t" scale="10" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <filter id="grain">
+      <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="4" seed="3"/>
+      <feColorMatrix type="saturate" values="0"/>
+    </filter>
+    <filter id="wash" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="9"/>
+    </filter>
+  </defs></svg>
   <div id="app"></div>
   <script src="../data/firebase-config.js"></script>
   <script type="module" src="src/app.js"></script>
