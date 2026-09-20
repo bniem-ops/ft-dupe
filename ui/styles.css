@@ -3561,9 +3561,17 @@ input.entry-code-box:focus {
   object-fit: cover;
 }
 
+/* On the board itself, the art fills the whole tile edge-to-edge instead
+   of sitting as a small badge over the kind color — the tile already has
+   the full remaining card height via .card-plate-art's flex:1 below, it
+   was just mostly empty background before. .card-plate's own
+   overflow:hidden clips this to the card's rounded corners. */
 .board-slot .card-plate-portrait-img {
-  width: 3.893cqw;
-  height: 3.893cqw;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  border: 0;
 }
 
 .card-plate-body {
@@ -3574,9 +3582,10 @@ input.entry-code-box:focus {
    a tight anchor grid calibrated to the real board scan's printed slots —
    noticeably more compact than a full detail card. */
 .board-slot .card-plate-art {
-  padding: 0.229cqw 0;
+  padding: 0;
   flex: 1;
   min-height: 0;
+  overflow: hidden;
 }
 
 .board-slot .monogram {
@@ -3686,15 +3695,22 @@ input.entry-code-box:focus {
   background: #3a4468;
   color: #d5dcf0;
 }
+/* Bonus cards have no real art (README: "Grubs/bonus/weather never get
+   real art") — a diagonal card-back hatch reads as a face-down deck
+   instead of a flat color swatch with a number floating in it. */
 .card-plate.kind-bonus .card-plate-art {
-  background: radial-gradient(circle at 50% 40%, #3a4468, #242b45);
+  background-color: #242b45;
+  background-image: repeating-linear-gradient(135deg, rgba(154, 166, 204, 0.16) 0 2px, transparent 2px 7px);
 }
 .card-plate.kind-bonus .monogram {
   color: #d5dcf0;
-  border-radius: 3px;
-  width: 3.484cqw;
-  height: 3.484cqw;
-  font-size: 1.434cqw;
+  background: #2b3350;
+  border: 1.5px solid rgba(213, 220, 240, 0.55);
+  border-radius: 50%;
+  width: 4.5cqw;
+  height: 4.5cqw;
+  font-size: 1.8cqw;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
 }
 .card-plate.kind-bonus .card-plate-body .ref-text {
   color: rgba(213, 220, 240, 0.65);
